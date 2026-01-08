@@ -1,0 +1,126 @@
+{
+  "common": {
+    "appName": "Amilou",
+    "loading": "Chargement...",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "add": "Ajouter",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "export": "Exporter",
+    "yes": "Oui",
+    "no": "Non",
+    "submit": "Soumettre",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent"
+  },
+  "auth": {
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "register": "Inscription",
+    "email": "Email",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "loginWithGoogle": "Se connecter avec Google",
+    "noAccount": "Pas encore de compte ?",
+    "hasAccount": "Déjà un compte ?",
+    "invalidCredentials": "Email ou mot de passe incorrect"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "progress": "Avancement",
+    "attendance": "Assiduité",
+    "groups": "Groupes",
+    "evaluations": "Évaluations",
+    "sessions": "Séances",
+    "settings": "Paramètres",
+    "admin": "Administration"
+  },
+  "programs": {
+    "memorization": "Mémorisation",
+    "consolidation": "Consolidation",
+    "revision": "Révision",
+    "reading": "Lecture",
+    "tafsir": "Lecture Tafsir"
+  },
+  "progress": {
+    "title": "Suivi d'avancement",
+    "date": "Date",
+    "surah": "Sourate",
+    "verseStart": "Verset début",
+    "verseEnd": "Verset fin",
+    "verses": "Versets",
+    "pages": "Pages",
+    "repetitions": "Répétitions",
+    "comment": "Commentaire",
+    "addEntry": "Ajouter une entrée",
+    "noEntries": "Aucune entrée"
+  },
+  "attendance": {
+    "title": "Assiduité quotidienne",
+    "daily": "Quotidienne",
+    "weekly": "Hebdomadaire",
+    "monthly": "Mensuelle",
+    "yearly": "Annuelle",
+    "rate": "Taux d'assiduité",
+    "days": {
+      "sunday": "Dimanche",
+      "monday": "Lundi",
+      "tuesday": "Mardi",
+      "wednesday": "Mercredi",
+      "thursday": "Jeudi",
+      "friday": "Vendredi",
+      "saturday": "Samedi"
+    }
+  },
+  "objectives": {
+    "title": "Objectifs",
+    "dailyTarget": "Objectif quotidien",
+    "targetPeriod": "Période cible",
+    "totalTarget": "Objectif total",
+    "months3": "3 mois",
+    "months6": "6 mois",
+    "year1": "1 an",
+    "versesPerDay": "versets/jour",
+    "calculateDaily": "Calculer l'objectif quotidien",
+    "calculateTotal": "Calculer l'objectif total"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "overview": "Vue d'ensemble",
+    "myProgress": "Mon avancement",
+    "groupProgress": "Avancement du groupe",
+    "stats": {
+      "totalVerses": "Total versets",
+      "totalPages": "Total pages",
+      "totalSurahs": "Total sourates",
+      "attendanceRate": "Taux d'assiduité"
+    }
+  },
+  "evaluations": {
+    "title": "Évaluations",
+    "verse": "Verset",
+    "comment": "Remarque",
+    "rating": "Note",
+    "addEvaluation": "Ajouter une évaluation"
+  },
+  "sessions": {
+    "title": "Séances de groupe",
+    "attendance": "Présence",
+    "present": "Présent",
+    "absent": "Absent",
+    "excused": "Excusé",
+    "notes": "Notes"
+  },
+  "roles": {
+    "admin": "Administrateur",
+    "manager": "Gestionnaire",
+    "referent": "Référent",
+    "representative": "Représentant",
+    "user": "Utilisateur"
+  }
+}

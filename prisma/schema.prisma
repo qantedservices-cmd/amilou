@@ -1,0 +1,283 @@
+// Prisma Schema for Amilou - Quran Learning Tracker
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ============================================
+// Authentication & Users
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String?
+  image         String?
+  emailVerified DateTime?
+  role          String    @default("USER")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  groupMembers     GroupMember[]
+  progressEntries  Progress[]
+  dailyAttendance  DailyAttendance[]
+  evaluationsGiven Evaluation[]      @relation("EvaluatorRelation")
+  evaluationsReceived Evaluation[]   @relation("EvaluatedRelation")
+  representedUsers UserRepresentative[] @relation("RepresentativeRelation")
+  representatives  UserRepresentative[] @relation("RepresentedRelation")
+  sessionAttendance SessionAttendance[]
+  objectives       UserObjective[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model UserRepresentative {
+  id               String @id @default(cuid())
+  representativeId String
+  representedId    String
+  createdAt        DateTime @default(now())
+
+  representative User @relation("RepresentativeRelation", fields: [representativeId], references: [id], onDelete: Cascade)
+  represented    User @relation("RepresentedRelation", fields: [representedId], references: [id], onDelete: Cascade)
+
+  @@unique([representativeId, representedId])
+}
+
+// ============================================
+// Groups
+// ============================================
+
+model Group {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  sessionFrequency String @default("WEEKLY")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     GroupMember[]
+  sessions    GroupSession[]
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  role      String   @default("MEMBER")
+  joinedAt  DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+}
+
+// ============================================
+// Programs & Objectives
+// ============================================
+
+model Program {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  nameAr      String
+  nameFr      String
+  nameEn      String
+  description String?
+  createdAt   DateTime @default(now())
+
+  progressEntries Progress[]
+  objectives      UserObjective[]
+}
+
+model UserObjective {
+  id            String   @id @default(cuid())
+  userId        String
+  programId     String
+  dailyTarget   Int
+  targetMonths  Int?
+  totalTarget   Int?
+  startDate     DateTime @default(now())
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// Progress Tracking
+// ============================================
+
+model Progress {
+  id          String   @id @default(cuid())
+  userId      String
+  programId   String
+  date        DateTime
+  surahNumber Int
+  verseStart  Int
+  verseEnd    Int
+  repetitions Int?
+  comment     String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  surah   Surah   @relation(fields: [surahNumber], references: [number])
+
+  evaluations Evaluation[]
+
+  @@index([userId, programId, date])
+}
+
+// ============================================
+// Daily Attendance
+// ============================================
+
+model DailyAttendance {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  sunday    Boolean  @default(false)
+  monday    Boolean  @default(false)
+  tuesday   Boolean  @default(false)
+  wednesday Boolean  @default(false)
+  thursday  Boolean  @default(false)
+  friday    Boolean  @default(false)
+  saturday  Boolean  @default(false)
+  comment   String?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// ============================================
+// Evaluations
+// ============================================
+
+model Evaluation {
+  id          String   @id @default(cuid())
+  progressId  String
+  evaluatorId String
+  evaluatedId String
+  surahNumber Int
+  verseNumber Int
+  comment     String
+  rating      Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  progress  Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  evaluator User     @relation("EvaluatorRelation", fields: [evaluatorId], references: [id], onDelete: Cascade)
+  evaluated User     @relation("EvaluatedRelation", fields: [evaluatedId], references: [id], onDelete: Cascade)
+  surah     Surah    @relation(fields: [surahNumber], references: [number])
+}
+
+// ============================================
+// Group Sessions & Attendance
+// ============================================
+
+model GroupSession {
+  id          String   @id @default(cuid())
+  groupId     String
+  date        DateTime
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  group      Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  attendance SessionAttendance[]
+}
+
+model SessionAttendance {
+  id        String  @id @default(cuid())
+  sessionId String
+  userId    String
+  present   Boolean @default(false)
+  excused   Boolean @default(false)
+  note      String?
+
+  session GroupSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+}
+
+// ============================================
+// Quran Reference Data
+// ============================================
+
+model Surah {
+  number         Int      @id
+  nameAr         String
+  nameFr         String
+  nameEn         String
+  totalVerses    Int
+  revelationOrder Int
+  revelationType String
+
+  verses      Verse[]
+  progress    Progress[]
+  evaluations Evaluation[]
+}
+
+model Verse {
+  id          String @id @default(cuid())
+  surahNumber Int
+  verseNumber Int
+  page        Int
+  juz         Int
+  hizb        Float
+
+  surah Surah @relation(fields: [surahNumber], references: [number])
+
+  @@unique([surahNumber, verseNumber])
+  @@index([page])
+}

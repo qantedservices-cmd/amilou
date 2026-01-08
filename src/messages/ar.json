@@ -1,0 +1,126 @@
+{
+  "common": {
+    "appName": "أميلو",
+    "loading": "جاري التحميل...",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "add": "إضافة",
+    "search": "بحث",
+    "filter": "تصفية",
+    "export": "تصدير",
+    "yes": "نعم",
+    "no": "لا",
+    "submit": "إرسال",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "register": "إنشاء حساب",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "loginWithGoogle": "تسجيل الدخول بحساب Google",
+    "noAccount": "ليس لديك حساب؟",
+    "hasAccount": "لديك حساب بالفعل؟",
+    "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "progress": "التقدم",
+    "attendance": "المواظبة",
+    "groups": "المجموعات",
+    "evaluations": "التقييمات",
+    "sessions": "الجلسات",
+    "settings": "الإعدادات",
+    "admin": "الإدارة"
+  },
+  "programs": {
+    "memorization": "الحفظ",
+    "consolidation": "التثبيت",
+    "revision": "المراجعة",
+    "reading": "القراءة",
+    "tafsir": "قراءة التفسير"
+  },
+  "progress": {
+    "title": "متابعة التقدم",
+    "date": "التاريخ",
+    "surah": "السورة",
+    "verseStart": "الآية البداية",
+    "verseEnd": "الآية النهاية",
+    "verses": "الآيات",
+    "pages": "الصفحات",
+    "repetitions": "التكرارات",
+    "comment": "تعليق",
+    "addEntry": "إضافة إدخال",
+    "noEntries": "لا توجد إدخالات"
+  },
+  "attendance": {
+    "title": "المواظبة اليومية",
+    "daily": "يومية",
+    "weekly": "أسبوعية",
+    "monthly": "شهرية",
+    "yearly": "سنوية",
+    "rate": "نسبة المواظبة",
+    "days": {
+      "sunday": "الأحد",
+      "monday": "الإثنين",
+      "tuesday": "الثلاثاء",
+      "wednesday": "الأربعاء",
+      "thursday": "الخميس",
+      "friday": "الجمعة",
+      "saturday": "السبت"
+    }
+  },
+  "objectives": {
+    "title": "الأهداف",
+    "dailyTarget": "الهدف اليومي",
+    "targetPeriod": "الفترة المستهدفة",
+    "totalTarget": "الهدف الكلي",
+    "months3": "3 أشهر",
+    "months6": "6 أشهر",
+    "year1": "سنة واحدة",
+    "versesPerDay": "آية/يوم",
+    "calculateDaily": "حساب الهدف اليومي",
+    "calculateTotal": "حساب الهدف الكلي"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "overview": "نظرة عامة",
+    "myProgress": "تقدمي",
+    "groupProgress": "تقدم المجموعة",
+    "stats": {
+      "totalVerses": "إجمالي الآيات",
+      "totalPages": "إجمالي الصفحات",
+      "totalSurahs": "إجمالي السور",
+      "attendanceRate": "نسبة المواظبة"
+    }
+  },
+  "evaluations": {
+    "title": "التقييمات",
+    "verse": "الآية",
+    "comment": "ملاحظة",
+    "rating": "التقييم",
+    "addEvaluation": "إضافة تقييم"
+  },
+  "sessions": {
+    "title": "جلسات المجموعة",
+    "attendance": "الحضور",
+    "present": "حاضر",
+    "absent": "غائب",
+    "excused": "معذور",
+    "notes": "ملاحظات"
+  },
+  "roles": {
+    "admin": "مدير",
+    "manager": "مشرف",
+    "referent": "مرجع",
+    "representative": "ممثل",
+    "user": "مستخدم"
+  }
+}
