@@ -21,15 +21,15 @@ Application de suivi des cours de Coran avec gestion des groupes, progression et
 
 ---
 
-## Phase 2: Dashboard & Navigation
+## Phase 2: Dashboard & Navigation ✅
 
 | Tâche | Statut |
 |-------|--------|
-| Layout avec sidebar/navbar | ⬜ |
-| Page dashboard | ⬜ |
-| Protection des routes (middleware auth) | ⬜ |
-| Sélecteur de langue | ⬜ |
-| Menu utilisateur (profil, déconnexion) | ⬜ |
+| Layout avec sidebar/navbar | ✅ |
+| Page dashboard | ✅ |
+| Protection des routes (server auth) | ✅ |
+| Sélecteur de langue | ✅ |
+| Menu utilisateur (profil, déconnexion) | ✅ |
 
 ---
 
@@ -107,7 +107,7 @@ Application de suivi des cours de Coran avec gestion des groupes, progression et
 
 ```
 Phase 1: ████████████████████ 100%  ✅ Fondations
-Phase 2: ░░░░░░░░░░░░░░░░░░░░   0%  Dashboard & Navigation
+Phase 2: ████████████████████ 100%  ✅ Dashboard & Navigation
 Phase 3: ░░░░░░░░░░░░░░░░░░░░   0%  Programmes
 Phase 4: ░░░░░░░░░░░░░░░░░░░░   0%  Avancement
 Phase 5: ░░░░░░░░░░░░░░░░░░░░   0%  Assiduité
@@ -115,7 +115,7 @@ Phase 6: ░░░░░░░░░░░░░░░░░░░░   0%  Grou
 Phase 7: ░░░░░░░░░░░░░░░░░░░░   0%  Évaluations
 Phase 8: ░░░░░░░░░░░░░░░░░░░░   0%  Administration
 ─────────────────────────────────────────────────
-TOTAL:   ██░░░░░░░░░░░░░░░░░░  12%
+TOTAL:   █████░░░░░░░░░░░░░░░  25%
 ```
 
 ---
