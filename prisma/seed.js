@@ -1,15 +1,7 @@
 require('dotenv').config()
 const { PrismaClient } = require('@prisma/client')
-const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3')
-const Database = require('better-sqlite3')
-const path = require('path')
 
-// Get database path from DATABASE_URL (file:./dev.db)
-const dbPath = path.resolve(__dirname, 'dev.db')
-const database = new Database(dbPath)
-const adapter = new PrismaBetterSqlite3(database)
-
-const prisma = new PrismaClient({ adapter })
+const prisma = new PrismaClient()
 
 const surahsData = [
   { number: 1, nameAr: "الفاتحة", nameFr: "L'Ouverture", nameEn: "The Opening", totalVerses: 7, revelationOrder: 5, revelationType: "Meccan" },
