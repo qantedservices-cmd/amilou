@@ -13,10 +13,12 @@ import {
   Calendar,
   Settings,
   Shield,
+  Target,
 } from 'lucide-react'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
+  { href: '/objectives', icon: Target, labelKey: 'nav.objectives' },
   { href: '/progress', icon: TrendingUp, labelKey: 'nav.progress' },
   { href: '/attendance', icon: CalendarCheck, labelKey: 'nav.attendance' },
   { href: '/groups', icon: Users, labelKey: 'nav.groups' },

@@ -32,6 +32,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "objectives": "Objectives",
     "progress": "Progress",
     "attendance": "Attendance",
     "groups": "Groups",

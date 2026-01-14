@@ -32,6 +32,7 @@
   },
   "nav": {
     "dashboard": "Tableau de bord",
+    "objectives": "Objectifs",
     "progress": "Avancement",
     "attendance": "Assiduité",
     "groups": "Groupes",
