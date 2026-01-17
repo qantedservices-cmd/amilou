@@ -11,10 +11,31 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const programId = searchParams.get('programId')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const userId = searchParams.get('userId')
+    const limit = parseInt(searchParams.get('limit') || '100')
 
-    const where: Record<string, unknown> = { userId: session.user.id }
-    if (programId) {
+    // Get current user to check if admin
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true }
+    })
+
+    const isAdmin = currentUser?.role === 'ADMIN'
+
+    // Build where clause
+    const where: Record<string, unknown> = {}
+
+    if (isAdmin) {
+      // Admin can see all or filter by user
+      if (userId && userId !== 'all') {
+        where.userId = userId
+      }
+    } else {
+      // Regular users only see their own data
+      where.userId = session.user.id
+    }
+
+    if (programId && programId !== 'all') {
       where.programId = programId
     }
 
@@ -23,6 +44,13 @@ export async function GET(request: Request) {
       include: {
         program: true,
         surah: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          }
+        }
       },
       orderBy: { date: 'desc' },
       take: limit,
@@ -32,7 +60,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Error fetching progress:', error)
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération de l\'avancement' },
+      { error: "Erreur lors de la récupération de l'avancement" },
       { status: 500 }
     )
   }
@@ -45,7 +73,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const { programId, date, surahNumber, verseStart, verseEnd, repetitions, comment } = await request.json()
+    const { programId, date, surahNumber, verseStart, verseEnd, repetitions, comment, userId } = await request.json()
 
     if (!programId || !surahNumber || !verseStart || !verseEnd) {
       return NextResponse.json(
@@ -53,6 +81,15 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    // Check if admin and userId provided
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true }
+    })
+
+    const isAdmin = currentUser?.role === 'ADMIN'
+    const targetUserId = (isAdmin && userId) ? userId : session.user.id
 
     // Verify surah exists and verse range is valid
     const surah = await prisma.surah.findUnique({
@@ -72,7 +109,7 @@ export async function POST(request: Request) {
 
     const progress = await prisma.progress.create({
       data: {
-        userId: session.user.id,
+        userId: targetUserId,
         programId,
         date: date ? new Date(date) : new Date(),
         surahNumber,
@@ -85,6 +122,13 @@ export async function POST(request: Request) {
       include: {
         program: true,
         surah: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          }
+        }
       },
     })
 
@@ -92,7 +136,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error creating progress:', error)
     return NextResponse.json(
-      { error: 'Erreur lors de l\'enregistrement de l\'avancement' },
+      { error: "Erreur lors de l'enregistrement de l'avancement" },
       { status: 500 }
     )
   }
