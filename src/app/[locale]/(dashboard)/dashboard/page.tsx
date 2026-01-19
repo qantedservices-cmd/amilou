@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Calendar, Users, TrendingUp, Target } from 'lucide-react'
+import { BookOpen, Calendar, Users, TrendingUp, Target, CheckCircle, Circle, AlertCircle } from 'lucide-react'
 
 interface Program {
   id: string
@@ -33,6 +33,21 @@ interface Objective {
   program: Program
 }
 
+interface ObjectiveVsRealized {
+  programId: string
+  programCode: string
+  programName: string
+  objective: {
+    quantity: number
+    unit: string
+    period: string
+  } | null
+  realized: {
+    quantity: number
+    unit: string
+  } | null
+}
+
 interface Stats {
   totalVerses: number
   totalPages: number
@@ -42,6 +57,7 @@ interface Stats {
   recentProgress: ProgressEntry[]
   objectives: Objective[]
   weeklyByProgram: Record<string, number>
+  objectivesVsRealized: ObjectiveVsRealized[]
 }
 
 export default function DashboardPage() {
@@ -75,6 +91,40 @@ export default function DashboardPage() {
       TAFSIR: 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-100',
     }
     return colors[code] || 'bg-gray-100 text-gray-800'
+  }
+
+  const UNITS: Record<string, string> = {
+    PAGE: 'Page(s)',
+    QUART: 'Quart(s)',
+    DEMI_HIZB: 'Demi-hizb',
+    HIZB: 'Hizb',
+    JUZ: 'Juz',
+  }
+
+  const PERIODS: Record<string, string> = {
+    DAY: '/jour',
+    WEEK: '/semaine',
+    MONTH: '/mois',
+    YEAR: '/an',
+  }
+
+  function formatQuantityUnit(quantity: number, unit: string) {
+    return `${quantity} ${UNITS[unit] || unit}`
+  }
+
+  function formatObjective(obj: ObjectiveVsRealized['objective']) {
+    if (!obj) return 'Non défini'
+    return `${obj.quantity} ${UNITS[obj.unit] || obj.unit}${PERIODS[obj.period] || ''}`
+  }
+
+  function getCompletionStatus(item: ObjectiveVsRealized) {
+    if (!item.objective) return 'none'
+    if (!item.realized) return 'pending'
+    // Compare in same unit (simplified comparison)
+    if (item.realized.quantity >= item.objective.quantity && item.realized.unit === item.objective.unit) {
+      return 'complete'
+    }
+    return 'partial'
   }
 
   const statCards = [
@@ -147,6 +197,75 @@ export default function DashboardPage() {
           )
         })}
       </div>
+
+      {/* Objectifs vs Réalisé - Today */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-emerald-600" />
+            Objectifs vs Réalisé - Aujourd'hui
+          </CardTitle>
+          <CardDescription>
+            Votre progression quotidienne par programme
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {stats?.objectivesVsRealized && stats.objectivesVsRealized.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {stats.objectivesVsRealized.map((item) => {
+                const status = getCompletionStatus(item)
+                return (
+                  <div
+                    key={item.programId}
+                    className={`rounded-lg border p-3 ${
+                      status === 'complete'
+                        ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800'
+                        : status === 'partial'
+                        ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800'
+                        : ''
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge className={getProgramColor(item.programCode)}>
+                        {item.programName}
+                      </Badge>
+                      {status === 'complete' && (
+                        <CheckCircle className="h-4 w-4 text-emerald-600" />
+                      )}
+                      {status === 'partial' && (
+                        <AlertCircle className="h-4 w-4 text-amber-600" />
+                      )}
+                      {status === 'pending' && (
+                        <Circle className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Objectif:</span>
+                        <span className="font-medium">
+                          {formatObjective(item.objective)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Réalisé:</span>
+                        <span className={`font-medium ${item.realized ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                          {item.realized
+                            ? formatQuantityUnit(item.realized.quantity, item.realized.unit)
+                            : '-'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="flex h-[100px] items-center justify-center text-muted-foreground">
+              Configurez vos objectifs dans les paramètres
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Weekly Progress */}

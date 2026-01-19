@@ -75,10 +75,59 @@ export async function GET() {
       take: 5,
     })
 
-    // Get active objectives
+    // Get active objectives (old system)
     const objectives = await prisma.userObjective.findMany({
       where: { userId, isActive: true },
       include: { program: true },
+    })
+
+    // Get program settings (new assiduity system)
+    const programSettings = await prisma.userProgramSettings.findMany({
+      where: { userId, isActive: true },
+      include: { program: true },
+    })
+
+    // Get daily logs for today
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
+    const todayLogs = await prisma.dailyLog.findMany({
+      where: {
+        userId,
+        date: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+      include: { program: true },
+    })
+
+    // Get all programs for objectives vs realized
+    const allPrograms = await prisma.program.findMany({
+      orderBy: { code: 'asc' },
+    })
+
+    // Build objectives vs realized data
+    const objectivesVsRealized = allPrograms.map(program => {
+      const setting = programSettings.find(s => s.programId === program.id)
+      const todayLog = todayLogs.find(l => l.programId === program.id)
+
+      return {
+        programId: program.id,
+        programCode: program.code,
+        programName: program.nameFr,
+        objective: setting ? {
+          quantity: setting.quantity,
+          unit: setting.unit,
+          period: setting.period,
+        } : null,
+        realized: todayLog ? {
+          quantity: todayLog.quantity,
+          unit: todayLog.unit,
+        } : null,
+      }
     })
 
     // Calculate progress per program for this week
@@ -110,6 +159,7 @@ export async function GET() {
       recentProgress,
       objectives,
       weeklyByProgram,
+      objectivesVsRealized,
     })
   } catch (error) {
     console.error('Error fetching stats:', error)
