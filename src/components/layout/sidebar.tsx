@@ -1,8 +1,10 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Link } from '@/i18n/routing'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { useSession } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -34,6 +36,25 @@ const bottomItems = [
 export function Sidebar() {
   const pathname = usePathname()
   const t = useTranslations()
+  const { data: session } = useSession()
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchUserRole() {
+      if (session?.user?.id) {
+        try {
+          const res = await fetch('/api/me')
+          if (res.ok) {
+            const data = await res.json()
+            setUserRole(data.role)
+          }
+        } catch (error) {
+          console.error('Error fetching user role:', error)
+        }
+      }
+    }
+    fetchUserRole()
+  }, [session?.user?.id])
 
   const isActive = (href: string) => {
     const pathWithoutLocale = pathname.replace(/^\/(fr|ar|en)/, '')
@@ -72,25 +93,27 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t p-4 space-y-1">
-        {bottomItems.map((item) => {
-          const Icon = item.icon
-          const active = isActive(item.href)
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                active
-                  ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-50'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              )}
-            >
-              <Icon className="h-5 w-5" />
-              {t(item.labelKey)}
-            </Link>
-          )
-        })}
+        {bottomItems
+          .filter((item) => !item.adminOnly || userRole === 'ADMIN')
+          .map((item) => {
+            const Icon = item.icon
+            const active = isActive(item.href)
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-50'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                <Icon className="h-5 w-5" />
+                {t(item.labelKey)}
+              </Link>
+            )
+          })}
       </div>
     </aside>
   )

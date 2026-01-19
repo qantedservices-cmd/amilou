@@ -123,5 +123,26 @@
     "referent": "Référent",
     "representative": "Représentant",
     "user": "Utilisateur"
+  },
+  "admin": {
+    "title": "Administration",
+    "users": "Utilisateurs",
+    "totalUsers": "Total utilisateurs",
+    "totalProgress": "Total progressions",
+    "userManagement": "Gestion des utilisateurs",
+    "progressManagement": "Gestion des progressions",
+    "selectUser": "Sélectionner un utilisateur",
+    "allUsers": "Tous les utilisateurs",
+    "noUsers": "Aucun utilisateur",
+    "role": "Rôle",
+    "entries": "entrées",
+    "addProgressFor": "Ajouter progression pour",
+    "viewProgress": "Voir les progressions",
+    "changeRole": "Changer le rôle",
+    "deleteUser": "Supprimer l'utilisateur",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
+    "userDeleted": "Utilisateur supprimé",
+    "roleUpdated": "Rôle mis à jour",
+    "accessDenied": "Accès réservé aux administrateurs"
   }
 }
