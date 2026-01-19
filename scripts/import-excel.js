@@ -10,7 +10,14 @@ async function importData() {
   const sheet = workbook.Sheets['Form Responses'];
   const data = XLSX.utils.sheet_to_json(sheet);
 
-  console.log(`📊 ${data.length} lignes à importer`);
+  console.log(`📊 ${data.length} lignes totales`);
+
+  // Séparer par type
+  const memorisationRows = data.filter(r => r['Type de suivi'] === 'Avancement Mémorisation');
+  const assiduitéRows = data.filter(r => r['Type de suivi'] === 'Assiduité au quotidien');
+
+  console.log(`  - Mémorisation: ${memorisationRows.length} entrées`);
+  console.log(`  - Assiduité: ${assiduitéRows.length} entrées`);
 
   // Récupérer le programme "Mémorisation"
   const memorizationProgram = await prisma.program.findFirst({
@@ -18,14 +25,15 @@ async function importData() {
   });
 
   if (!memorizationProgram) {
-    console.error('❌ Programme "memorization" non trouvé');
+    console.error('❌ Programme "MEMORIZATION" non trouvé. Lancez d\'abord le seed.');
     process.exit(1);
   }
   console.log(`✅ Programme trouvé: ${memorizationProgram.nameFr}`);
 
-  // Extraire les utilisateurs uniques
-  const uniqueUsers = [...new Set(data.map(row => row['Qui']).filter(Boolean))];
-  console.log(`👥 ${uniqueUsers.length} utilisateurs uniques:`, uniqueUsers);
+  // Extraire les utilisateurs uniques des deux types
+  const allUsers = [...memorisationRows, ...assiduitéRows].map(row => row['Qui']).filter(Boolean);
+  const uniqueUsers = [...new Set(allUsers)];
+  console.log(`\n👥 ${uniqueUsers.length} utilisateurs uniques:`, uniqueUsers);
 
   // Récupérer l'admin pour createdBy
   const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
@@ -38,7 +46,6 @@ async function importData() {
   for (const userName of uniqueUsers) {
     if (!userName) continue;
 
-    // Nettoyer le nom
     const cleanName = userName.trim();
     const email = cleanName.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '') + '@amilou.local';
 
@@ -68,36 +75,36 @@ async function importData() {
     userMap[userName] = user.id;
   }
 
-  // Importer les entrées de progression
-  console.log('\n📝 Import des progressions...');
-  let imported = 0;
-  let skipped = 0;
-  let errors = 0;
+  // ========================================
+  // IMPORT MÉMORISATION
+  // ========================================
+  console.log('\n📝 Import des progressions (Mémorisation)...');
+  let importedProgress = 0;
+  let skippedProgress = 0;
+  let errorsProgress = 0;
 
-  for (const row of data) {
+  for (const row of memorisationRows) {
     try {
       const userName = row['Qui'];
       const surahNumber = row['Num_Sourate'];
       const verseStart = row['Verset début'];
       const verseEnd = row['Verset fin'];
 
-      // Vérifier les données requises
       if (!userName || !surahNumber || !verseStart || !verseEnd) {
-        skipped++;
+        skippedProgress++;
         continue;
       }
 
       const userId = userMap[userName];
       if (!userId) {
-        skipped++;
+        skippedProgress++;
         continue;
       }
 
-      // Convertir la date Excel en date JS
+      // Convertir la date Excel
       let date;
       const excelDate = row['Date'];
       if (typeof excelDate === 'number') {
-        // Excel date serial number
         date = new Date((excelDate - 25569) * 86400 * 1000);
       } else if (excelDate) {
         date = new Date(excelDate);
@@ -110,7 +117,6 @@ async function importData() {
         where: {
           userId: userId,
           programId: memorizationProgram.id,
-          date: date,
           surahNumber: parseInt(surahNumber),
           verseStart: parseInt(verseStart),
           verseEnd: parseInt(verseEnd)
@@ -118,11 +124,10 @@ async function importData() {
       });
 
       if (existing) {
-        skipped++;
+        skippedProgress++;
         continue;
       }
 
-      // Créer l'entrée de progression
       await prisma.progress.create({
         data: {
           userId: userId,
@@ -137,23 +142,126 @@ async function importData() {
         }
       });
 
-      imported++;
-
-      if (imported % 100 === 0) {
-        console.log(`  📊 ${imported} entrées importées...`);
-      }
+      importedProgress++;
     } catch (error) {
-      errors++;
-      if (errors <= 5) {
-        console.error(`  ❌ Erreur ligne:`, error.message);
+      errorsProgress++;
+      if (errorsProgress <= 5) {
+        console.error(`  ❌ Erreur progression:`, error.message);
       }
     }
   }
 
+  console.log(`  ✅ Importées: ${importedProgress}`);
+  console.log(`  ⏭️  Ignorées: ${skippedProgress}`);
+  console.log(`  ❌ Erreurs: ${errorsProgress}`);
+
+  // ========================================
+  // IMPORT ASSIDUITÉ
+  // ========================================
+  console.log('\n📅 Import de l\'assiduité...');
+  let importedAttendance = 0;
+  let skippedAttendance = 0;
+  let errorsAttendance = 0;
+
+  for (const row of assiduitéRows) {
+    try {
+      const userName = row['Qui'];
+      if (!userName) {
+        skippedAttendance++;
+        continue;
+      }
+
+      const userId = userMap[userName];
+      if (!userId) {
+        skippedAttendance++;
+        continue;
+      }
+
+      // Convertir la date Excel (utiliser Timestamp ou Date)
+      let date;
+      const excelDate = row['Date'] || row['Timestamp'];
+      if (typeof excelDate === 'number') {
+        date = new Date((excelDate - 25569) * 86400 * 1000);
+      } else if (excelDate) {
+        date = new Date(excelDate);
+      } else {
+        date = new Date();
+      }
+
+      // Normaliser la date au début de semaine (dimanche)
+      const weekStart = new Date(date);
+      weekStart.setDate(date.getDate() - date.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+
+      // Convertir les valeurs en booléens (> 0 = présent)
+      const sunday = row['Dimanche'] > 0;
+      const monday = row['Lundi'] > 0;
+      const tuesday = row['Mardi'] > 0;
+      const wednesday = row['Mercredi'] > 0;
+      const thursday = row['Jeudi'] > 0;
+      const friday = row['Vendredi'] > 0;
+      const saturday = row['Samedi'] > 0;
+
+      // Vérifier si l'entrée existe déjà
+      const existing = await prisma.dailyAttendance.findFirst({
+        where: {
+          userId: userId,
+          date: weekStart
+        }
+      });
+
+      if (existing) {
+        // Mettre à jour l'existant
+        await prisma.dailyAttendance.update({
+          where: { id: existing.id },
+          data: {
+            sunday, monday, tuesday, wednesday, thursday, friday, saturday,
+            comment: row['Commentaire assiduité'] || existing.comment
+          }
+        });
+        skippedAttendance++;
+        continue;
+      }
+
+      await prisma.dailyAttendance.create({
+        data: {
+          userId: userId,
+          date: weekStart,
+          sunday,
+          monday,
+          tuesday,
+          wednesday,
+          thursday,
+          friday,
+          saturday,
+          comment: row['Commentaire assiduité'] || null,
+          createdBy: createdById
+        }
+      });
+
+      importedAttendance++;
+    } catch (error) {
+      errorsAttendance++;
+      if (errorsAttendance <= 5) {
+        console.error(`  ❌ Erreur assiduité:`, error.message);
+      }
+    }
+  }
+
+  console.log(`  ✅ Importées: ${importedAttendance}`);
+  console.log(`  ⏭️  Ignorées/MAJ: ${skippedAttendance}`);
+  console.log(`  ❌ Erreurs: ${errorsAttendance}`);
+
+  // ========================================
+  // RÉSUMÉ
+  // ========================================
   console.log('\n🎉 Import terminé!');
-  console.log(`  ✅ Importées: ${imported}`);
-  console.log(`  ⏭️  Ignorées: ${skipped}`);
-  console.log(`  ❌ Erreurs: ${errors}`);
+  console.log('=====================================');
+  console.log(`Utilisateurs: ${Object.keys(userMap).length}`);
+  console.log(`Progressions: ${importedProgress} importées`);
+  console.log(`Assiduité: ${importedAttendance} importées`);
+  console.log('=====================================');
+  console.log('\n💡 Les utilisateurs créés ont le mot de passe: amilou123');
 
   await prisma.$disconnect();
 }
