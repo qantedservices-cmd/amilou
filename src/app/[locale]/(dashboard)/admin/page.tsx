@@ -38,7 +38,13 @@ import {
   Plus,
   Eye,
   UserCog,
-  ShieldAlert
+  ShieldAlert,
+  Trophy,
+  AlertTriangle,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  Activity
 } from 'lucide-react'
 
 interface User {
@@ -79,6 +85,32 @@ interface ProgressEntry {
   }
 }
 
+interface UserRanking {
+  id: string
+  name: string
+  email: string
+  totalPages: number
+  totalVerses: number
+  attendanceRate: number
+  activeWeeksCount: number
+  trend: 'up' | 'stable' | 'down'
+  status: 'active' | 'medium' | 'alert'
+  isInactive: boolean
+}
+
+interface Group {
+  id: string
+  name: string
+}
+
+interface AdminStats {
+  users: UserRanking[]
+  globalAttendanceRate: number
+  inactiveUsersCount: number
+  totalUsers: number
+  groups: Group[]
+}
+
 export default function AdminPage() {
   const t = useTranslations()
   const { data: session } = useSession()
@@ -92,6 +124,10 @@ export default function AdminPage() {
   // Filters
   const [selectedUser, setSelectedUser] = useState<string>('all')
   const [selectedProgram, setSelectedProgram] = useState<string>('all')
+
+  // Admin stats
+  const [adminStats, setAdminStats] = useState<AdminStats | null>(null)
+  const [selectedGroup, setSelectedGroup] = useState<string>('all')
 
   // Add progress dialog
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -107,6 +143,12 @@ export default function AdminPage() {
   useEffect(() => {
     checkAdminAndFetch()
   }, [])
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchAdminStats()
+    }
+  }, [isAdmin, selectedGroup])
 
   async function checkAdminAndFetch() {
     try {
@@ -141,6 +183,21 @@ export default function AdminPage() {
       setIsAdmin(false)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function fetchAdminStats() {
+    try {
+      const params = new URLSearchParams()
+      if (selectedGroup !== 'all') params.set('groupId', selectedGroup)
+
+      const res = await fetch(`/api/admin/stats?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setAdminStats(data)
+      }
+    } catch (error) {
+      console.error('Error fetching admin stats:', error)
     }
   }
 
@@ -422,23 +479,36 @@ export default function AdminPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">{t('admin.totalUsers')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{users.length}</div>
+            <div className="text-2xl font-bold">{adminStats?.totalUsers || users.length}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">{t('admin.totalProgress')}</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Assiduité globale</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{progress.length}</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {adminStats?.globalAttendanceRate || 0}%
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Utilisateurs inactifs</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600">
+              {adminStats?.inactiveUsersCount || 0}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -451,6 +521,142 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Group Ranking */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-amber-500" />
+                Classement du groupe
+              </CardTitle>
+              <CardDescription>
+                Performance des utilisateurs par mémorisation et assiduité
+              </CardDescription>
+            </div>
+            <div className="w-48">
+              <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrer par groupe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les groupes</SelectItem>
+                  {adminStats?.groups.map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {adminStats?.users && adminStats.users.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">#</TableHead>
+                  <TableHead>Nom</TableHead>
+                  <TableHead className="text-right">Pages</TableHead>
+                  <TableHead className="text-right">Taux</TableHead>
+                  <TableHead className="text-center">Tendance</TableHead>
+                  <TableHead className="text-center">Statut</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {adminStats.users.map((user, index) => (
+                  <TableRow
+                    key={user.id}
+                    className={user.isInactive ? 'bg-amber-50 dark:bg-amber-950/20' : ''}
+                  >
+                    <TableCell className="font-bold text-muted-foreground">
+                      {index + 1}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <span className="font-medium">{user.name}</span>
+                        {user.isInactive && (
+                          <AlertTriangle className="inline ml-2 h-4 w-4 text-amber-500" />
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {user.totalPages}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className={
+                        user.attendanceRate >= 70 ? 'text-emerald-600' :
+                        user.attendanceRate >= 40 ? 'text-amber-600' : 'text-red-600'
+                      }>
+                        {user.attendanceRate}%
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {user.trend === 'up' && (
+                        <ArrowUp className="inline h-4 w-4 text-emerald-500" />
+                      )}
+                      {user.trend === 'down' && (
+                        <ArrowDown className="inline h-4 w-4 text-red-500" />
+                      )}
+                      {user.trend === 'stable' && (
+                        <Minus className="inline h-4 w-4 text-gray-400" />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={
+                        user.status === 'active'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100'
+                          : user.status === 'medium'
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100'
+                      }>
+                        {user.status === 'active' ? 'Actif' :
+                         user.status === 'medium' ? 'Moyen' : 'Alerte'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              Aucune donnée disponible
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Inactive Users Alert */}
+      {adminStats?.inactiveUsersCount && adminStats.inactiveUsersCount > 0 && (
+        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-5 w-5" />
+              Utilisateurs inactifs ({adminStats.inactiveUsersCount})
+            </CardTitle>
+            <CardDescription>
+              Ces utilisateurs n'ont pas enregistré d'activité depuis plus de 2 semaines
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {adminStats.users
+                .filter(u => u.isInactive)
+                .map(user => (
+                  <Badge
+                    key={user.id}
+                    variant="outline"
+                    className="border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400"
+                  >
+                    {user.name}
+                  </Badge>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Users Table */}
       <Card>

@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Calendar, Users, TrendingUp, Target, CheckCircle, Circle, AlertCircle } from 'lucide-react'
+import { Progress } from '@/components/ui/progress'
+import { BookOpen, Calendar, Users, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText } from 'lucide-react'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
 interface Program {
   id: string
@@ -48,16 +50,41 @@ interface ObjectiveVsRealized {
   } | null
 }
 
+interface GlobalProgress {
+  memorizedVerses: number
+  memorizedPages: number
+  memorizedSurahs: number
+  percentage: number
+  totalVerses: number
+  totalPages: number
+  totalSurahs: number
+}
+
+interface EvolutionData {
+  week: string
+  weekStart: string
+  MEMORIZATION: number
+  CONSOLIDATION: number
+  REVISION: number
+  READING: number
+  TAFSIR: number
+  total: number
+}
+
 interface Stats {
+  globalProgress: GlobalProgress
   totalVerses: number
   totalPages: number
   uniqueSurahs: number
   groupsCount: number
   attendanceRate: number
+  activeWeeksCount: number
+  totalWeeksSinceYearStart: number
   recentProgress: ProgressEntry[]
   objectives: Objective[]
   weeklyByProgram: Record<string, number>
   objectivesVsRealized: ObjectiveVsRealized[]
+  evolutionData: EvolutionData[]
 }
 
 export default function DashboardPage() {
@@ -127,36 +154,44 @@ export default function DashboardPage() {
     return 'partial'
   }
 
+  const CHART_COLORS = {
+    MEMORIZATION: '#10b981', // emerald
+    CONSOLIDATION: '#3b82f6', // blue
+    REVISION: '#f59e0b', // amber
+    READING: '#8b5cf6', // purple
+    TAFSIR: '#f43f5e', // rose
+  }
+
   const statCards = [
     {
       title: t('dashboard.stats.totalVerses'),
-      value: stats?.totalVerses || 0,
-      description: 'versets travaillés',
+      value: stats?.globalProgress?.memorizedVerses || 0,
+      description: `sur ${stats?.globalProgress?.totalVerses || 6236} versets`,
       icon: BookOpen,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-100 dark:bg-emerald-900',
     },
     {
       title: t('dashboard.stats.totalPages'),
-      value: stats?.totalPages || 0,
-      description: 'pages estimées',
-      icon: TrendingUp,
+      value: stats?.globalProgress?.memorizedPages || 0,
+      description: `sur ${stats?.globalProgress?.totalPages || 604} pages`,
+      icon: FileText,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100 dark:bg-blue-900',
     },
     {
-      title: t('dashboard.stats.attendanceRate'),
-      value: `${stats?.attendanceRate || 0}%`,
-      description: 'cette semaine',
-      icon: Calendar,
+      title: 'Sourates',
+      value: stats?.globalProgress?.memorizedSurahs || 0,
+      description: `sur ${stats?.globalProgress?.totalSurahs || 114} sourates`,
+      icon: Award,
       color: 'text-amber-600',
       bgColor: 'bg-amber-100 dark:bg-amber-900',
     },
     {
-      title: t('nav.groups'),
-      value: stats?.groupsCount || 0,
-      description: 'groupes actifs',
-      icon: Users,
+      title: 'Assiduité',
+      value: `${stats?.activeWeeksCount || 0}/${stats?.totalWeeksSinceYearStart || 0}`,
+      description: `semaines actives (${stats?.attendanceRate || 0}%)`,
+      icon: Calendar,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100 dark:bg-purple-900',
     },
@@ -176,6 +211,38 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
         <p className="text-muted-foreground">{t('dashboard.overview')}</p>
       </div>
+
+      {/* Global Progress Bar */}
+      <Card className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-950/30 dark:to-blue-950/30 border-emerald-200 dark:border-emerald-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Award className="h-5 w-5 text-emerald-600" />
+            Mon Avancement Global - Mémorisation
+          </CardTitle>
+          <CardDescription>
+            Progression dans la mémorisation du Coran
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Progression</span>
+              <span className="font-bold text-emerald-600 text-lg">
+                {stats?.globalProgress?.percentage || 0}%
+              </span>
+            </div>
+            <Progress
+              value={stats?.globalProgress?.percentage || 0}
+              className="h-4 bg-emerald-100 dark:bg-emerald-900"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{stats?.globalProgress?.memorizedPages || 0} pages</span>
+              <span>{stats?.globalProgress?.memorizedSurahs || 0} sourates</span>
+              <span>{stats?.globalProgress?.memorizedVerses || 0} versets</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -197,6 +264,103 @@ export default function DashboardPage() {
           )
         })}
       </div>
+
+      {/* Evolution Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-blue-600" />
+            Évolution sur 12 semaines
+          </CardTitle>
+          <CardDescription>
+            Pages travaillées par programme (toutes activités confondues)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {stats?.evolutionData && stats.evolutionData.some(d => d.total > 0) ? (
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={stats.evolutionData}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis dataKey="week" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-background border rounded-lg p-3 shadow-lg">
+                            <p className="font-semibold mb-2">{label}</p>
+                            {payload.map((entry, index) => (
+                              <div key={index} className="flex items-center gap-2 text-sm">
+                                <div
+                                  className="w-3 h-3 rounded"
+                                  style={{ backgroundColor: entry.color }}
+                                />
+                                <span>{entry.name}: {Number(entry.value).toFixed(1)} pages</span>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <Legend />
+                  <Area
+                    type="monotone"
+                    dataKey="MEMORIZATION"
+                    name="Mémorisation"
+                    stackId="1"
+                    stroke={CHART_COLORS.MEMORIZATION}
+                    fill={CHART_COLORS.MEMORIZATION}
+                    fillOpacity={0.6}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="CONSOLIDATION"
+                    name="Consolidation"
+                    stackId="1"
+                    stroke={CHART_COLORS.CONSOLIDATION}
+                    fill={CHART_COLORS.CONSOLIDATION}
+                    fillOpacity={0.6}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="REVISION"
+                    name="Révision"
+                    stackId="1"
+                    stroke={CHART_COLORS.REVISION}
+                    fill={CHART_COLORS.REVISION}
+                    fillOpacity={0.6}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="READING"
+                    name="Lecture"
+                    stackId="1"
+                    stroke={CHART_COLORS.READING}
+                    fill={CHART_COLORS.READING}
+                    fillOpacity={0.6}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="TAFSIR"
+                    name="Tafsir"
+                    stackId="1"
+                    stroke={CHART_COLORS.TAFSIR}
+                    fill={CHART_COLORS.TAFSIR}
+                    fillOpacity={0.6}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="flex h-[200px] items-center justify-center text-muted-foreground">
+              Pas encore de données d'activité
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Objectifs vs Réalisé - Today */}
       <Card>

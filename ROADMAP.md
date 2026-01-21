@@ -93,47 +93,47 @@ Application de suivi des cours de Coran avec gestion des groupes, progression et
 
 ---
 
-## Phase 8: Nouveau Système d'Assiduité 🔄 EN COURS
+## Phase 8: Nouveau Système d'Assiduité ✅
 
 ### 8.1 Paramétrage des Objectifs (Profil)
 
 | Tâche | Statut |
 |-------|--------|
-| Table `UserProgramSettings` | ⬜ |
-| API paramètres utilisateur | ⬜ |
-| UI configuration objectifs par programme | ⬜ |
-| Quantités avec fractions (1/4, 1/3, 1/2, 3/4) | ⬜ |
-| Unités (page, quart, demi-hizb, hizb, juz) | ⬜ |
-| Durées (jour, semaine, mois, année) | ⬜ |
+| Table `UserProgramSettings` | ✅ |
+| API paramètres utilisateur | ✅ |
+| UI configuration objectifs par programme | ✅ |
+| Quantités avec fractions (1/4, 1/3, 1/2, 3/4) | ✅ |
+| Unités (page, quart, demi-hizb, hizb, juz) | ✅ |
+| Durées (jour, semaine, mois, année) | ✅ |
 
 ### 8.2 Suivi Quotidien (remplace ancien système)
 
 | Tâche | Statut |
 |-------|--------|
-| Table `DailyLog` (remplace `DailyAttendance`) | ⬜ |
-| API suivi quotidien | ⬜ |
-| Calendrier sélection jour | ⬜ |
-| Saisie par programme (5 programmes) | ⬜ |
-| Saisie rétroactive | ⬜ |
+| Table `DailyLog` (remplace `DailyAttendance`) | ✅ |
+| API suivi quotidien | ✅ |
+| Calendrier sélection jour | ✅ |
+| Saisie par programme (5 programmes) | ✅ |
+| Saisie rétroactive | ✅ |
 
 ### 8.3 Dashboard enrichi
 
 | Tâche | Statut |
 |-------|--------|
-| Barre progression globale (% du Coran) | ⬜ |
-| Stats cumulées (pages, sourates, versets) | ⬜ |
-| Graphique évolution temporelle | ⬜ |
-| Bloc "Objectifs vs Réalisé" (5 programmes) | ⬜ |
-| Taux d'assiduité (semaines actives) | ⬜ |
+| Barre progression globale (% du Coran) | ✅ |
+| Stats cumulées (pages, sourates, versets) | ✅ |
+| Graphique évolution temporelle | ✅ |
+| Bloc "Objectifs vs Réalisé" (5 programmes) | ✅ |
+| Taux d'assiduité (semaines actives) | ✅ |
 
 ### 8.4 Dashboard Admin
 
 | Tâche | Statut |
 |-------|--------|
-| Classement du groupe | ⬜ |
-| Tendances (↗️ → ↘️) | ⬜ |
-| Alertes utilisateurs inactifs | ⬜ |
-| Assiduité globale groupe | ⬜ |
+| Classement du groupe | ✅ |
+| Tendances (↗️ → ↘️) | ✅ |
+| Alertes utilisateurs inactifs | ✅ |
+| Assiduité globale groupe | ✅ |
 
 ---
 
@@ -169,11 +169,11 @@ Phase 4:  ████████████████████ 100%  ✅
 Phase 5:  ████████████████████ 100%  ✅ Groupes & Séances
 Phase 6:  ████████████████████ 100%  ✅ Évaluations
 Phase 7:  ████████████████████ 100%  ✅ Administration
-Phase 8:  ░░░░░░░░░░░░░░░░░░░░   0%  🔄 Nouveau Assiduité
+Phase 8:  ████████████████████ 100%  ✅ Nouveau Assiduité
 Phase 9:  ██████████░░░░░░░░░░  50%  Import/Export
 Phase 10: ░░░░░░░░░░░░░░░░░░░░   0%  Déploiement
 ─────────────────────────────────────────────────
-TOTAL:    ██████████████░░░░░░  75%
+TOTAL:    █████████████████░░░  85%
 ```
 
 ---
@@ -216,6 +216,16 @@ TOTAL:    ██████████████░░░░░░  75%
 ---
 
 ## Changelog
+
+### v0.6.0 (Janvier 2026)
+- ✅ Phase 8 complète - Nouveau système d'assiduité
+- ✅ Dashboard enrichi avec barre progression globale (% du Coran)
+- ✅ Stats cumulées (pages, sourates, versets mémorisés)
+- ✅ Graphique d'évolution sur 12 semaines (Recharts)
+- ✅ Paramétrage objectifs par programme (quantité/unité/période)
+- ✅ Suivi quotidien avec calendrier et saisie rétroactive
+- ✅ Dashboard Admin avec classement, tendances et alertes
+- ✅ Assiduité globale groupe et utilisateurs inactifs
 
 ### v0.5.0 (Janvier 2026)
 - ✅ Page Administration complète
