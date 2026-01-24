@@ -185,13 +185,13 @@ model DailyAttendance {
   id        String   @id @default(cuid())
   userId    String
   date      DateTime
-  sunday    Boolean  @default(false)
-  monday    Boolean  @default(false)
-  tuesday   Boolean  @default(false)
-  wednesday Boolean  @default(false)
-  thursday  Boolean  @default(false)
-  friday    Boolean  @default(false)
-  saturday  Boolean  @default(false)
+  sunday    Int      @default(0)
+  monday    Int      @default(0)
+  tuesday   Int      @default(0)
+  wednesday Int      @default(0)
+  thursday  Int      @default(0)
+  friday    Int      @default(0)
+  saturday  Int      @default(0)
   comment   String?
   createdBy String
   createdAt DateTime @default(now())
@@ -292,21 +292,23 @@ model Verse {
 // ============================================
 
 model UserProgramSettings {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   programId String
-  quantity  Float    @default(1)    // 0.25, 0.33, 0.5, 0.75, 1, 2, etc.
-  unit      String   @default("PAGE") // PAGE, QUART, DEMI_HIZB, HIZB, JUZ
-  period    String   @default("DAY")  // DAY, WEEK, MONTH, YEAR
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  quantity  Float     @default(1)    // 0.25, 0.33, 0.5, 0.75, 1, 2, etc.
+  unit      String    @default("PAGE") // PAGE, QUART, DEMI_HIZB, HIZB, JUZ
+  period    String    @default("DAY")  // DAY, WEEK, MONTH, YEAR
+  isActive  Boolean   @default(true)
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, programId])
   @@index([userId])
+  @@index([userId, isActive])
 }
 
 // ============================================

@@ -12,6 +12,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
+    const includeHistory = searchParams.get('history') === 'true'
 
     // Vérifier les permissions
     const currentUser = await prisma.user.findUnique({
@@ -19,18 +20,20 @@ export async function GET(request: Request) {
       select: { role: true }
     })
 
-    // Déterminer l'utilisateur cible
     let targetUserId = session.user.id
     if (userId && userId !== session.user.id) {
-      // Vérifier si l'utilisateur a le droit de voir les paramètres d'un autre
       if (!['ADMIN', 'MANAGER', 'REFERENT'].includes(currentUser?.role || '')) {
         return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
       }
       targetUserId = userId
     }
 
+    const where = includeHistory
+      ? { userId: targetUserId }
+      : { userId: targetUserId, isActive: true }
+
     const settings = await prisma.userProgramSettings.findMany({
-      where: { userId: targetUserId },
+      where,
       include: {
         program: {
           select: {
@@ -42,7 +45,10 @@ export async function GET(request: Request) {
           }
         }
       },
-      orderBy: { program: { code: 'asc' } }
+      orderBy: [
+        { isActive: 'desc' },
+        { startDate: 'desc' }
+      ]
     })
 
     return NextResponse.json(settings)
@@ -55,7 +61,9 @@ export async function GET(request: Request) {
   }
 }
 
-// POST - Créer ou mettre à jour les paramètres
+// POST - Enregistrer tous les objectifs (batch)
+// Accepte soit un objet unique {programId, quantity, unit, period}
+// soit un tableau [{programId, quantity, unit, period}, ...]
 export async function POST(request: Request) {
   try {
     const session = await auth()
@@ -64,11 +72,6 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { userId, programId, quantity, unit, period, isActive } = body
-
-    if (!programId) {
-      return NextResponse.json({ error: 'programId requis' }, { status: 400 })
-    }
 
     // Vérifier les permissions
     const currentUser = await prisma.user.findUnique({
@@ -76,60 +79,81 @@ export async function POST(request: Request) {
       select: { role: true }
     })
 
-    // Déterminer l'utilisateur cible
-    let targetUserId = session.user.id
-    if (userId && userId !== session.user.id) {
-      if (!['ADMIN', 'MANAGER', 'REFERENT'].includes(currentUser?.role || '')) {
-        return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
-      }
-      targetUserId = userId
+    // Support batch or single
+    const items = Array.isArray(body.settings) ? body.settings : (body.programId ? [body] : [])
+    const targetUserId = body.userId && body.userId !== session.user.id
+      ? ((['ADMIN', 'MANAGER', 'REFERENT'].includes(currentUser?.role || ''))
+        ? body.userId : session.user.id)
+      : session.user.id
+
+    if (items.length === 0) {
+      return NextResponse.json({ error: 'Aucun objectif fourni' }, { status: 400 })
     }
 
-    // Valider les valeurs
     const validUnits = ['PAGE', 'QUART', 'DEMI_HIZB', 'HIZB', 'JUZ']
     const validPeriods = ['DAY', 'WEEK', 'MONTH', 'YEAR']
+    const now = new Date()
+    const results = []
 
-    if (unit && !validUnits.includes(unit)) {
-      return NextResponse.json({ error: 'Unité invalide' }, { status: 400 })
-    }
-    if (period && !validPeriods.includes(period)) {
-      return NextResponse.json({ error: 'Période invalide' }, { status: 400 })
-    }
+    for (const item of items) {
+      const { programId, quantity, unit, period } = item
 
-    // Upsert (créer ou mettre à jour)
-    const setting = await prisma.userProgramSettings.upsert({
-      where: {
-        userId_programId: {
+      if (!programId) continue
+      if (unit && !validUnits.includes(unit)) continue
+      if (period && !validPeriods.includes(period)) continue
+
+      const qty = quantity ?? 1
+      const u = unit ?? 'PAGE'
+      const p = period ?? 'DAY'
+
+      // Find current active setting for this program
+      const existing = await prisma.userProgramSettings.findFirst({
+        where: {
           userId: targetUserId,
-          programId: programId
+          programId,
+          isActive: true
         }
-      },
-      update: {
-        quantity: quantity ?? 1,
-        unit: unit ?? 'PAGE',
-        period: period ?? 'DAY',
-        isActive: isActive ?? true
-      },
-      create: {
-        userId: targetUserId,
-        programId: programId,
-        quantity: quantity ?? 1,
-        unit: unit ?? 'PAGE',
-        period: period ?? 'DAY',
-        isActive: isActive ?? true
-      },
-      include: {
-        program: {
-          select: {
-            id: true,
-            code: true,
-            nameFr: true
+      })
+
+      // If same values, skip
+      if (existing && existing.quantity === qty && existing.unit === u && existing.period === p) {
+        results.push(existing)
+        continue
+      }
+
+      // Archive old setting if exists
+      if (existing) {
+        await prisma.userProgramSettings.update({
+          where: { id: existing.id },
+          data: {
+            isActive: false,
+            endDate: now
+          }
+        })
+      }
+
+      // Create new active setting
+      const newSetting = await prisma.userProgramSettings.create({
+        data: {
+          userId: targetUserId,
+          programId,
+          quantity: qty,
+          unit: u,
+          period: p,
+          isActive: true,
+          startDate: now
+        },
+        include: {
+          program: {
+            select: { id: true, code: true, nameFr: true }
           }
         }
-      }
-    })
+      })
 
-    return NextResponse.json(setting)
+      results.push(newSetting)
+    }
+
+    return NextResponse.json(results)
   } catch (error) {
     console.error('Error saving program settings:', error)
     return NextResponse.json(
@@ -154,7 +178,6 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'id requis' }, { status: 400 })
     }
 
-    // Vérifier que le paramètre appartient à l'utilisateur ou que c'est un admin
     const setting = await prisma.userProgramSettings.findUnique({
       where: { id }
     })

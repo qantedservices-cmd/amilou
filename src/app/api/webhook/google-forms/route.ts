@@ -118,30 +118,27 @@ async function handleAssiduite(data: {
 
   const date = getMondayOfWeek(data.annee, data.semaine);
 
+  // Store raw score (0-5) representing how many programs were completed
+  const sunday = Math.min(Math.max(Math.round(data.dimanche || 0), 0), 5);
+  const monday = Math.min(Math.max(Math.round(data.lundi || 0), 0), 5);
+  const tuesday = Math.min(Math.max(Math.round(data.mardi || 0), 0), 5);
+  const wednesday = Math.min(Math.max(Math.round(data.mercredi || 0), 0), 5);
+  const thursday = Math.min(Math.max(Math.round(data.jeudi || 0), 0), 5);
+  const friday = Math.min(Math.max(Math.round(data.vendredi || 0), 0), 5);
+  const saturday = Math.min(Math.max(Math.round(data.samedi || 0), 0), 5);
+
   const attendance = await prisma.dailyAttendance.upsert({
     where: {
       userId_date: { userId: user.id, date }
     },
     update: {
-      sunday: (data.dimanche || 0) > 0,
-      monday: (data.lundi || 0) > 0,
-      tuesday: (data.mardi || 0) > 0,
-      wednesday: (data.mercredi || 0) > 0,
-      thursday: (data.jeudi || 0) > 0,
-      friday: (data.vendredi || 0) > 0,
-      saturday: (data.samedi || 0) > 0,
+      sunday, monday, tuesday, wednesday, thursday, friday, saturday,
       comment: data.commentaire || null,
     },
     create: {
       userId: user.id,
       date,
-      sunday: (data.dimanche || 0) > 0,
-      monday: (data.lundi || 0) > 0,
-      tuesday: (data.mardi || 0) > 0,
-      wednesday: (data.mercredi || 0) > 0,
-      thursday: (data.jeudi || 0) > 0,
-      friday: (data.vendredi || 0) > 0,
-      saturday: (data.samedi || 0) > 0,
+      sunday, monday, tuesday, wednesday, thursday, friday, saturday,
       comment: data.commentaire || null,
       createdBy: user.id,
     }

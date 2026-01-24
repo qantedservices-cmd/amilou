@@ -65,15 +65,16 @@ interface WeeklyAttendanceEntry {
   date: string
   weekNumber: number
   year: number
-  sunday: boolean
-  monday: boolean
-  tuesday: boolean
-  wednesday: boolean
-  thursday: boolean
-  friday: boolean
-  saturday: boolean
+  sunday: number
+  monday: number
+  tuesday: number
+  wednesday: number
+  thursday: number
+  friday: number
+  saturday: number
   comment: string | null
   daysActive: number
+  totalScore: number
   score: number
 }
 
@@ -388,7 +389,7 @@ export default function DashboardPage() {
             Assiduité Hebdomadaire
           </CardTitle>
           <CardDescription>
-            Votre régularité semaine par semaine
+            Score journalier : nombre de programmes réalisés (Mémo → Conso → Révision → Lecture → Tafsir)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -405,43 +406,58 @@ export default function DashboardPage() {
                     <th className="text-center py-2 px-1 font-medium text-muted-foreground">Jeu</th>
                     <th className="text-center py-2 px-1 font-medium text-muted-foreground">Ven</th>
                     <th className="text-center py-2 px-1 font-medium text-muted-foreground">Sam</th>
-                    <th className="text-center py-2 px-2 font-medium text-muted-foreground">Score</th>
+                    <th className="text-center py-2 px-2 font-medium text-muted-foreground">%</th>
                   </tr>
                 </thead>
                 <tbody>
                   {stats.weeklyAttendance.map((week) => (
                     <tr key={week.id} className="border-b last:border-0 hover:bg-muted/50">
-                      <td className="py-2 px-2 font-medium">
+                      <td className="py-2 px-2 font-medium whitespace-nowrap">
                         S{week.weekNumber}
                         <span className="text-xs text-muted-foreground ml-1">
                           {week.year !== new Date().getFullYear() ? `'${String(week.year).slice(2)}` : ''}
                         </span>
                       </td>
-                      {[week.sunday, week.monday, week.tuesday, week.wednesday, week.thursday, week.friday, week.saturday].map((day, i) => (
+                      {[week.sunday, week.monday, week.tuesday, week.wednesday, week.thursday, week.friday, week.saturday].map((score, i) => (
                         <td key={i} className="text-center py-2 px-1">
-                          {day ? (
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900">
-                              <CheckCircle className="h-4 w-4 text-emerald-600" />
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-50 dark:bg-red-950">
-                              <Circle className="h-3 w-3 text-red-300 dark:text-red-700" />
-                            </span>
-                          )}
+                          <ScoreCell score={score} />
                         </td>
                       ))}
                       <td className="text-center py-2 px-2">
                         <Badge variant={week.score >= 80 ? 'default' : week.score >= 50 ? 'secondary' : 'outline'}
                           className={week.score >= 80 ? 'bg-emerald-600' : week.score >= 50 ? 'bg-amber-500' : ''}>
-                          {week.daysActive}/7
+                          {week.score}%
                         </Badge>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+
+              {/* Legend */}
+              <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500"></span> 5/5
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-emerald-300"></span> 4/5
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-amber-400"></span> 3/5
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-orange-400"></span> 2/5
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-red-300"></span> 1/5
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-gray-200 dark:bg-gray-700"></span> 0
+                </span>
+              </div>
+
               {stats.weeklyAttendance.some(w => w.comment) && (
-                <div className="mt-4 space-y-1">
+                <div className="mt-3 space-y-1 border-t pt-3">
                   {stats.weeklyAttendance.filter(w => w.comment).map(w => (
                     <p key={w.id} className="text-xs text-muted-foreground">
                       <span className="font-medium">S{w.weekNumber}:</span> {w.comment}
@@ -626,5 +642,30 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+// Component to display a score cell (0-5) with color coding
+function ScoreCell({ score }: { score: number }) {
+  if (score === 0) {
+    return (
+      <span className="inline-flex items-center justify-center w-7 h-7 rounded text-xs font-medium bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600">
+        -
+      </span>
+    )
+  }
+
+  const colors: Record<number, string> = {
+    5: 'bg-emerald-500 text-white',
+    4: 'bg-emerald-300 text-emerald-900 dark:bg-emerald-700 dark:text-emerald-100',
+    3: 'bg-amber-400 text-amber-900 dark:bg-amber-600 dark:text-amber-100',
+    2: 'bg-orange-400 text-orange-900 dark:bg-orange-600 dark:text-orange-100',
+    1: 'bg-red-300 text-red-900 dark:bg-red-700 dark:text-red-100',
+  }
+
+  return (
+    <span className={`inline-flex items-center justify-center w-7 h-7 rounded text-xs font-bold ${colors[score] || colors[1]}`}>
+      {score}
+    </span>
   )
 }

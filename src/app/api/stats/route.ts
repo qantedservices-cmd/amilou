@@ -78,10 +78,10 @@ export async function GET() {
       orderBy: { date: 'desc' },
     })
 
-    // Calculate active weeks (weeks where at least one day is true)
+    // Calculate active weeks (weeks where at least one day has score > 0)
     const activeWeeksCount = attendanceEntries.filter(entry =>
-      entry.sunday || entry.monday || entry.tuesday || entry.wednesday ||
-      entry.thursday || entry.friday || entry.saturday
+      entry.sunday > 0 || entry.monday > 0 || entry.tuesday > 0 || entry.wednesday > 0 ||
+      entry.thursday > 0 || entry.friday > 0 || entry.saturday > 0
     ).length
 
     // Calculate total weeks since first entry or start of year
@@ -104,10 +104,13 @@ export async function GET() {
       const week1 = new Date(tempDate.getFullYear(), 0, 4)
       const weekNumber = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7)
 
-      const daysActive = [
+      const scores = [
         entry.sunday, entry.monday, entry.tuesday, entry.wednesday,
         entry.thursday, entry.friday, entry.saturday
-      ].filter(Boolean).length
+      ]
+      const daysActive = scores.filter(s => s > 0).length
+      const totalScore = scores.reduce((a, b) => a + b, 0)
+      const maxPossible = 7 * 5 // 7 days * 5 programs
 
       return {
         id: entry.id,
@@ -123,7 +126,8 @@ export async function GET() {
         saturday: entry.saturday,
         comment: entry.comment,
         daysActive,
-        score: Math.round((daysActive / 7) * 100),
+        totalScore,
+        score: Math.round((totalScore / maxPossible) * 100),
       }
     })
 

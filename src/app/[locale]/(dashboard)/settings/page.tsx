@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { User, Lock, Mail, Calendar, Shield, Check, X, Target } from 'lucide-react'
+import { User, Lock, Mail, Calendar, Shield, Check, X, Target, Save, History } from 'lucide-react'
 
 interface UserProfile {
   id: string
@@ -41,6 +41,8 @@ interface ProgramSetting {
   unit: string
   period: string
   isActive: boolean
+  startDate: string
+  endDate: string | null
   program: Program
 }
 
@@ -92,8 +94,10 @@ export default function SettingsPage() {
   // Program settings
   const [programs, setPrograms] = useState<Program[]>([])
   const [programSettings, setProgramSettings] = useState<ProgramSetting[]>([])
-  const [savingSettings, setSavingSettings] = useState<string | null>(null)
+  const [settingsHistory, setSettingsHistory] = useState<ProgramSetting[]>([])
+  const [savingSettings, setSavingSettings] = useState(false)
   const [settingsMessage, setSettingsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [formData, setFormData] = useState<Record<string, { quantity: string; unit: string; period: string }>>({})
 
   useEffect(() => {
     fetchProfile()
@@ -130,36 +134,74 @@ export default function SettingsPage() {
 
   async function fetchProgramSettings() {
     try {
-      const res = await fetch('/api/settings/programs')
-      if (res.ok) {
-        const data = await res.json()
-        setProgramSettings(Array.isArray(data) ? data : [])
+      const [activeRes, historyRes] = await Promise.all([
+        fetch('/api/settings/programs'),
+        fetch('/api/settings/programs?history=true'),
+      ])
+      if (activeRes.ok) {
+        const data = await activeRes.json()
+        const active = (Array.isArray(data) ? data : []).filter((s: ProgramSetting) => s.isActive)
+        setProgramSettings(active)
+        // Initialize form data from active settings
+        const newFormData: Record<string, { quantity: string; unit: string; period: string }> = {}
+        programs.forEach(prog => {
+          const setting = active.find((s: ProgramSetting) => s.programId === prog.id)
+          newFormData[prog.id] = {
+            quantity: setting?.quantity?.toString() || '1',
+            unit: setting?.unit || 'PAGE',
+            period: setting?.period || 'DAY',
+          }
+        })
+        setFormData(newFormData)
+      }
+      if (historyRes.ok) {
+        const data = await historyRes.json()
+        const inactive = (Array.isArray(data) ? data : []).filter((s: ProgramSetting) => !s.isActive)
+        setSettingsHistory(inactive)
       }
     } catch (error) {
       console.error('Error fetching program settings:', error)
     }
   }
 
-  async function saveProgramSetting(programId: string, quantity: string, unit: string, period: string) {
-    setSavingSettings(programId)
+  // Initialize formData when programs are loaded
+  useEffect(() => {
+    if (programs.length > 0 && Object.keys(formData).length === 0) {
+      const newFormData: Record<string, { quantity: string; unit: string; period: string }> = {}
+      programs.forEach(prog => {
+        const setting = programSettings.find(s => s.programId === prog.id)
+        newFormData[prog.id] = {
+          quantity: setting?.quantity?.toString() || '1',
+          unit: setting?.unit || 'PAGE',
+          period: setting?.period || 'DAY',
+        }
+      })
+      setFormData(newFormData)
+    }
+  }, [programs, programSettings])
+
+  async function saveAllSettings() {
+    setSavingSettings(true)
     setSettingsMessage(null)
 
     try {
+      const settings = programs.map(prog => ({
+        programId: prog.id,
+        quantity: parseFloat(formData[prog.id]?.quantity || '1'),
+        unit: formData[prog.id]?.unit || 'PAGE',
+        period: formData[prog.id]?.period || 'DAY',
+      }))
+
       const res = await fetch('/api/settings/programs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          programId,
-          quantity: parseFloat(quantity),
-          unit,
-          period,
-          isActive: true
-        }),
+        body: JSON.stringify({ settings }),
       })
 
       if (res.ok) {
         await fetchProgramSettings()
-        setSettingsMessage({ type: 'success', text: 'Objectif enregistré' })
+        setSettingsMessage({ type: 'success', text: 'Objectifs enregistrés' })
+        setTimeout(() => setSettingsMessage(null), 3000)
       } else {
         const data = await res.json()
         setSettingsMessage({ type: 'error', text: data.error || 'Erreur' })
@@ -167,12 +209,29 @@ export default function SettingsPage() {
     } catch (error) {
       setSettingsMessage({ type: 'error', text: 'Erreur lors de l\'enregistrement' })
     } finally {
-      setSavingSettings(null)
+      setSavingSettings(false)
     }
   }
 
-  function getSettingForProgram(programId: string) {
-    return programSettings.find(s => s.programId === programId)
+  function updateFormField(programId: string, field: 'quantity' | 'unit' | 'period', value: string) {
+    setFormData(prev => ({
+      ...prev,
+      [programId]: {
+        ...prev[programId],
+        [field]: value
+      }
+    }))
+  }
+
+  function getProgramColor(code: string) {
+    const colors: Record<string, string> = {
+      MEMORIZATION: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100',
+      CONSOLIDATION: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
+      REVISION: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100',
+      READING: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100',
+      TAFSIR: 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-100',
+    }
+    return colors[code] || 'bg-gray-100 text-gray-800'
   }
 
   async function handleProfileSubmit(e: React.FormEvent) {
@@ -425,13 +484,29 @@ export default function SettingsPage() {
       {/* Program Settings Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Mes objectifs par programme
-          </CardTitle>
-          <CardDescription>
-            Définissez vos objectifs quotidiens pour chaque programme de suivi
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5" />
+                Mes objectifs par programme
+              </CardTitle>
+              <CardDescription>
+                Définissez vos objectifs pour chaque programme
+              </CardDescription>
+            </div>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700"
+              disabled={savingSettings}
+              onClick={saveAllSettings}
+            >
+              {savingSettings ? '...' : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Enregistrer
+                </>
+              )}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {settingsMessage && (
@@ -444,125 +519,107 @@ export default function SettingsPage() {
               {settingsMessage.text}
             </div>
           )}
-          <div className="space-y-4">
+
+          {/* Active settings date */}
+          {programSettings.length > 0 && (
+            <p className="text-xs text-muted-foreground mb-4">
+              En vigueur depuis: {new Date(programSettings[0].startDate).toLocaleDateString('fr-FR')}
+            </p>
+          )}
+
+          <div className="space-y-3">
             {programs.map((program) => {
-              const setting = getSettingForProgram(program.id)
+              const data = formData[program.id] || { quantity: '1', unit: 'PAGE', period: 'DAY' }
               return (
-                <ProgramSettingRow
-                  key={program.id}
-                  program={program}
-                  setting={setting}
-                  saving={savingSettings === program.id}
-                  onSave={saveProgramSetting}
-                />
+                <div key={program.id} className="flex flex-wrap items-center gap-2 rounded-lg border p-3">
+                  <Badge className={`min-w-[110px] justify-center text-xs ${getProgramColor(program.code)}`}>
+                    {program.nameFr}
+                  </Badge>
+
+                  <Select value={data.quantity} onValueChange={(v) => updateFormField(program.id, 'quantity', v)}>
+                    <SelectTrigger className="w-[70px] h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {QUANTITIES.map((q) => (
+                        <SelectItem key={q.value} value={q.value}>
+                          {q.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={data.unit} onValueChange={(v) => updateFormField(program.id, 'unit', v)}>
+                    <SelectTrigger className="w-[110px] h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UNITS.map((u) => (
+                        <SelectItem key={u.value} value={u.value}>
+                          {u.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <span className="text-sm text-muted-foreground">par</span>
+
+                  <Select value={data.period} onValueChange={(v) => updateFormField(program.id, 'period', v)}>
+                    <SelectTrigger className="w-[110px] h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PERIODS.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )
             })}
           </div>
+
+          {/* History section */}
+          {settingsHistory.length > 0 && (
+            <div className="mt-6 pt-4 border-t">
+              <h4 className="text-sm font-medium flex items-center gap-2 mb-3">
+                <History className="h-4 w-4" />
+                Historique des objectifs
+              </h4>
+              <div className="space-y-2">
+                {/* Group history by date range */}
+                {(() => {
+                  const groups: Record<string, ProgramSetting[]> = {}
+                  settingsHistory.forEach(s => {
+                    const key = `${s.startDate}_${s.endDate || ''}`
+                    if (!groups[key]) groups[key] = []
+                    groups[key].push(s)
+                  })
+                  return Object.entries(groups).map(([key, items]) => (
+                    <div key={key} className="rounded-lg bg-muted/50 p-3">
+                      <p className="text-xs text-muted-foreground mb-1">
+                        {new Date(items[0].startDate).toLocaleDateString('fr-FR')}
+                        {items[0].endDate && ` → ${new Date(items[0].endDate).toLocaleDateString('fr-FR')}`}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {items.map(s => (
+                          <span key={s.id} className="text-xs">
+                            <Badge variant="outline" className="text-xs">
+                              {s.program.nameFr}: {s.quantity} {UNITS.find(u => u.value === s.unit)?.label}/{PERIODS.find(p => p.value === s.period)?.label}
+                            </Badge>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                })()}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
-    </div>
-  )
-}
-
-// Composant pour une ligne de paramètre de programme
-function ProgramSettingRow({
-  program,
-  setting,
-  saving,
-  onSave,
-}: {
-  program: Program
-  setting?: ProgramSetting
-  saving: boolean
-  onSave: (programId: string, quantity: string, unit: string, period: string) => void
-}) {
-  const [quantity, setQuantity] = useState(setting?.quantity?.toString() || '1')
-  const [unit, setUnit] = useState(setting?.unit || 'PAGE')
-  const [period, setPeriod] = useState(setting?.period || 'DAY')
-  const [modified, setModified] = useState(false)
-
-  useEffect(() => {
-    if (setting) {
-      setQuantity(setting.quantity.toString())
-      setUnit(setting.unit)
-      setPeriod(setting.period)
-      setModified(false)
-    }
-  }, [setting])
-
-  function handleChange(type: 'quantity' | 'unit' | 'period', value: string) {
-    if (type === 'quantity') setQuantity(value)
-    else if (type === 'unit') setUnit(value)
-    else setPeriod(value)
-    setModified(true)
-  }
-
-  function getProgramColor(code: string) {
-    const colors: Record<string, string> = {
-      MEMORIZATION: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100',
-      CONSOLIDATION: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
-      REVISION: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100',
-      READING: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100',
-      TAFSIR: 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-100',
-    }
-    return colors[code] || 'bg-gray-100 text-gray-800'
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border p-4">
-      <Badge className={`min-w-[120px] justify-center ${getProgramColor(program.code)}`}>
-        {program.nameFr}
-      </Badge>
-
-      <Select value={quantity} onValueChange={(v) => handleChange('quantity', v)}>
-        <SelectTrigger className="w-20">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {QUANTITIES.map((q) => (
-            <SelectItem key={q.value} value={q.value}>
-              {q.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select value={unit} onValueChange={(v) => handleChange('unit', v)}>
-        <SelectTrigger className="w-28">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {UNITS.map((u) => (
-            <SelectItem key={u.value} value={u.value}>
-              {u.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <span className="text-muted-foreground">par</span>
-
-      <Select value={period} onValueChange={(v) => handleChange('period', v)}>
-        <SelectTrigger className="w-28">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {PERIODS.map((p) => (
-            <SelectItem key={p.value} value={p.value}>
-              {p.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Button
-        size="sm"
-        className="ml-auto bg-emerald-600 hover:bg-emerald-700"
-        disabled={saving || !modified}
-        onClick={() => onSave(program.id, quantity, unit, period)}
-      >
-        {saving ? '...' : setting ? 'Modifier' : 'Définir'}
-      </Button>
     </div>
   )
 }
