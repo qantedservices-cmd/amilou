@@ -146,12 +146,21 @@ export default function DashboardPage() {
     fetchStats()
   }, [])
 
+  function getISOWeeksInYear(year: number): number {
+    // A year has 53 ISO weeks if Jan 1 is Thursday, or Dec 31 is Thursday
+    const jan1 = new Date(year, 0, 1)
+    const dec31 = new Date(year, 11, 31)
+    return (jan1.getDay() === 4 || dec31.getDay() === 4) ? 53 : 52
+  }
+
   function prevWeek() {
     const w = (selectedWeek || 1) - 1
     if (w < 1) {
-      setSelectedWeek(52)
-      setSelectedYear(selectedYear - 1)
-      fetchStats(52, selectedYear - 1)
+      const prevYear = selectedYear - 1
+      const maxWeek = getISOWeeksInYear(prevYear)
+      setSelectedWeek(maxWeek)
+      setSelectedYear(prevYear)
+      fetchStats(maxWeek, prevYear)
     } else {
       setSelectedWeek(w)
       fetchStats(w, selectedYear)
@@ -159,8 +168,9 @@ export default function DashboardPage() {
   }
 
   function nextWeek() {
+    const maxWeek = getISOWeeksInYear(selectedYear)
     const w = (selectedWeek || 1) + 1
-    if (w > 52) {
+    if (w > maxWeek) {
       setSelectedWeek(1)
       setSelectedYear(selectedYear + 1)
       fetchStats(1, selectedYear + 1)
@@ -183,10 +193,15 @@ export default function DashboardPage() {
       return stats.weeklyAttendance.filter(w => w.weekNumber === selectedWeek && w.year === selectedYear)
     }
     if (viewMode === 'month') {
-      // Get month from the selected week's date
+      // Determine month from the selected week (approximate: week * 7 days from Jan 1)
       const weekEntry = stats.weeklyAttendance.find(w => w.weekNumber === selectedWeek && w.year === selectedYear)
-      if (!weekEntry) return stats.weeklyAttendance.slice(0, 5)
-      const monthNum = new Date(weekEntry.date).getMonth()
+      let monthNum: number
+      if (weekEntry) {
+        monthNum = new Date(weekEntry.date).getMonth()
+      } else {
+        // Approximate month from week number
+        monthNum = Math.min(Math.floor(((selectedWeek || 1) - 1) * 7 / 30.44), 11)
+      }
       return stats.weeklyAttendance.filter(w => {
         const d = new Date(w.date)
         return d.getMonth() === monthNum && d.getFullYear() === selectedYear
@@ -253,6 +268,16 @@ export default function DashboardPage() {
       return 'complete'
     }
     return 'partial'
+  }
+
+  const PROGRAM_ORDER = ['MEMORIZATION', 'CONSOLIDATION', 'REVISION', 'READING', 'TAFSIR']
+
+  const PROGRAM_TEXT_COLORS: Record<string, string> = {
+    MEMORIZATION: 'text-emerald-600 dark:text-emerald-400',
+    CONSOLIDATION: 'text-blue-600 dark:text-blue-400',
+    REVISION: 'text-amber-600 dark:text-amber-400',
+    READING: 'text-purple-600 dark:text-purple-400',
+    TAFSIR: 'text-rose-600 dark:text-rose-400',
   }
 
   const CHART_COLORS = {
@@ -517,36 +542,36 @@ export default function DashboardPage() {
           {(() => {
             const filtered = getFilteredAttendance()
             return filtered.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto -mx-2 sm:mx-0">
+                <table className="w-full text-sm min-w-[360px]">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2 px-2 font-medium text-muted-foreground">Sem.</th>
-                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Dim</th>
-                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Lun</th>
-                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Mar</th>
-                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Mer</th>
-                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Jeu</th>
-                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Ven</th>
-                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Sam</th>
-                      <th className="text-center py-2 px-2 font-medium text-muted-foreground">%</th>
+                      <th className="text-left py-2 px-1 sm:px-2 font-medium text-muted-foreground text-xs sm:text-sm">Sem.</th>
+                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">D</th>
+                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">L</th>
+                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">M</th>
+                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">Me</th>
+                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">J</th>
+                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">V</th>
+                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">S</th>
+                      <th className="text-center py-2 px-1 sm:px-2 font-medium text-muted-foreground text-xs sm:text-sm">%</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.map((week) => (
                       <tr key={week.id} className="border-b last:border-0 hover:bg-muted/50">
-                        <td className="py-2 px-2 font-medium whitespace-nowrap">
+                        <td className="py-2 px-1 sm:px-2 font-medium whitespace-nowrap text-xs sm:text-sm">
                           S{week.weekNumber}
-                          <span className="text-xs text-muted-foreground ml-1">
+                          <span className="text-xs text-muted-foreground ml-0.5">
                             {week.year !== new Date().getFullYear() ? `'${String(week.year).slice(2)}` : ''}
                           </span>
                         </td>
-                        {[week.sunday, week.monday, week.tuesday, week.wednesday, week.thursday, week.friday, week.saturday].map((score, i) => (
-                          <td key={i} className="text-center py-2 px-1">
-                            <ScoreCell score={score} />
+                        {(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const).map((day) => (
+                          <td key={day} className="text-center py-2 px-0.5 sm:px-1">
+                            <ScoreCell score={week[day]} />
                           </td>
                         ))}
-                        <td className="text-center py-2 px-2">
+                        <td className="text-center py-2 px-1 sm:px-2">
                           <Badge variant={week.score >= 80 ? 'default' : week.score >= 50 ? 'secondary' : 'outline'}
                             className={week.score >= 80 ? 'bg-emerald-600' : week.score >= 50 ? 'bg-amber-500' : ''}>
                             {week.score}%
@@ -558,25 +583,28 @@ export default function DashboardPage() {
                 </table>
 
                 {/* Legend */}
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500"></span> 5/5
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-3 rounded-sm bg-emerald-300"></span> 4/5
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-3 rounded-sm bg-amber-400"></span> 3/5
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-3 rounded-sm bg-orange-400"></span> 2/5
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-3 rounded-sm bg-red-300"></span> 1/5
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-3 rounded-sm bg-gray-200 dark:bg-gray-700"></span> 0
-                  </span>
+                <div className="mt-3 pt-2 border-t">
+                  <p className="text-xs text-muted-foreground mb-2">Programmes accomplis dans l'ordre : Mémo → Conso → Révision → Lecture → Tafsir</p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500"></span> 5 (tous)
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block w-3 h-3 rounded-sm bg-emerald-300"></span> 4
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block w-3 h-3 rounded-sm bg-amber-400"></span> 3
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block w-3 h-3 rounded-sm bg-orange-400"></span> 2
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block w-3 h-3 rounded-sm bg-red-300"></span> 1
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="inline-block w-3 h-3 rounded-sm bg-gray-200 dark:bg-gray-700"></span> 0
+                    </span>
+                  </div>
                 </div>
 
                 {filtered.some(w => w.comment) && (
@@ -667,71 +695,44 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Period Progress */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('dashboard.myProgress')}</CardTitle>
-            <CardDescription>Progression - {getProgressLabel()}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const progressData = getProgressByProgram()
-              return Object.keys(progressData).length > 0 ? (
-                <div className="space-y-4">
-                  {Object.entries(progressData).map(([code, verses]) => (
-                    <div key={code} className="flex items-center justify-between">
-                      <Badge className={getProgramColor(code)}>
-                        {code === 'MEMORIZATION' && t('programs.memorization')}
-                        {code === 'CONSOLIDATION' && t('programs.consolidation')}
-                        {code === 'REVISION' && t('programs.revision')}
-                        {code === 'READING' && t('programs.reading')}
-                        {code === 'TAFSIR' && t('programs.tafsir')}
-                      </Badge>
-                      <span className="font-semibold text-emerald-600">{verses} versets</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex h-[150px] items-center justify-center text-muted-foreground">
-                  Aucune activité - {getProgressLabel()}
-                </div>
-              )
-            })()}
-          </CardContent>
-        </Card>
-
-        {/* Active Objectives */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
-              {t('objectives.title')}
-            </CardTitle>
-            <CardDescription>Vos objectifs actifs</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {stats?.objectives && stats.objectives.length > 0 ? (
-              <div className="space-y-3">
-                {stats.objectives.map((obj) => (
-                  <div key={obj.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
-                    <Badge className={getProgramColor(obj.program.code)}>
-                      {obj.program.nameFr}
+      {/* Period Progress */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-emerald-600" />
+            Progression par programme
+          </CardTitle>
+          <CardDescription>Versets travaillés - {getProgressLabel()}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            const progressData = getProgressByProgram()
+            const sortedEntries = PROGRAM_ORDER
+              .filter(code => progressData[code] !== undefined)
+              .map(code => [code, progressData[code]] as [string, number])
+            return sortedEntries.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                {sortedEntries.map(([code, verses]) => (
+                  <div key={code} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <Badge className={getProgramColor(code)}>
+                      {code === 'MEMORIZATION' && 'Mémorisation'}
+                      {code === 'CONSOLIDATION' && 'Consolidation'}
+                      {code === 'REVISION' && 'Révision'}
+                      {code === 'READING' && 'Lecture'}
+                      {code === 'TAFSIR' && 'Tafsir'}
                     </Badge>
-                    <span className="text-sm font-medium">
-                      {obj.dailyTarget} {t('objectives.versesPerDay')}
-                    </span>
+                    <span className={`font-bold text-lg ${PROGRAM_TEXT_COLORS[code] || 'text-emerald-600'}`}>{verses}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="flex h-[150px] items-center justify-center text-muted-foreground">
-                Aucun objectif défini
+              <div className="flex h-[100px] items-center justify-center text-muted-foreground">
+                Aucune activité - {getProgressLabel()}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            )
+          })()}
+        </CardContent>
+      </Card>
 
       {/* Recent Progress */}
       <Card>
@@ -776,7 +777,7 @@ export default function DashboardPage() {
 function ScoreCell({ score }: { score: number }) {
   if (score === 0) {
     return (
-      <span className="inline-flex items-center justify-center w-7 h-7 rounded text-xs font-medium bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600">
+      <span className="inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded text-xs font-medium bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600">
         -
       </span>
     )
@@ -791,7 +792,10 @@ function ScoreCell({ score }: { score: number }) {
   }
 
   return (
-    <span className={`inline-flex items-center justify-center w-7 h-7 rounded text-xs font-bold ${colors[score] || colors[1]}`}>
+    <span
+      className={`inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded text-xs font-bold ${colors[score] || colors[1]}`}
+      title={`${score}/5 programmes`}
+    >
       {score}
     </span>
   )
