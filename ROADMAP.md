@@ -99,22 +99,24 @@ Application de suivi des cours de Coran avec gestion des groupes, progression et
 
 | Tâche | Statut |
 |-------|--------|
-| Table `UserProgramSettings` | ✅ |
-| API paramètres utilisateur | ✅ |
-| UI configuration objectifs par programme | ✅ |
+| Table `UserProgramSettings` avec historique (startDate/endDate) | ✅ |
+| API paramètres batch (sauvegarde tous les programmes en une fois) | ✅ |
+| UI configuration objectifs : formulaire unique 5 programmes | ✅ |
 | Quantités avec fractions (1/4, 1/3, 1/2, 3/4) | ✅ |
 | Unités (page, quart, demi-hizb, hizb, juz) | ✅ |
-| Durées (jour, semaine, mois, année) | ✅ |
+| Périodes (jour, semaine, mois, année) | ✅ |
+| Historique des objectifs (archivage avec dates) | ✅ |
 
-### 8.2 Suivi Quotidien (remplace ancien système)
+### 8.2 Assiduité (Score 0-5)
 
 | Tâche | Statut |
 |-------|--------|
-| Table `DailyLog` (remplace `DailyAttendance`) | ✅ |
+| Table `DailyAttendance` score Int 0-5 par jour | ✅ |
+| Score = nb programmes accomplis (Mémo, Conso, Révision, Lecture, Tafsir) | ✅ |
+| Tableau assiduité avec couleurs par score | ✅ |
+| Table `DailyLog` suivi quotidien par programme | ✅ |
 | API suivi quotidien | ✅ |
-| Calendrier sélection jour | ✅ |
 | Saisie par programme (5 programmes) | ✅ |
-| Saisie rétroactive | ✅ |
 
 ### 8.3 Dashboard enrichi
 
@@ -122,38 +124,44 @@ Application de suivi des cours de Coran avec gestion des groupes, progression et
 |-------|--------|
 | Barre progression globale (% du Coran) | ✅ |
 | Stats cumulées (pages, sourates, versets) | ✅ |
-| Graphique évolution temporelle | ✅ |
+| Graphique évolution temporelle (12 semaines) | ✅ |
 | Bloc "Objectifs vs Réalisé" (5 programmes) | ✅ |
 | Taux d'assiduité (semaines actives) | ✅ |
+| Sélecteur de période (semaine/mois/année) | ✅ |
+| Navigation semaine (prev/next/courante) | ✅ |
+| Cumul par programme (semaine, mois, année) | ✅ |
 
 ### 8.4 Dashboard Admin
 
 | Tâche | Statut |
 |-------|--------|
 | Classement du groupe | ✅ |
-| Tendances (↗️ → ↘️) | ✅ |
+| Tendances | ✅ |
 | Alertes utilisateurs inactifs | ✅ |
 | Assiduité globale groupe | ✅ |
 
 ---
 
-## Phase 9: Import & Export
+## Phase 9: Import, Export & Intégrations
 
 | Tâche | Statut |
 |-------|--------|
 | Script import Excel (mémorisation) | ✅ |
 | Script import Excel (assiduité) | ✅ |
+| Webhook Google Forms (mémorisation) | ✅ |
+| Webhook Google Forms (assiduité, score 0-5) | ✅ |
+| Google Apps Script trigger automatique | ✅ |
 | Export PDF rapports | ⬜ |
 | Export Excel données | ⬜ |
 
 ---
 
-## Phase 10: Déploiement
+## Phase 10: Déploiement ✅
 
 | Tâche | Statut |
 |-------|--------|
-| Configuration PostgreSQL production | ⬜ |
-| Déploiement Vercel/VPS | ⬜ |
+| Configuration PostgreSQL production (Docker) | ✅ |
+| Déploiement VPS Docker Compose (72.61.105.112:3000) | ✅ |
 | Configuration domaine | ⬜ |
 | SSL/HTTPS | ⬜ |
 
@@ -170,10 +178,10 @@ Phase 5:  ████████████████████ 100%  ✅
 Phase 6:  ████████████████████ 100%  ✅ Évaluations
 Phase 7:  ████████████████████ 100%  ✅ Administration
 Phase 8:  ████████████████████ 100%  ✅ Nouveau Assiduité
-Phase 9:  ██████████░░░░░░░░░░  50%  Import/Export
-Phase 10: ░░░░░░░░░░░░░░░░░░░░   0%  Déploiement
+Phase 9:  ██████████████░░░░░░  70%  Import/Export/Intégrations
+Phase 10: ██████████░░░░░░░░░░  50%  Déploiement
 ─────────────────────────────────────────────────
-TOTAL:    █████████████████░░░  85%
+TOTAL:    ██████████████████░░  92%
 ```
 
 ---
@@ -185,7 +193,7 @@ TOTAL:    █████████████████░░░  85%
 | **Frontend** | Next.js 16, React 19, TypeScript 5 |
 | **UI** | Tailwind CSS 4, shadcn/ui, Radix UI |
 | **Backend** | Next.js API Routes, Prisma ORM |
-| **Base de données** | SQLite (dev) / PostgreSQL (prod) |
+| **Base de données** | PostgreSQL (Docker) |
 | **Authentification** | NextAuth v5 (Google, Credentials) |
 | **Internationalisation** | next-intl (FR, AR, EN) |
 | **Graphiques** | Recharts |
@@ -202,20 +210,30 @@ TOTAL:    █████████████████░░░  85%
 - **Program** - Programmes (Mémorisation, Consolidation, Révision, Lecture, Tafsir)
 - **UserObjective** - Objectifs par programme
 - **Progress** - Suivi d'avancement par sourate/verset
-- **DailyAttendance** - Assiduité quotidienne (ancien système)
+- **DailyAttendance** - Assiduité hebdomadaire (score 0-5 par jour)
 - **GroupSession** - Séances de groupe
 - **SessionAttendance** - Présence aux séances
 - **Evaluation** - Évaluations par verset
 - **Surah** - 114 sourates
 - **Verse** - 6236 versets avec page, juz, hizb
 
-### Nouvelles tables (Phase 8)
-- **UserProgramSettings** - Paramètres objectifs par programme
-- **DailyLog** - Suivi quotidien par programme (remplace DailyAttendance)
+### Tables Phase 8
+- **UserProgramSettings** - Objectifs par programme avec historique (startDate/endDate)
+- **DailyLog** - Suivi quotidien détaillé par programme
 
 ---
 
 ## Changelog
+
+### v0.7.0 (Janvier 2026)
+- ✅ Assiduité score 0-5 (nb programmes accomplis par jour)
+- ✅ Objectifs avec historique (archivage startDate/endDate)
+- ✅ Formulaire objectifs unifié (5 programmes, 1 bouton sauvegarder)
+- ✅ Sélecteur de période dashboard (semaine/mois/année)
+- ✅ Navigation semaine (précédente/suivante/courante)
+- ✅ Webhook Google Forms fonctionnel (mémorisation + assiduité)
+- ✅ Google Apps Script avec trigger automatique onFormSubmit
+- ✅ Déploiement Docker Compose sur VPS
 
 ### v0.6.0 (Janvier 2026)
 - ✅ Phase 8 complète - Nouveau système d'assiduité
