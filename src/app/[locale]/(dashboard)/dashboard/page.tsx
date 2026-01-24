@@ -60,6 +60,23 @@ interface GlobalProgress {
   totalSurahs: number
 }
 
+interface WeeklyAttendanceEntry {
+  id: string
+  date: string
+  weekNumber: number
+  year: number
+  sunday: boolean
+  monday: boolean
+  tuesday: boolean
+  wednesday: boolean
+  thursday: boolean
+  friday: boolean
+  saturday: boolean
+  comment: string | null
+  daysActive: number
+  score: number
+}
+
 interface EvolutionData {
   week: string
   weekStart: string
@@ -85,6 +102,7 @@ interface Stats {
   weeklyByProgram: Record<string, number>
   objectivesVsRealized: ObjectiveVsRealized[]
   evolutionData: EvolutionData[]
+  weeklyAttendance: WeeklyAttendanceEntry[]
 }
 
 export default function DashboardPage() {
@@ -357,6 +375,84 @@ export default function DashboardPage() {
           ) : (
             <div className="flex h-[200px] items-center justify-center text-muted-foreground">
               Pas encore de données d'activité
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Weekly Attendance Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-purple-600" />
+            Assiduité Hebdomadaire
+          </CardTitle>
+          <CardDescription>
+            Votre régularité semaine par semaine
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {stats?.weeklyAttendance && stats.weeklyAttendance.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-2 font-medium text-muted-foreground">Sem.</th>
+                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Dim</th>
+                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Lun</th>
+                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Mar</th>
+                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Mer</th>
+                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Jeu</th>
+                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Ven</th>
+                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Sam</th>
+                    <th className="text-center py-2 px-2 font-medium text-muted-foreground">Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.weeklyAttendance.map((week) => (
+                    <tr key={week.id} className="border-b last:border-0 hover:bg-muted/50">
+                      <td className="py-2 px-2 font-medium">
+                        S{week.weekNumber}
+                        <span className="text-xs text-muted-foreground ml-1">
+                          {week.year !== new Date().getFullYear() ? `'${String(week.year).slice(2)}` : ''}
+                        </span>
+                      </td>
+                      {[week.sunday, week.monday, week.tuesday, week.wednesday, week.thursday, week.friday, week.saturday].map((day, i) => (
+                        <td key={i} className="text-center py-2 px-1">
+                          {day ? (
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900">
+                              <CheckCircle className="h-4 w-4 text-emerald-600" />
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-50 dark:bg-red-950">
+                              <Circle className="h-3 w-3 text-red-300 dark:text-red-700" />
+                            </span>
+                          )}
+                        </td>
+                      ))}
+                      <td className="text-center py-2 px-2">
+                        <Badge variant={week.score >= 80 ? 'default' : week.score >= 50 ? 'secondary' : 'outline'}
+                          className={week.score >= 80 ? 'bg-emerald-600' : week.score >= 50 ? 'bg-amber-500' : ''}>
+                          {week.daysActive}/7
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {stats.weeklyAttendance.some(w => w.comment) && (
+                <div className="mt-4 space-y-1">
+                  {stats.weeklyAttendance.filter(w => w.comment).map(w => (
+                    <p key={w.id} className="text-xs text-muted-foreground">
+                      <span className="font-medium">S{w.weekNumber}:</span> {w.comment}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex h-[100px] items-center justify-center text-muted-foreground">
+              Aucune donnée d'assiduité
             </div>
           )}
         </CardContent>

@@ -72,34 +72,60 @@ export async function GET() {
       where: { userId },
     })
 
-    // Calculate attendance rate from DailyLog (new system)
+    // Calculate attendance rate from DailyAttendance
+    const attendanceEntries = await prisma.dailyAttendance.findMany({
+      where: { userId },
+      orderBy: { date: 'desc' },
+    })
+
+    // Calculate active weeks (weeks where at least one day is true)
+    const activeWeeksCount = attendanceEntries.filter(entry =>
+      entry.sunday || entry.monday || entry.tuesday || entry.wednesday ||
+      entry.thursday || entry.friday || entry.saturday
+    ).length
+
+    // Calculate total weeks since first entry or start of year
     const startOfYear = new Date(now.getFullYear(), 0, 1)
-    const dailyLogs = await prisma.dailyLog.findMany({
-      where: {
-        userId,
-        date: { gte: startOfYear }
-      },
-      select: { date: true }
-    })
-
-    // Calculate active weeks
-    const activeWeeks = new Set<string>()
-    dailyLogs.forEach(log => {
-      const date = new Date(log.date)
-      const weekStart = new Date(date)
-      weekStart.setDate(date.getDate() - date.getDay())
-      activeWeeks.add(weekStart.toISOString().split('T')[0])
-    })
-
-    // Calculate total weeks since start of year
     const totalWeeksSinceYearStart = Math.ceil(
       (now.getTime() - startOfYear.getTime()) / (7 * 24 * 60 * 60 * 1000)
     )
 
-    const activeWeeksCount = activeWeeks.size
     const attendanceRate = totalWeeksSinceYearStart > 0
       ? Math.round((activeWeeksCount / totalWeeksSinceYearStart) * 100)
       : 0
+
+    // Build weekly attendance data for dashboard display
+    const weeklyAttendance = attendanceEntries.map(entry => {
+      const date = new Date(entry.date)
+      // Calculate ISO week number
+      const tempDate = new Date(date.getTime())
+      tempDate.setHours(0, 0, 0, 0)
+      tempDate.setDate(tempDate.getDate() + 3 - ((tempDate.getDay() + 6) % 7))
+      const week1 = new Date(tempDate.getFullYear(), 0, 4)
+      const weekNumber = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7)
+
+      const daysActive = [
+        entry.sunday, entry.monday, entry.tuesday, entry.wednesday,
+        entry.thursday, entry.friday, entry.saturday
+      ].filter(Boolean).length
+
+      return {
+        id: entry.id,
+        date: entry.date,
+        weekNumber,
+        year: date.getFullYear(),
+        sunday: entry.sunday,
+        monday: entry.monday,
+        tuesday: entry.tuesday,
+        wednesday: entry.wednesday,
+        thursday: entry.thursday,
+        friday: entry.friday,
+        saturday: entry.saturday,
+        comment: entry.comment,
+        daysActive,
+        score: Math.round((daysActive / 7) * 100),
+      }
+    })
 
     // Get recent progress entries
     const recentProgress = await prisma.progress.findMany({
@@ -266,6 +292,8 @@ export async function GET() {
       objectivesVsRealized,
       // Evolution chart data
       evolutionData,
+      // Weekly attendance data
+      weeklyAttendance,
     })
   } catch (error) {
     console.error('Error fetching stats:', error)
