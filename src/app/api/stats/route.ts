@@ -7,7 +7,7 @@ const QURAN_TOTAL_VERSES = 6236
 const QURAN_TOTAL_PAGES = 604
 const QURAN_TOTAL_SURAHS = 114
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -16,6 +16,11 @@ export async function GET() {
 
     const userId = session.user.id
     const now = new Date()
+
+    // Parse period params
+    const { searchParams } = new URL(request.url)
+    const paramWeek = searchParams.get('week') ? parseInt(searchParams.get('week')!) : null
+    const paramYear = searchParams.get('year') ? parseInt(searchParams.get('year')!) : null
 
     // Get all progress entries for the user
     const progressEntries = await prisma.progress.findMany({
@@ -197,25 +202,72 @@ export async function GET() {
       }
     })
 
-    // Calculate progress per program for this week
-    const startOfWeek = new Date(now)
-    startOfWeek.setDate(now.getDate() - now.getDay())
-    startOfWeek.setHours(0, 0, 0, 0)
+    // Calculate period dates based on params
+    function getMondayOfISOWeek(year: number, week: number): Date {
+      const simple = new Date(year, 0, 1 + (week - 1) * 7)
+      const dow = simple.getDay()
+      const isoWeekStart = new Date(simple)
+      if (dow <= 4) {
+        isoWeekStart.setDate(simple.getDate() - simple.getDay() + 1)
+      } else {
+        isoWeekStart.setDate(simple.getDate() + 8 - simple.getDay())
+      }
+      isoWeekStart.setHours(0, 0, 0, 0)
+      return isoWeekStart
+    }
 
-    const weeklyProgress = await prisma.progress.findMany({
-      where: {
-        userId,
-        date: { gte: startOfWeek },
-      },
-      include: { program: true },
+    // Determine the selected week
+    const selectedYear = paramYear || now.getFullYear()
+    let selectedWeek = paramWeek
+    if (!selectedWeek) {
+      // Calculate current ISO week
+      const tempDate = new Date(now.getTime())
+      tempDate.setHours(0, 0, 0, 0)
+      tempDate.setDate(tempDate.getDate() + 3 - ((tempDate.getDay() + 6) % 7))
+      const week1 = new Date(tempDate.getFullYear(), 0, 4)
+      selectedWeek = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7)
+    }
+
+    const selectedWeekStart = getMondayOfISOWeek(selectedYear, selectedWeek)
+    const selectedWeekEnd = new Date(selectedWeekStart)
+    selectedWeekEnd.setDate(selectedWeekStart.getDate() + 7)
+
+    // Month range (month containing the selected week)
+    const monthStart = new Date(selectedWeekStart.getFullYear(), selectedWeekStart.getMonth(), 1)
+    const monthEnd = new Date(selectedWeekStart.getFullYear(), selectedWeekStart.getMonth() + 1, 1)
+
+    // Year range
+    const yearStart = new Date(selectedYear, 0, 1)
+    const yearEnd = new Date(selectedYear + 1, 0, 1)
+
+    // Progress by program for each period
+    const allProgressForYear = progressEntries.filter(e => {
+      const d = new Date(e.date)
+      return d >= yearStart && d < yearEnd
     })
 
-    const weeklyByProgram = weeklyProgress.reduce((acc, entry) => {
-      const code = entry.program.code
-      const verses = entry.verseEnd - entry.verseStart + 1
-      acc[code] = (acc[code] || 0) + verses
-      return acc
-    }, {} as Record<string, number>)
+    const weekProgress = allProgressForYear.filter(e => {
+      const d = new Date(e.date)
+      return d >= selectedWeekStart && d < selectedWeekEnd
+    })
+
+    const monthProgress = allProgressForYear.filter(e => {
+      const d = new Date(e.date)
+      return d >= monthStart && d < monthEnd
+    })
+
+    function aggregateByProgram(entries: typeof progressEntries) {
+      return entries.reduce((acc, entry) => {
+        const code = entry.program.code
+        const verses = entry.verseEnd - entry.verseStart + 1
+        acc[code] = (acc[code] || 0) + verses
+        return acc
+      }, {} as Record<string, number>)
+    }
+
+    const weeklyByProgram = aggregateByProgram(weekProgress)
+    const monthlyByProgram = aggregateByProgram(monthProgress)
+    const yearlyByProgram = aggregateByProgram(allProgressForYear)
 
     // Get evolution data for last 12 weeks (for chart)
     const evolutionData = []
@@ -289,10 +341,15 @@ export async function GET() {
       attendanceRate,
       activeWeeksCount,
       totalWeeksSinceYearStart,
+      // Period info
+      selectedWeek,
+      selectedYear,
       // Progress data
       recentProgress,
       objectives,
       weeklyByProgram,
+      monthlyByProgram,
+      yearlyByProgram,
       objectivesVsRealized,
       // Evolution chart data
       evolutionData,

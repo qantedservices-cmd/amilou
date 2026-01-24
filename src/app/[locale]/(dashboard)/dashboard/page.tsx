@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { BookOpen, Calendar, Users, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { BookOpen, Calendar, Users, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
 interface Program {
@@ -98,35 +99,116 @@ interface Stats {
   attendanceRate: number
   activeWeeksCount: number
   totalWeeksSinceYearStart: number
+  selectedWeek: number
+  selectedYear: number
   recentProgress: ProgressEntry[]
   objectives: Objective[]
   weeklyByProgram: Record<string, number>
+  monthlyByProgram: Record<string, number>
+  yearlyByProgram: Record<string, number>
   objectivesVsRealized: ObjectiveVsRealized[]
   evolutionData: EvolutionData[]
   weeklyAttendance: WeeklyAttendanceEntry[]
 }
 
+type ViewMode = 'week' | 'month' | 'year'
+
 export default function DashboardPage() {
   const t = useTranslations()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [viewMode, setViewMode] = useState<ViewMode>('week')
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
+
+  async function fetchStats(week?: number, year?: number) {
+    try {
+      const params = new URLSearchParams()
+      if (week) params.set('week', week.toString())
+      if (year) params.set('year', year.toString())
+      const res = await fetch(`/api/stats?${params.toString()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setStats(data)
+        if (!week) {
+          setSelectedWeek(data.selectedWeek)
+          setSelectedYear(data.selectedYear)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    async function fetchStats() {
-      try {
-        const res = await fetch('/api/stats')
-        if (res.ok) {
-          const data = await res.json()
-          setStats(data)
-        }
-      } catch (error) {
-        console.error('Error fetching stats:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
     fetchStats()
   }, [])
+
+  function prevWeek() {
+    const w = (selectedWeek || 1) - 1
+    if (w < 1) {
+      setSelectedWeek(52)
+      setSelectedYear(selectedYear - 1)
+      fetchStats(52, selectedYear - 1)
+    } else {
+      setSelectedWeek(w)
+      fetchStats(w, selectedYear)
+    }
+  }
+
+  function nextWeek() {
+    const w = (selectedWeek || 1) + 1
+    if (w > 52) {
+      setSelectedWeek(1)
+      setSelectedYear(selectedYear + 1)
+      fetchStats(1, selectedYear + 1)
+    } else {
+      setSelectedWeek(w)
+      fetchStats(w, selectedYear)
+    }
+  }
+
+  function goToCurrentWeek() {
+    setSelectedWeek(null)
+    setSelectedYear(new Date().getFullYear())
+    fetchStats()
+  }
+
+  // Filter attendance based on view mode
+  function getFilteredAttendance() {
+    if (!stats?.weeklyAttendance) return []
+    if (viewMode === 'week') {
+      return stats.weeklyAttendance.filter(w => w.weekNumber === selectedWeek && w.year === selectedYear)
+    }
+    if (viewMode === 'month') {
+      // Get month from the selected week's date
+      const weekEntry = stats.weeklyAttendance.find(w => w.weekNumber === selectedWeek && w.year === selectedYear)
+      if (!weekEntry) return stats.weeklyAttendance.slice(0, 5)
+      const monthNum = new Date(weekEntry.date).getMonth()
+      return stats.weeklyAttendance.filter(w => {
+        const d = new Date(w.date)
+        return d.getMonth() === monthNum && d.getFullYear() === selectedYear
+      })
+    }
+    // year
+    return stats.weeklyAttendance.filter(w => w.year === selectedYear)
+  }
+
+  // Get progress by program for current view mode
+  function getProgressByProgram() {
+    if (!stats) return {}
+    if (viewMode === 'week') return stats.weeklyByProgram
+    if (viewMode === 'month') return stats.monthlyByProgram
+    return stats.yearlyByProgram
+  }
+
+  function getProgressLabel() {
+    if (viewMode === 'week') return `Semaine ${selectedWeek}`
+    if (viewMode === 'month') return 'Ce mois'
+    return `Année ${selectedYear}`
+  }
 
   function getProgramColor(code: string) {
     const colors: Record<string, string> = {
@@ -226,9 +308,48 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
-        <p className="text-muted-foreground">{t('dashboard.overview')}</p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
+          <p className="text-muted-foreground">{t('dashboard.overview')}</p>
+        </div>
+
+        {/* Period Selector */}
+        <div className="flex items-center gap-3">
+          {/* Week navigation */}
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={prevWeek}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 px-3 text-sm font-medium min-w-[80px]"
+              onClick={goToCurrentWeek}
+            >
+              S{selectedWeek} {selectedYear !== new Date().getFullYear() ? `'${String(selectedYear).slice(2)}` : ''}
+            </Button>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={nextWeek}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* View mode toggle */}
+          <div className="flex rounded-md border">
+            {(['week', 'month', 'year'] as ViewMode[]).map((mode) => (
+              <Button
+                key={mode}
+                variant={viewMode === mode ? 'default' : 'ghost'}
+                size="sm"
+                className={`h-8 px-3 rounded-none first:rounded-l-md last:rounded-r-md ${
+                  viewMode === mode ? 'bg-emerald-600 hover:bg-emerald-700' : ''
+                }`}
+                onClick={() => setViewMode(mode)}
+              >
+                {mode === 'week' ? 'Sem.' : mode === 'month' ? 'Mois' : 'Année'}
+              </Button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Global Progress Bar */}
@@ -393,84 +514,87 @@ export default function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {stats?.weeklyAttendance && stats.weeklyAttendance.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-2 font-medium text-muted-foreground">Sem.</th>
-                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Dim</th>
-                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Lun</th>
-                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Mar</th>
-                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Mer</th>
-                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Jeu</th>
-                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Ven</th>
-                    <th className="text-center py-2 px-1 font-medium text-muted-foreground">Sam</th>
-                    <th className="text-center py-2 px-2 font-medium text-muted-foreground">%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.weeklyAttendance.map((week) => (
-                    <tr key={week.id} className="border-b last:border-0 hover:bg-muted/50">
-                      <td className="py-2 px-2 font-medium whitespace-nowrap">
-                        S{week.weekNumber}
-                        <span className="text-xs text-muted-foreground ml-1">
-                          {week.year !== new Date().getFullYear() ? `'${String(week.year).slice(2)}` : ''}
-                        </span>
-                      </td>
-                      {[week.sunday, week.monday, week.tuesday, week.wednesday, week.thursday, week.friday, week.saturday].map((score, i) => (
-                        <td key={i} className="text-center py-2 px-1">
-                          <ScoreCell score={score} />
-                        </td>
-                      ))}
-                      <td className="text-center py-2 px-2">
-                        <Badge variant={week.score >= 80 ? 'default' : week.score >= 50 ? 'secondary' : 'outline'}
-                          className={week.score >= 80 ? 'bg-emerald-600' : week.score >= 50 ? 'bg-amber-500' : ''}>
-                          {week.score}%
-                        </Badge>
-                      </td>
+          {(() => {
+            const filtered = getFilteredAttendance()
+            return filtered.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 px-2 font-medium text-muted-foreground">Sem.</th>
+                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Dim</th>
+                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Lun</th>
+                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Mar</th>
+                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Mer</th>
+                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Jeu</th>
+                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Ven</th>
+                      <th className="text-center py-2 px-1 font-medium text-muted-foreground">Sam</th>
+                      <th className="text-center py-2 px-2 font-medium text-muted-foreground">%</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filtered.map((week) => (
+                      <tr key={week.id} className="border-b last:border-0 hover:bg-muted/50">
+                        <td className="py-2 px-2 font-medium whitespace-nowrap">
+                          S{week.weekNumber}
+                          <span className="text-xs text-muted-foreground ml-1">
+                            {week.year !== new Date().getFullYear() ? `'${String(week.year).slice(2)}` : ''}
+                          </span>
+                        </td>
+                        {[week.sunday, week.monday, week.tuesday, week.wednesday, week.thursday, week.friday, week.saturday].map((score, i) => (
+                          <td key={i} className="text-center py-2 px-1">
+                            <ScoreCell score={score} />
+                          </td>
+                        ))}
+                        <td className="text-center py-2 px-2">
+                          <Badge variant={week.score >= 80 ? 'default' : week.score >= 50 ? 'secondary' : 'outline'}
+                            className={week.score >= 80 ? 'bg-emerald-600' : week.score >= 50 ? 'bg-amber-500' : ''}>
+                            {week.score}%
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
 
-              {/* Legend */}
-              <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500"></span> 5/5
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-3 h-3 rounded-sm bg-emerald-300"></span> 4/5
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-3 h-3 rounded-sm bg-amber-400"></span> 3/5
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-3 h-3 rounded-sm bg-orange-400"></span> 2/5
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-3 h-3 rounded-sm bg-red-300"></span> 1/5
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-3 h-3 rounded-sm bg-gray-200 dark:bg-gray-700"></span> 0
-                </span>
-              </div>
-
-              {stats.weeklyAttendance.some(w => w.comment) && (
-                <div className="mt-3 space-y-1 border-t pt-3">
-                  {stats.weeklyAttendance.filter(w => w.comment).map(w => (
-                    <p key={w.id} className="text-xs text-muted-foreground">
-                      <span className="font-medium">S{w.weekNumber}:</span> {w.comment}
-                    </p>
-                  ))}
+                {/* Legend */}
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500"></span> 5/5
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-emerald-300"></span> 4/5
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-amber-400"></span> 3/5
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-orange-400"></span> 2/5
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-red-300"></span> 1/5
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-gray-200 dark:bg-gray-700"></span> 0
+                  </span>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex h-[100px] items-center justify-center text-muted-foreground">
-              Aucune donnée d'assiduité
-            </div>
-          )}
+
+                {filtered.some(w => w.comment) && (
+                  <div className="mt-3 space-y-1 border-t pt-3">
+                    {filtered.filter(w => w.comment).map(w => (
+                      <p key={w.id} className="text-xs text-muted-foreground">
+                        <span className="font-medium">S{w.weekNumber}:</span> {w.comment}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex h-[100px] items-center justify-center text-muted-foreground">
+                Aucune donnée d'assiduité pour cette période
+              </div>
+            )
+          })()}
         </CardContent>
       </Card>
 
@@ -544,33 +668,36 @@ export default function DashboardPage() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Weekly Progress */}
+        {/* Period Progress */}
         <Card>
           <CardHeader>
             <CardTitle>{t('dashboard.myProgress')}</CardTitle>
-            <CardDescription>Votre progression cette semaine</CardDescription>
+            <CardDescription>Progression - {getProgressLabel()}</CardDescription>
           </CardHeader>
           <CardContent>
-            {stats?.weeklyByProgram && Object.keys(stats.weeklyByProgram).length > 0 ? (
-              <div className="space-y-4">
-                {Object.entries(stats.weeklyByProgram).map(([code, verses]) => (
-                  <div key={code} className="flex items-center justify-between">
-                    <Badge className={getProgramColor(code)}>
-                      {code === 'MEMORIZATION' && t('programs.memorization')}
-                      {code === 'CONSOLIDATION' && t('programs.consolidation')}
-                      {code === 'REVISION' && t('programs.revision')}
-                      {code === 'READING' && t('programs.reading')}
-                      {code === 'TAFSIR' && t('programs.tafsir')}
-                    </Badge>
-                    <span className="font-semibold text-emerald-600">{verses} versets</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex h-[150px] items-center justify-center text-muted-foreground">
-                Aucune activité cette semaine
-              </div>
-            )}
+            {(() => {
+              const progressData = getProgressByProgram()
+              return Object.keys(progressData).length > 0 ? (
+                <div className="space-y-4">
+                  {Object.entries(progressData).map(([code, verses]) => (
+                    <div key={code} className="flex items-center justify-between">
+                      <Badge className={getProgramColor(code)}>
+                        {code === 'MEMORIZATION' && t('programs.memorization')}
+                        {code === 'CONSOLIDATION' && t('programs.consolidation')}
+                        {code === 'REVISION' && t('programs.revision')}
+                        {code === 'READING' && t('programs.reading')}
+                        {code === 'TAFSIR' && t('programs.tafsir')}
+                      </Badge>
+                      <span className="font-semibold text-emerald-600">{verses} versets</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex h-[150px] items-center justify-center text-muted-foreground">
+                  Aucune activité - {getProgressLabel()}
+                </div>
+              )
+            })()}
           </CardContent>
         </Card>
 
