@@ -102,8 +102,13 @@ export async function GET(request: Request) {
     // Build weekly attendance data for dashboard display
     const weeklyAttendance = attendanceEntries.map(entry => {
       const date = new Date(entry.date)
-      // Calculate ISO week number
-      const tempDate = new Date(date.getTime())
+      // The stored date is Sunday (week start), but ISO weeks start Monday
+      // Add 1 day to get the Monday of this week for correct ISO calculation
+      const mondayOfWeek = new Date(date.getTime())
+      mondayOfWeek.setDate(date.getDate() + 1)
+
+      // Calculate ISO week number using the Monday
+      const tempDate = new Date(mondayOfWeek.getTime())
       tempDate.setHours(0, 0, 0, 0)
       tempDate.setDate(tempDate.getDate() + 3 - ((tempDate.getDay() + 6) % 7))
       const week1 = new Date(tempDate.getFullYear(), 0, 4)
