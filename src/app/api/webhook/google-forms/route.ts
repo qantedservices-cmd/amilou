@@ -14,16 +14,21 @@ const USER_MAP: Record<string, string> = {
   'Mohamed Koucha': 'mohamed.koucha@amilou.local',
 };
 
-function getMondayOfWeek(year: number, week: number): Date {
+// Get Sunday (week start for Sun-Sat weeks) from ISO week number
+function getSundayOfWeek(year: number, week: number): Date {
+  // First, find the Monday of the ISO week
   const simple = new Date(year, 0, 1 + (week - 1) * 7);
   const dow = simple.getDay();
-  const isoWeekStart = simple;
+  const monday = new Date(simple);
   if (dow <= 4) {
-    isoWeekStart.setDate(simple.getDate() - simple.getDay() + 1);
+    monday.setDate(simple.getDate() - simple.getDay() + 1);
   } else {
-    isoWeekStart.setDate(simple.getDate() + 8 - simple.getDay());
+    monday.setDate(simple.getDate() + 8 - simple.getDay());
   }
-  return isoWeekStart;
+  // Subtract 1 day to get Sunday (week start for Sun-Sat)
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() - 1);
+  return sunday;
 }
 
 export async function POST(request: NextRequest) {
@@ -74,7 +79,7 @@ async function handleMemorisation(data: {
     return NextResponse.json({ error: 'Programme MEMORIZATION non trouvé' }, { status: 500 });
   }
 
-  const date = getMondayOfWeek(data.annee, data.semaine);
+  const date = getSundayOfWeek(data.annee, data.semaine);
 
   const progress = await prisma.progress.create({
     data: {
@@ -116,7 +121,7 @@ async function handleAssiduite(data: {
     return NextResponse.json({ error: `Utilisateur non trouvé: ${email}` }, { status: 404 });
   }
 
-  const date = getMondayOfWeek(data.annee, data.semaine);
+  const date = getSundayOfWeek(data.annee, data.semaine);
 
   // Store raw score (0-5) representing how many programs were completed
   const sunday = Math.min(Math.max(Math.round(data.dimanche || 0), 0), 5);
