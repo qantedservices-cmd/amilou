@@ -20,6 +20,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   CalendarCheck,
   ChevronLeft,
@@ -28,7 +29,9 @@ import {
   Save,
   Calendar as CalendarIcon,
   Target,
-  User
+  User,
+  Zap,
+  CheckCircle2
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -89,6 +92,18 @@ export default function AttendancePage() {
   // Form state for each program
   const [formData, setFormData] = useState<Record<string, { quantity: string; unit: string }>>({})
 
+  // Quick validation state
+  const [quickValidation, setQuickValidation] = useState<Record<string, boolean>>({
+    MEMORIZATION: false,
+    CONSOLIDATION: false,
+    REVISION: false,
+    READING: false,
+    TAFSIR: false,
+  })
+  const [todayScore, setTodayScore] = useState<number>(0)
+  const [savingQuick, setSavingQuick] = useState(false)
+  const [quickSaved, setQuickSaved] = useState(false)
+
   useEffect(() => {
     fetchInitialData()
   }, [])
@@ -97,8 +112,98 @@ export default function AttendancePage() {
     if (selectedUserId) {
       fetchUserSettings()
       fetchDailyLogs()
+      fetchTodayScore()
     }
   }, [selectedUserId, selectedDate])
+
+  async function fetchTodayScore() {
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd')
+      const res = await fetch(`/api/attendance?date=${dateStr}&userId=${selectedUserId}`)
+      if (res.ok) {
+        const data = await res.json()
+        const score = data.todayScore || 0
+        setTodayScore(score)
+        // Initialize checkboxes based on score (in order: Mémo, Conso, Révision, Lecture, Tafsir)
+        setQuickValidation({
+          MEMORIZATION: score >= 1,
+          CONSOLIDATION: score >= 2,
+          REVISION: score >= 3,
+          READING: score >= 4,
+          TAFSIR: score >= 5,
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching today score:', error)
+    }
+  }
+
+  function toggleProgram(code: string) {
+    setQuickValidation(prev => {
+      const newState = { ...prev }
+      const programOrder = ['MEMORIZATION', 'CONSOLIDATION', 'REVISION', 'READING', 'TAFSIR']
+      const index = programOrder.indexOf(code)
+
+      if (prev[code]) {
+        // Unchecking: also uncheck all programs after this one
+        for (let i = index; i < programOrder.length; i++) {
+          newState[programOrder[i]] = false
+        }
+      } else {
+        // Checking: also check all programs before this one
+        for (let i = 0; i <= index; i++) {
+          newState[programOrder[i]] = true
+        }
+      }
+      return newState
+    })
+  }
+
+  function selectAllPrograms() {
+    setQuickValidation({
+      MEMORIZATION: true,
+      CONSOLIDATION: true,
+      REVISION: true,
+      READING: true,
+      TAFSIR: true,
+    })
+  }
+
+  function getQuickScore(): number {
+    let score = 0
+    if (quickValidation.MEMORIZATION) score++
+    if (quickValidation.CONSOLIDATION) score++
+    if (quickValidation.REVISION) score++
+    if (quickValidation.READING) score++
+    if (quickValidation.TAFSIR) score++
+    return score
+  }
+
+  async function saveQuickValidation() {
+    setSavingQuick(true)
+    try {
+      const score = getQuickScore()
+      const dateStr = format(selectedDate, 'yyyy-MM-dd')
+      const res = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: dateStr,
+          score,
+          userId: selectedUserId,
+        }),
+      })
+      if (res.ok) {
+        setTodayScore(score)
+        setQuickSaved(true)
+        setTimeout(() => setQuickSaved(false), 2000)
+      }
+    } catch (error) {
+      console.error('Error saving quick validation:', error)
+    } finally {
+      setSavingQuick(false)
+    }
+  }
 
   async function fetchInitialData() {
     try {
@@ -363,6 +468,92 @@ export default function AttendancePage() {
                 </Button>
               )}
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Validation Card */}
+      <Card className="border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50/50 to-blue-50/50 dark:from-emerald-950/20 dark:to-blue-950/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-amber-500" />
+            Validation Rapide - {format(selectedDate, 'd MMMM', { locale: fr })}
+          </CardTitle>
+          <CardDescription>
+            Cochez les programmes accomplis aujourd'hui (dans l'ordre)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            {[
+              { code: 'MEMORIZATION', label: 'Mémorisation', activeClass: 'bg-emerald-100 border-emerald-500 dark:bg-emerald-900/50' },
+              { code: 'CONSOLIDATION', label: 'Consolidation', activeClass: 'bg-blue-100 border-blue-500 dark:bg-blue-900/50' },
+              { code: 'REVISION', label: 'Révision', activeClass: 'bg-amber-100 border-amber-500 dark:bg-amber-900/50' },
+              { code: 'READING', label: 'Lecture', activeClass: 'bg-purple-100 border-purple-500 dark:bg-purple-900/50' },
+              { code: 'TAFSIR', label: 'Tafsir', activeClass: 'bg-rose-100 border-rose-500 dark:bg-rose-900/50' },
+            ].map((prog, index) => (
+              <button
+                key={prog.code}
+                onClick={() => toggleProgram(prog.code)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
+                  quickValidation[prog.code]
+                    ? prog.activeClass
+                    : 'bg-muted/50 border-transparent hover:border-muted-foreground/30'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded flex items-center justify-center text-sm font-bold ${
+                  quickValidation[prog.code]
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                }`}>
+                  {quickValidation[prog.code] ? <Check className="h-3 w-3" /> : index + 1}
+                </div>
+                <span className={`text-sm font-medium ${
+                  quickValidation[prog.code] ? 'text-foreground' : 'text-muted-foreground'
+                }`}>
+                  {prog.label}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={selectAllPrograms}
+                className="gap-1"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Tout valider
+              </Button>
+              <div className="text-sm">
+                Score : <span className="font-bold text-lg text-emerald-600">{getQuickScore()}/5</span>
+                {todayScore > 0 && todayScore !== getQuickScore() && (
+                  <span className="text-muted-foreground ml-2">(enregistré: {todayScore})</span>
+                )}
+              </div>
+            </div>
+            <Button
+              onClick={saveQuickValidation}
+              disabled={savingQuick}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {savingQuick ? (
+                'Enregistrement...'
+              ) : quickSaved ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Enregistré !
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Enregistrer
+                </>
+              )}
+            </Button>
           </div>
         </CardContent>
       </Card>

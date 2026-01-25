@@ -11,6 +11,50 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const month = searchParams.get('month') // Format: YYYY-MM
+    const date = searchParams.get('date') // Format: YYYY-MM-DD (for specific day)
+    const userId = searchParams.get('userId')
+
+    // Check permissions for viewing another user
+    const targetUserId = userId || session.user.id
+    if (targetUserId !== session.user.id) {
+      const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true }
+      })
+      if (!['ADMIN', 'MANAGER', 'REFERENT'].includes(currentUser?.role || '')) {
+        return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
+      }
+    }
+
+    // If specific date requested, return that week's data with today's score
+    if (date) {
+      const targetDate = new Date(date)
+      targetDate.setHours(0, 0, 0, 0)
+      const dow = targetDate.getDay()
+      const weekStart = new Date(targetDate)
+      weekStart.setDate(targetDate.getDate() - dow)
+
+      const attendance = await prisma.dailyAttendance.findUnique({
+        where: {
+          userId_date: {
+            userId: targetUserId,
+            date: weekStart,
+          },
+        },
+      })
+
+      const dayFields = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const
+      const dayField = dayFields[dow]
+      const todayScore = attendance ? (attendance[dayField] as number) : 0
+
+      return NextResponse.json({
+        attendance,
+        todayScore,
+        dayOfWeek: dow,
+        dayField,
+        weekStart: weekStart.toISOString(),
+      })
+    }
 
     let startDate: Date
     let endDate: Date
@@ -28,7 +72,7 @@ export async function GET(request: Request) {
 
     const attendance = await prisma.dailyAttendance.findMany({
       where: {
-        userId: session.user.id,
+        userId: targetUserId,
         date: {
           gte: startDate,
           lte: endDate,
@@ -54,47 +98,71 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const { date, days, comment } = await request.json()
+    const { date, score, dayOfWeek, userId } = await request.json()
 
     if (!date) {
       return NextResponse.json({ error: 'Date requise' }, { status: 400 })
     }
 
-    // Get start of the week for the given date
+    // Validate score (0-5)
+    const validScore = Math.min(Math.max(Math.round(score ?? 0), 0), 5)
+
+    // Check permissions for modifying another user
+    const targetUserId = userId || session.user.id
+    if (targetUserId !== session.user.id) {
+      const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true }
+      })
+      if (!['ADMIN', 'MANAGER', 'REFERENT'].includes(currentUser?.role || '')) {
+        return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
+      }
+    }
+
+    // Get start of the week (Sunday) for the given date
     const weekDate = new Date(date)
     weekDate.setHours(0, 0, 0, 0)
-    const dayOfWeek = weekDate.getDay()
+    const dow = weekDate.getDay()
     const weekStart = new Date(weekDate)
-    weekStart.setDate(weekDate.getDate() - dayOfWeek)
+    weekStart.setDate(weekDate.getDate() - dow)
+
+    // Map day of week to field name
+    const dayFields = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    const dayField = dayFields[dayOfWeek ?? dow]
+
+    // Find existing record
+    const existing = await prisma.dailyAttendance.findUnique({
+      where: {
+        userId_date: {
+          userId: targetUserId,
+          date: weekStart,
+        },
+      },
+    })
+
+    // Build update data - only update the specific day
+    const updateData: Record<string, number | string | null> = {
+      [dayField]: validScore,
+    }
 
     const attendance = await prisma.dailyAttendance.upsert({
       where: {
         userId_date: {
-          userId: session.user.id,
+          userId: targetUserId,
           date: weekStart,
         },
       },
-      update: {
-        sunday: days?.sunday ?? false,
-        monday: days?.monday ?? false,
-        tuesday: days?.tuesday ?? false,
-        wednesday: days?.wednesday ?? false,
-        thursday: days?.thursday ?? false,
-        friday: days?.friday ?? false,
-        saturday: days?.saturday ?? false,
-        comment: comment || null,
-      },
+      update: updateData,
       create: {
-        userId: session.user.id,
+        userId: targetUserId,
         date: weekStart,
-        sunday: days?.sunday ?? false,
-        monday: days?.monday ?? false,
-        tuesday: days?.tuesday ?? false,
-        wednesday: days?.wednesday ?? false,
-        thursday: days?.thursday ?? false,
-        friday: days?.friday ?? false,
-        saturday: days?.saturday ?? false,
-        comment: comment || null,
+        sunday: dayField === 'sunday' ? validScore : 0,
+        monday: dayField === 'monday' ? validScore : 0,
+        tuesday: dayField === 'tuesday' ? validScore : 0,
+        wednesday: dayField === 'wednesday' ? validScore : 0,
+        thursday: dayField === 'thursday' ? validScore : 0,
+        friday: dayField === 'friday' ? validScore : 0,
+        saturday: dayField === 'saturday' ? validScore : 0,
         createdBy: session.user.id,
       },
     })
