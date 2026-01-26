@@ -11,6 +11,9 @@ function getWeekStart(date: Date): Date {
   return d
 }
 
+// Default weekly objectives to create for new users
+const DEFAULT_OBJECTIVES = ['Tafsir']
+
 export async function GET(request: Request) {
   try {
     const session = await auth()
@@ -46,6 +49,31 @@ export async function GET(request: Request) {
       }
     } else {
       weekStart = getWeekStart(new Date())
+    }
+
+    // Check if user has any objectives, if not create defaults
+    const existingCount = await prisma.weeklyObjective.count({
+      where: { userId: targetUserId }
+    })
+
+    if (existingCount === 0) {
+      // Get TAFSIR program for linking
+      const tafsirProgram = await prisma.program.findFirst({
+        where: { code: 'TAFSIR' }
+      })
+
+      // Create default objectives
+      for (const name of DEFAULT_OBJECTIVES) {
+        await prisma.weeklyObjective.create({
+          data: {
+            userId: targetUserId,
+            name,
+            programId: name === 'Tafsir' ? tafsirProgram?.id : null,
+            isCustom: false,
+            isActive: true
+          }
+        })
+      }
     }
 
     // Get all active objectives for the user
