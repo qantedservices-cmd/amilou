@@ -24,19 +24,21 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  groupMembers     GroupMember[]
-  progressEntries  Progress[]
-  dailyAttendance  DailyAttendance[]
-  evaluationsGiven Evaluation[]      @relation("EvaluatorRelation")
-  evaluationsReceived Evaluation[]   @relation("EvaluatedRelation")
-  representedUsers UserRepresentative[] @relation("RepresentativeRelation")
-  representatives  UserRepresentative[] @relation("RepresentedRelation")
-  sessionAttendance SessionAttendance[]
-  objectives       UserObjective[]
-  programSettings  UserProgramSettings[]
-  dailyLogs        DailyLog[]
+  accounts                Account[]
+  sessions                Session[]
+  groupMembers            GroupMember[]
+  progressEntries         Progress[]
+  dailyAttendance         DailyAttendance[]
+  evaluationsGiven        Evaluation[]             @relation("EvaluatorRelation")
+  evaluationsReceived     Evaluation[]             @relation("EvaluatedRelation")
+  representedUsers        UserRepresentative[]     @relation("RepresentativeRelation")
+  representatives         UserRepresentative[]     @relation("RepresentedRelation")
+  sessionAttendance       SessionAttendance[]
+  objectives              UserObjective[]
+  programSettings         UserProgramSettings[]
+  dailyLogs               DailyLog[]
+  dailyProgramCompletions DailyProgramCompletion[]
+  weeklyObjectives        WeeklyObjective[]
 }
 
 model Account {
@@ -75,7 +77,7 @@ model VerificationToken {
 }
 
 model UserRepresentative {
-  id               String @id @default(cuid())
+  id               String   @id @default(cuid())
   representativeId String
   representedId    String
   createdAt        DateTime @default(now())
@@ -91,23 +93,23 @@ model UserRepresentative {
 // ============================================
 
 model Group {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  sessionFrequency String @default("WEEKLY")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  sessionFrequency String   @default("WEEKLY")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  members     GroupMember[]
-  sessions    GroupSession[]
+  members  GroupMember[]
+  sessions GroupSession[]
 }
 
 model GroupMember {
-  id        String   @id @default(cuid())
-  userId    String
-  groupId   String
-  role      String   @default("MEMBER")
-  joinedAt  DateTime @default(now())
+  id       String   @id @default(cuid())
+  userId   String
+  groupId  String
+  role     String   @default("MEMBER")
+  joinedAt DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -128,23 +130,25 @@ model Program {
   description String?
   createdAt   DateTime @default(now())
 
-  progressEntries Progress[]
-  objectives      UserObjective[]
-  userSettings    UserProgramSettings[]
-  dailyLogs       DailyLog[]
+  progressEntries  Progress[]
+  objectives       UserObjective[]
+  userSettings     UserProgramSettings[]
+  dailyLogs        DailyLog[]
+  dailyCompletions DailyProgramCompletion[]
+  weeklyObjectives WeeklyObjective[]
 }
 
 model UserObjective {
-  id            String   @id @default(cuid())
-  userId        String
-  programId     String
-  dailyTarget   Int
-  targetMonths  Int?
-  totalTarget   Int?
-  startDate     DateTime @default(now())
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  userId       String
+  programId    String
+  dailyTarget  Int
+  targetMonths Int?
+  totalTarget  Int?
+  startDate    DateTime @default(now())
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
@@ -230,14 +234,14 @@ model Evaluation {
 // ============================================
 
 model GroupSession {
-  id          String   @id @default(cuid())
-  groupId     String
-  date        DateTime
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  groupId   String
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  group      Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group      Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
   attendance SessionAttendance[]
 }
 
@@ -260,13 +264,13 @@ model SessionAttendance {
 // ============================================
 
 model Surah {
-  number         Int      @id
-  nameAr         String
-  nameFr         String
-  nameEn         String
-  totalVerses    Int
+  number          Int    @id
+  nameAr          String
+  nameFr          String
+  nameEn          String
+  totalVerses     Int
   revelationOrder Int
-  revelationType String
+  revelationType  String
 
   verses      Verse[]
   progress    Progress[]
@@ -295,9 +299,9 @@ model UserProgramSettings {
   id        String    @id @default(cuid())
   userId    String
   programId String
-  quantity  Float     @default(1)    // 0.25, 0.33, 0.5, 0.75, 1, 2, etc.
+  quantity  Float     @default(1) // 0.25, 0.33, 0.5, 0.75, 1, 2, etc.
   unit      String    @default("PAGE") // PAGE, QUART, DEMI_HIZB, HIZB, JUZ
-  period    String    @default("DAY")  // DAY, WEEK, MONTH, YEAR
+  period    String    @default("DAY") // DAY, WEEK, MONTH, YEAR
   isActive  Boolean   @default(true)
   startDate DateTime  @default(now())
   endDate   DateTime?
@@ -316,16 +320,16 @@ model UserProgramSettings {
 // ============================================
 
 model DailyLog {
-  id           String   @id @default(cuid())
-  userId       String
-  programId    String
-  date         DateTime
-  quantity     Float    // Quantité réalisée
-  unit         String   // PAGE, QUART, DEMI_HIZB, HIZB, JUZ
-  comment      String?
-  createdBy    String   // ID de celui qui a saisi
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(cuid())
+  userId    String
+  programId String
+  date      DateTime
+  quantity  Float // Quantité réalisée
+  unit      String // PAGE, QUART, DEMI_HIZB, HIZB, JUZ
+  comment   String?
+  createdBy String // ID de celui qui a saisi
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
@@ -333,4 +337,60 @@ model DailyLog {
   @@unique([userId, programId, date])
   @@index([userId, date])
   @@index([userId, programId, date])
+}
+
+// ============================================
+// Daily Program Completion (New Attendance System)
+// ============================================
+
+model DailyProgramCompletion {
+  id        String   @id @default(cuid())
+  userId    String
+  programId String
+  date      DateTime
+  completed Boolean  @default(false)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, programId, date])
+  @@index([userId, date])
+}
+
+// ============================================
+// Weekly Objectives (Tafsir, Hadith, etc.)
+// ============================================
+
+model WeeklyObjective {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String // "Tafsir", "Hadith", etc.
+  programId String? // Lien optionnel vers Program (pour Tafsir)
+  isCustom  Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program     Program?                    @relation(fields: [programId], references: [id])
+  completions WeeklyObjectiveCompletion[]
+
+  @@index([userId, isActive])
+}
+
+model WeeklyObjectiveCompletion {
+  id                String   @id @default(cuid())
+  weeklyObjectiveId String
+  weekStartDate     DateTime
+  completed         Boolean  @default(false)
+  createdBy         String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  weeklyObjective WeeklyObjective @relation(fields: [weeklyObjectiveId], references: [id], onDelete: Cascade)
+
+  @@unique([weeklyObjectiveId, weekStartDate])
 }

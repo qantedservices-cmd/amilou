@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -14,26 +14,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Calendar } from '@/components/ui/calendar'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import { Checkbox } from '@/components/ui/checkbox'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import {
   CalendarCheck,
   ChevronLeft,
   ChevronRight,
   Check,
   Save,
-  Calendar as CalendarIcon,
   Target,
   User,
-  Zap,
-  CheckCircle2
+  Plus,
+  Trash2,
+  Loader2
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
 interface ManageableUser {
@@ -50,357 +52,281 @@ interface Program {
   nameAr: string
 }
 
-interface ProgramSetting {
+interface WeeklyObjective {
   id: string
-  programId: string
-  quantity: number
-  unit: string
-  period: string
-  program: Program
+  name: string
+  programId: string | null
+  programCode: string | null
+  isCustom: boolean
+  completed: boolean
+  completionId: string | null
 }
 
-interface DailyLog {
-  id: string
-  programId: string
-  quantity: number
-  unit: string
-  program: Program
+const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+
+function getProgramColor(code: string) {
+  const colors: Record<string, string> = {
+    MEMORIZATION: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100',
+    CONSOLIDATION: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
+    REVISION: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100',
+    READING: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100',
+    TAFSIR: 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-100',
+  }
+  return colors[code] || 'bg-gray-100 text-gray-800'
 }
 
-const UNITS = [
-  { value: 'PAGE', label: 'Page(s)' },
-  { value: 'QUART', label: 'Quart(s)' },
-  { value: 'DEMI_HIZB', label: 'Demi-hizb' },
-  { value: 'HIZB', label: 'Hizb' },
-  { value: 'JUZ', label: 'Juz' },
-]
+function getWeekNumber(date: Date): { week: number; year: number } {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7))
+  const week1 = new Date(d.getFullYear(), 0, 4)
+  const week = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7)
+  return { week, year: d.getFullYear() }
+}
 
-const QUANTITIES = ['0', '0.25', '0.33', '0.5', '0.75', '1', '1.5', '2', '3', '4', '5']
+function getWeekStart(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const dow = d.getDay()
+  d.setDate(d.getDate() - dow)
+  return d
+}
 
 export default function AttendancePage() {
   const t = useTranslations()
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [weekStart, setWeekStart] = useState<Date>(getWeekStart(new Date()))
   const [selectedUserId, setSelectedUserId] = useState<string>('')
   const [manageableUsers, setManageableUsers] = useState<ManageableUser[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
-  const [userSettings, setUserSettings] = useState<ProgramSetting[]>([])
-  const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([])
+  const [completions, setCompletions] = useState<Record<string, Record<number, boolean>>>({})
+  const [weeklyObjectives, setWeeklyObjectives] = useState<WeeklyObjective[]>([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  // Form state for each program
-  const [formData, setFormData] = useState<Record<string, { quantity: string; unit: string }>>({})
+  // New objective dialog state
+  const [showNewObjectiveDialog, setShowNewObjectiveDialog] = useState(false)
+  const [newObjectiveName, setNewObjectiveName] = useState('')
+  const [creatingObjective, setCreatingObjective] = useState(false)
 
-  // Quick validation state
-  const [quickValidation, setQuickValidation] = useState<Record<string, boolean>>({
-    MEMORIZATION: false,
-    CONSOLIDATION: false,
-    REVISION: false,
-    READING: false,
-    TAFSIR: false,
-  })
-  const [todayScore, setTodayScore] = useState<number>(0)
-  const [savingQuick, setSavingQuick] = useState(false)
-  const [quickSaved, setQuickSaved] = useState(false)
+  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+  const weekInfo = getWeekNumber(weekStart)
+
+  const fetchData = useCallback(async () => {
+    if (!selectedUserId) return
+
+    setLoading(true)
+    try {
+      const weekStartStr = format(weekStart, 'yyyy-MM-dd')
+      const [programsRes, objectivesRes] = await Promise.all([
+        fetch(`/api/attendance/programs?weekStart=${weekStartStr}&userId=${selectedUserId}`),
+        fetch(`/api/attendance/weekly-objectives?weekStart=${weekStartStr}&userId=${selectedUserId}`)
+      ])
+
+      if (programsRes.ok) {
+        const data = await programsRes.json()
+        setPrograms(data.programs || [])
+        setCompletions(data.completions || {})
+      }
+
+      if (objectivesRes.ok) {
+        const data = await objectivesRes.json()
+        setWeeklyObjectives(data.objectives || [])
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedUserId, weekStart])
 
   useEffect(() => {
+    async function fetchInitialData() {
+      try {
+        const usersRes = await fetch('/api/users/manageable')
+        if (usersRes.ok) {
+          const users = await usersRes.json()
+          setManageableUsers(Array.isArray(users) ? users : [])
+          const selfUser = users.find((u: ManageableUser) => u.isSelf)
+          if (selfUser) {
+            setSelectedUserId(selfUser.id)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching initial data:', error)
+      }
+    }
     fetchInitialData()
   }, [])
 
   useEffect(() => {
     if (selectedUserId) {
-      fetchUserSettings()
-      fetchDailyLogs()
-      fetchTodayScore()
+      fetchData()
     }
-  }, [selectedUserId, selectedDate])
+  }, [selectedUserId, fetchData])
 
-  async function fetchTodayScore() {
-    try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd')
-      const res = await fetch(`/api/attendance?date=${dateStr}&userId=${selectedUserId}`)
-      if (res.ok) {
-        const data = await res.json()
-        const score = data.todayScore || 0
-        setTodayScore(score)
-        // Initialize checkboxes based on score (in order: Mémo, Conso, Révision, Lecture, Tafsir)
-        setQuickValidation({
-          MEMORIZATION: score >= 1,
-          CONSOLIDATION: score >= 2,
-          REVISION: score >= 3,
-          READING: score >= 4,
-          TAFSIR: score >= 5,
-        })
-      }
-    } catch (error) {
-      console.error('Error fetching today score:', error)
-    }
-  }
-
-  function toggleProgram(code: string) {
-    setQuickValidation(prev => {
-      const newState = { ...prev }
-      const programOrder = ['MEMORIZATION', 'CONSOLIDATION', 'REVISION', 'READING', 'TAFSIR']
-      const index = programOrder.indexOf(code)
-
-      if (prev[code]) {
-        // Unchecking: also uncheck all programs after this one
-        for (let i = index; i < programOrder.length; i++) {
-          newState[programOrder[i]] = false
-        }
-      } else {
-        // Checking: also check all programs before this one
-        for (let i = 0; i <= index; i++) {
-          newState[programOrder[i]] = true
-        }
-      }
-      return newState
-    })
-  }
-
-  function selectAllPrograms() {
-    setQuickValidation({
-      MEMORIZATION: true,
-      CONSOLIDATION: true,
-      REVISION: true,
-      READING: true,
-      TAFSIR: true,
-    })
-  }
-
-  function getQuickScore(): number {
-    let score = 0
-    if (quickValidation.MEMORIZATION) score++
-    if (quickValidation.CONSOLIDATION) score++
-    if (quickValidation.REVISION) score++
-    if (quickValidation.READING) score++
-    if (quickValidation.TAFSIR) score++
-    return score
-  }
-
-  async function saveQuickValidation() {
-    setSavingQuick(true)
-    try {
-      const score = getQuickScore()
-      const dateStr = format(selectedDate, 'yyyy-MM-dd')
-      const res = await fetch('/api/attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: dateStr,
-          score,
-          userId: selectedUserId,
-        }),
-      })
-      if (res.ok) {
-        setTodayScore(score)
-        setQuickSaved(true)
-        setTimeout(() => setQuickSaved(false), 2000)
-      }
-    } catch (error) {
-      console.error('Error saving quick validation:', error)
-    } finally {
-      setSavingQuick(false)
-    }
-  }
-
-  async function fetchInitialData() {
-    try {
-      const [usersRes, programsRes] = await Promise.all([
-        fetch('/api/users/manageable'),
-        fetch('/api/programs'),
-      ])
-
-      if (usersRes.ok) {
-        const users = await usersRes.json()
-        setManageableUsers(Array.isArray(users) ? users : [])
-        // Select self by default
-        const selfUser = users.find((u: ManageableUser) => u.isSelf)
-        if (selfUser) {
-          setSelectedUserId(selfUser.id)
-        }
-      }
-
-      if (programsRes.ok) {
-        const progs = await programsRes.json()
-        setPrograms(Array.isArray(progs) ? progs : [])
-      }
-    } catch (error) {
-      console.error('Error fetching initial data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function fetchUserSettings() {
-    try {
-      const res = await fetch(`/api/settings/programs?userId=${selectedUserId}`)
-      if (res.ok) {
-        const data = await res.json()
-        setUserSettings(Array.isArray(data) ? data : [])
-      }
-    } catch (error) {
-      console.error('Error fetching user settings:', error)
-    }
-  }
-
-  async function fetchDailyLogs() {
-    try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd')
-      const res = await fetch(`/api/daily-log?userId=${selectedUserId}&date=${dateStr}`)
-      if (res.ok) {
-        const data = await res.json()
-        setDailyLogs(Array.isArray(data) ? data : [])
-
-        // Initialize form data from existing logs
-        const newFormData: Record<string, { quantity: string; unit: string }> = {}
-        programs.forEach(prog => {
-          const log = data.find((l: DailyLog) => l.programId === prog.id)
-          if (log) {
-            newFormData[prog.id] = {
-              quantity: log.quantity.toString(),
-              unit: log.unit
-            }
-          } else {
-            // Use user's preferred unit from settings
-            const setting = userSettings.find(s => s.programId === prog.id)
-            newFormData[prog.id] = {
-              quantity: '',
-              unit: setting?.unit || 'PAGE'
-            }
-          }
-        })
-        setFormData(newFormData)
-      }
-    } catch (error) {
-      console.error('Error fetching daily logs:', error)
-    }
-  }
-
-  function getSettingForProgram(programId: string) {
-    return userSettings.find(s => s.programId === programId)
-  }
-
-  function updateFormData(programId: string, field: 'quantity' | 'unit', value: string) {
-    setFormData(prev => ({
+  function toggleCompletion(programId: string, dayIndex: number) {
+    setCompletions(prev => ({
       ...prev,
       [programId]: {
         ...prev[programId],
-        [field]: value
+        [dayIndex]: !prev[programId]?.[dayIndex]
       }
     }))
   }
 
-  async function saveLog(programId: string) {
-    const data = formData[programId]
-    if (!data || !data.quantity) return
+  async function toggleObjective(objective: WeeklyObjective) {
+    const newCompleted = !objective.completed
 
-    setSaving(programId)
+    // Optimistic update
+    setWeeklyObjectives(prev =>
+      prev.map(obj =>
+        obj.id === objective.id ? { ...obj, completed: newCompleted } : obj
+      )
+    )
+
     try {
-      const res = await fetch('/api/daily-log', {
+      const res = await fetch('/api/attendance/weekly-objectives', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: selectedUserId,
-          programId,
-          date: format(selectedDate, 'yyyy-MM-dd'),
-          quantity: parseFloat(data.quantity),
-          unit: data.unit
-        }),
+          objectiveId: objective.id,
+          weekStart: format(weekStart, 'yyyy-MM-dd'),
+          completed: newCompleted
+        })
+      })
+
+      if (!res.ok) {
+        // Revert on error
+        setWeeklyObjectives(prev =>
+          prev.map(obj =>
+            obj.id === objective.id ? { ...obj, completed: !newCompleted } : obj
+          )
+        )
+      }
+    } catch (error) {
+      console.error('Error toggling objective:', error)
+      // Revert on error
+      setWeeklyObjectives(prev =>
+        prev.map(obj =>
+          obj.id === objective.id ? { ...obj, completed: !newCompleted } : obj
+        )
+      )
+    }
+  }
+
+  async function saveAllCompletions() {
+    setSaving(true)
+    try {
+      // Build completions payload
+      const completionsPayload: Record<string, Record<number, { date: string; completed: boolean }>> = {}
+
+      for (const program of programs) {
+        completionsPayload[program.id] = {}
+        for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+          completionsPayload[program.id][dayIndex] = {
+            date: format(weekDates[dayIndex], 'yyyy-MM-dd'),
+            completed: completions[program.id]?.[dayIndex] || false
+          }
+        }
+      }
+
+      const res = await fetch('/api/attendance/programs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          completions: completionsPayload
+        })
       })
 
       if (res.ok) {
-        await fetchDailyLogs()
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
       }
     } catch (error) {
-      console.error('Error saving log:', error)
+      console.error('Error saving completions:', error)
     } finally {
-      setSaving(null)
+      setSaving(false)
     }
   }
 
-  async function saveAllLogs() {
-    setSaving('all')
+  async function createObjective() {
+    if (!newObjectiveName.trim()) return
+
+    setCreatingObjective(true)
     try {
-      for (const prog of programs) {
-        const data = formData[prog.id]
-        if (data && data.quantity && parseFloat(data.quantity) > 0) {
-          await fetch('/api/daily-log', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: selectedUserId,
-              programId: prog.id,
-              date: format(selectedDate, 'yyyy-MM-dd'),
-              quantity: parseFloat(data.quantity),
-              unit: data.unit
-            }),
-          })
-        }
+      const res = await fetch('/api/attendance/weekly-objectives/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          name: newObjectiveName.trim()
+        })
+      })
+
+      if (res.ok) {
+        const newObjective = await res.json()
+        setWeeklyObjectives(prev => [...prev, newObjective])
+        setNewObjectiveName('')
+        setShowNewObjectiveDialog(false)
       }
-      await fetchDailyLogs()
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
     } catch (error) {
-      console.error('Error saving logs:', error)
+      console.error('Error creating objective:', error)
     } finally {
-      setSaving(null)
+      setCreatingObjective(false)
     }
   }
 
-  function prevDay() {
-    const newDate = new Date(selectedDate)
-    newDate.setDate(newDate.getDate() - 1)
-    setSelectedDate(newDate)
-  }
+  async function deleteObjective(objectiveId: string) {
+    try {
+      const res = await fetch(`/api/attendance/weekly-objectives/${objectiveId}`, {
+        method: 'DELETE'
+      })
 
-  function nextDay() {
-    const newDate = new Date(selectedDate)
-    newDate.setDate(newDate.getDate() + 1)
-    setSelectedDate(newDate)
-  }
-
-  function goToToday() {
-    setSelectedDate(new Date())
-  }
-
-  function getProgramColor(code: string) {
-    const colors: Record<string, string> = {
-      MEMORIZATION: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100',
-      CONSOLIDATION: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
-      REVISION: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100',
-      READING: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100',
-      TAFSIR: 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-100',
+      if (res.ok) {
+        setWeeklyObjectives(prev => prev.filter(obj => obj.id !== objectiveId))
+      }
+    } catch (error) {
+      console.error('Error deleting objective:', error)
     }
-    return colors[code] || 'bg-gray-100 text-gray-800'
   }
 
-  function formatObjective(setting: ProgramSetting | undefined) {
-    if (!setting) return 'Non défini'
-    const unitLabel = UNITS.find(u => u.value === setting.unit)?.label || setting.unit
-    const periodLabels: Record<string, string> = {
-      DAY: '/jour',
-      WEEK: '/semaine',
-      MONTH: '/mois',
-      YEAR: '/an'
-    }
-    return `${setting.quantity} ${unitLabel}${periodLabels[setting.period] || ''}`
+  function prevWeek() {
+    setWeekStart(prev => {
+      const d = new Date(prev)
+      d.setDate(d.getDate() - 7)
+      return d
+    })
   }
 
-  function getUnitLabel(unit: string) {
-    return UNITS.find(u => u.value === unit)?.label || unit
+  function nextWeek() {
+    setWeekStart(prev => {
+      const d = new Date(prev)
+      d.setDate(d.getDate() + 7)
+      return d
+    })
   }
 
-  const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+  function goToCurrentWeek() {
+    setWeekStart(getWeekStart(new Date()))
+  }
+
+  const isCurrentWeek = format(weekStart, 'yyyy-MM-dd') === format(getWeekStart(new Date()), 'yyyy-MM-dd')
   const selectedUserName = manageableUsers.find(u => u.id === selectedUserId)?.name || 'Utilisateur'
 
-  if (loading) {
+  // Calculate stats
+  const totalPossible = programs.length * 7
+  const totalCompleted = Object.values(completions).reduce((sum, days) =>
+    sum + Object.values(days).filter(Boolean).length, 0
+  )
+  const weekPercentage = totalPossible > 0 ? Math.round((totalCompleted / totalPossible) * 100) : 0
+
+  if (loading && programs.length === 0) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground">{t('common.loading')}</p>
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
@@ -409,7 +335,7 @@ export default function AttendancePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{t('attendance.title')}</h1>
-        <p className="text-muted-foreground">Suivez votre assiduité quotidienne par programme</p>
+        <p className="text-muted-foreground">Suivez votre assiduité par programme</p>
       </div>
 
       {/* Controls Card */}
@@ -435,35 +361,26 @@ export default function AttendancePage() {
               </div>
             )}
 
-            {/* Date Selector */}
+            {/* Week Navigation */}
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={prevDay}>
+              <Button variant="outline" size="icon" onClick={prevWeek}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
 
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="min-w-[200px]">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(selectedDate, 'EEEE d MMMM yyyy', { locale: fr })}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(date) => date && setSelectedDate(date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Button
+                variant="outline"
+                className="min-w-[180px] font-semibold"
+                onClick={goToCurrentWeek}
+              >
+                Semaine {weekInfo.week} - {weekInfo.year}
+              </Button>
 
-              <Button variant="outline" size="icon" onClick={nextDay}>
+              <Button variant="outline" size="icon" onClick={nextWeek}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
 
-              {!isToday && (
-                <Button variant="ghost" size="sm" onClick={goToToday}>
+              {!isCurrentWeek && (
+                <Button variant="ghost" size="sm" onClick={goToCurrentWeek}>
                   Aujourd'hui
                 </Button>
               )}
@@ -472,77 +389,91 @@ export default function AttendancePage() {
         </CardContent>
       </Card>
 
-      {/* Quick Validation Card */}
-      <Card className="border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50/50 to-blue-50/50 dark:from-emerald-950/20 dark:to-blue-950/20">
-        <CardHeader className="pb-3">
+      {/* Daily Programs Grid */}
+      <Card>
+        <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-amber-500" />
-            Validation Rapide - {format(selectedDate, 'd MMMM', { locale: fr })}
+            <CalendarCheck className="h-5 w-5 text-emerald-600" />
+            Programmes Journaliers
+            {manageableUsers.length > 1 && !manageableUsers.find(u => u.id === selectedUserId)?.isSelf && (
+              <Badge variant="outline" className="ml-2">{selectedUserName}</Badge>
+            )}
           </CardTitle>
           <CardDescription>
-            Cochez les programmes accomplis aujourd'hui (dans l'ordre)
+            Cochez les programmes accomplis chaque jour
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            {[
-              { code: 'MEMORIZATION', label: 'Mémorisation', activeClass: 'bg-emerald-100 border-emerald-500 dark:bg-emerald-900/50' },
-              { code: 'CONSOLIDATION', label: 'Consolidation', activeClass: 'bg-blue-100 border-blue-500 dark:bg-blue-900/50' },
-              { code: 'REVISION', label: 'Révision', activeClass: 'bg-amber-100 border-amber-500 dark:bg-amber-900/50' },
-              { code: 'READING', label: 'Lecture', activeClass: 'bg-purple-100 border-purple-500 dark:bg-purple-900/50' },
-              { code: 'TAFSIR', label: 'Tafsir', activeClass: 'bg-rose-100 border-rose-500 dark:bg-rose-900/50' },
-            ].map((prog, index) => (
-              <button
-                key={prog.code}
-                onClick={() => toggleProgram(prog.code)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
-                  quickValidation[prog.code]
-                    ? prog.activeClass
-                    : 'bg-muted/50 border-transparent hover:border-muted-foreground/30'
-                }`}
-              >
-                <div className={`w-5 h-5 rounded flex items-center justify-center text-sm font-bold ${
-                  quickValidation[prog.code]
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
-                }`}>
-                  {quickValidation[prog.code] ? <Check className="h-3 w-3" /> : index + 1}
-                </div>
-                <span className={`text-sm font-medium ${
-                  quickValidation[prog.code] ? 'text-foreground' : 'text-muted-foreground'
-                }`}>
-                  {prog.label}
-                </span>
-              </button>
-            ))}
+          <div className="overflow-x-auto -mx-2 sm:mx-0">
+            <table className="w-full min-w-[500px]">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-3 px-2 font-medium text-muted-foreground w-32">Programme</th>
+                  {weekDates.map((date, i) => {
+                    const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                    return (
+                      <th
+                        key={i}
+                        className={`text-center py-3 px-1 font-medium ${isToday ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}
+                      >
+                        <div className="text-xs text-muted-foreground">{DAY_LABELS[i]}</div>
+                        <div className={`text-sm ${isToday ? 'text-emerald-600 font-bold' : ''}`}>
+                          {format(date, 'd')}
+                        </div>
+                      </th>
+                    )
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {programs.map((program) => (
+                  <tr key={program.id} className="border-b last:border-0 hover:bg-muted/50">
+                    <td className="py-3 px-2">
+                      <Badge className={getProgramColor(program.code)}>
+                        {program.nameFr}
+                      </Badge>
+                    </td>
+                    {weekDates.map((date, dayIndex) => {
+                      const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                      const isCompleted = completions[program.id]?.[dayIndex] || false
+                      return (
+                        <td
+                          key={dayIndex}
+                          className={`text-center py-3 px-1 ${isToday ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}
+                        >
+                          <Checkbox
+                            checked={isCompleted}
+                            onCheckedChange={() => toggleCompletion(program.id, dayIndex)}
+                            className={`h-6 w-6 ${isCompleted ? 'data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600' : ''}`}
+                          />
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
-          <div className="flex items-center justify-between pt-3 border-t">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={selectAllPrograms}
-                className="gap-1"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                Tout valider
-              </Button>
-              <div className="text-sm">
-                Score : <span className="font-bold text-lg text-emerald-600">{getQuickScore()}/5</span>
-                {todayScore > 0 && todayScore !== getQuickScore() && (
-                  <span className="text-muted-foreground ml-2">(enregistré: {todayScore})</span>
-                )}
-              </div>
+          <div className="mt-4 pt-4 border-t flex items-center justify-between">
+            <div className="text-sm">
+              <span className="text-muted-foreground">Progression semaine : </span>
+              <span className={`font-bold text-lg ${weekPercentage >= 80 ? 'text-emerald-600' : weekPercentage >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                {weekPercentage}%
+              </span>
+              <span className="text-muted-foreground ml-2">({totalCompleted}/{totalPossible})</span>
             </div>
             <Button
-              onClick={saveQuickValidation}
-              disabled={savingQuick}
+              onClick={saveAllCompletions}
+              disabled={saving}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
-              {savingQuick ? (
-                'Enregistrement...'
-              ) : quickSaved ? (
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Enregistrement...
+                </>
+              ) : saved ? (
                 <>
                   <Check className="mr-2 h-4 w-4" />
                   Enregistré !
@@ -558,156 +489,108 @@ export default function AttendancePage() {
         </CardContent>
       </Card>
 
-      {/* Daily Entry Card */}
+      {/* Weekly Objectives */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CalendarCheck className="h-5 w-5 text-emerald-600" />
-            Assiduité du {format(selectedDate, 'd MMMM yyyy', { locale: fr })}
-            {manageableUsers.length > 1 && !manageableUsers.find(u => u.id === selectedUserId)?.isSelf && (
-              <Badge variant="outline" className="ml-2">{selectedUserName}</Badge>
-            )}
+            <Target className="h-5 w-5 text-blue-600" />
+            Objectifs Semaine
           </CardTitle>
           <CardDescription>
-            Saisissez ce qui a été réalisé pour chaque programme
+            Objectifs hebdomadaires à accomplir
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {programs.map((program) => {
-              const setting = getSettingForProgram(program.id)
-              const log = dailyLogs.find(l => l.programId === program.id)
-              const data = formData[program.id] || { quantity: '', unit: 'PAGE' }
-              const hasValue = data.quantity && parseFloat(data.quantity) > 0
-
-              return (
-                <div
-                  key={program.id}
-                  className={`flex flex-wrap items-center gap-4 rounded-lg border p-4 ${
-                    log ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800' : ''
-                  }`}
-                >
-                  <div className="min-w-[140px]">
-                    <Badge className={getProgramColor(program.code)}>
-                      {program.nameFr}
-                    </Badge>
-                    {setting && (
-                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                        <Target className="h-3 w-3" />
-                        Objectif: {formatObjective(setting)}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 flex-1">
-                    <Select
-                      value={data.quantity || '0'}
-                      onValueChange={(v) => updateFormData(program.id, 'quantity', v)}
-                    >
-                      <SelectTrigger className="w-20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {QUANTITIES.map((q) => (
-                          <SelectItem key={q} value={q}>
-                            {q === '0.25' ? '1/4' : q === '0.33' ? '1/3' : q === '0.5' ? '1/2' : q === '0.75' ? '3/4' : q}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Select
-                      value={data.unit}
-                      onValueChange={(v) => updateFormData(program.id, 'unit', v)}
-                    >
-                      <SelectTrigger className="w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {UNITS.map((u) => (
-                          <SelectItem key={u.value} value={u.value}>
-                            {u.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    {log && (
-                      <Badge variant="outline" className="text-emerald-600 border-emerald-600">
-                        <Check className="h-3 w-3 mr-1" />
-                        Enregistré
-                      </Badge>
-                    )}
-                  </div>
-
-                  <Button
-                    size="sm"
-                    variant={hasValue ? "default" : "outline"}
-                    className={hasValue ? "bg-emerald-600 hover:bg-emerald-700" : ""}
-                    disabled={saving === program.id || !hasValue}
-                    onClick={() => saveLog(program.id)}
-                  >
-                    {saving === program.id ? '...' : <Save className="h-4 w-4" />}
-                  </Button>
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="mt-6 flex items-center justify-between border-t pt-4">
-            <p className="text-sm text-muted-foreground">
-              {dailyLogs.length} / {programs.length} programmes enregistrés
-            </p>
-            <Button
-              onClick={saveAllLogs}
-              disabled={saving === 'all'}
-              className="bg-emerald-600 hover:bg-emerald-700"
-            >
-              {saving === 'all' ? (
-                t('common.loading')
-              ) : saved ? (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Tout enregistré
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Tout enregistrer
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Summary Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Résumé du jour</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {dailyLogs.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">
-              Aucune activité enregistrée pour cette journée
-            </p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {dailyLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-center justify-between rounded-lg bg-muted/50 p-3"
-                >
-                  <Badge className={getProgramColor(log.program.code)}>
-                    {log.program.nameFr}
-                  </Badge>
-                  <span className="font-semibold text-emerald-600">
-                    {log.quantity} {getUnitLabel(log.unit)}
+          <div className="space-y-3">
+            {weeklyObjectives.map((objective) => (
+              <div
+                key={objective.id}
+                className={`flex items-center justify-between rounded-lg border p-3 ${
+                  objective.completed
+                    ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800'
+                    : ''
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    checked={objective.completed}
+                    onCheckedChange={() => toggleObjective(objective)}
+                    className={`h-5 w-5 ${objective.completed ? 'data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600' : ''}`}
+                  />
+                  <span className={`font-medium ${objective.completed ? 'text-emerald-700 dark:text-emerald-300' : ''}`}>
+                    {objective.name}
                   </span>
+                  {objective.programCode && (
+                    <Badge variant="outline" className="text-xs">
+                      {objective.programCode}
+                    </Badge>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
+                {objective.isCustom && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                    onClick={() => deleteObjective(objective.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+
+            {weeklyObjectives.length === 0 && (
+              <p className="text-center text-muted-foreground py-4">
+                Aucun objectif hebdomadaire configuré
+              </p>
+            )}
+          </div>
+
+          <div className="mt-4 pt-4 border-t">
+            <Dialog open={showNewObjectiveDialog} onOpenChange={setShowNewObjectiveDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Ajouter objectif
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Nouvel objectif hebdomadaire</DialogTitle>
+                  <DialogDescription>
+                    Créez un objectif personnalisé à accomplir chaque semaine
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <Input
+                    placeholder="Ex: Hadith, Dou'a, Méditation..."
+                    value={newObjectiveName}
+                    onChange={(e) => setNewObjectiveName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && createObjective()}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowNewObjectiveDialog(false)}>
+                    Annuler
+                  </Button>
+                  <Button
+                    onClick={createObjective}
+                    disabled={creatingObjective || !newObjectiveName.trim()}
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    {creatingObjective ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Création...
+                      </>
+                    ) : (
+                      'Créer'
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardContent>
       </Card>
     </div>

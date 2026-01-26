@@ -98,6 +98,9 @@ async function handleMemorisation(data: {
   return NextResponse.json({ success: true, id: progress.id });
 }
 
+// Daily programs in order (score 1-4)
+const DAILY_PROGRAMS = ['MEMORIZATION', 'CONSOLIDATION', 'REVISION', 'READING'];
+
 async function handleAssiduite(data: {
   qui: string;
   annee: number;
@@ -121,11 +124,11 @@ async function handleAssiduite(data: {
     return NextResponse.json({ error: `Utilisateur non trouvé: ${email}` }, { status: 404 });
   }
 
-  const date = getSundayOfWeek(data.annee, data.semaine);
+  const weekStart = getSundayOfWeek(data.annee, data.semaine);
 
   // Fetch existing record to merge with new data (cumulative update)
   const existing = await prisma.dailyAttendance.findUnique({
-    where: { userId_date: { userId: user.id, date } }
+    where: { userId_date: { userId: user.id, date: weekStart } }
   });
 
   // Helper to clamp score between 0-5
@@ -144,9 +147,10 @@ async function handleAssiduite(data: {
   // Only update comment if provided
   const comment = data.commentaire || existing?.comment || null;
 
+  // Write to old DailyAttendance table (backward compatibility)
   const attendance = await prisma.dailyAttendance.upsert({
     where: {
-      userId_date: { userId: user.id, date }
+      userId_date: { userId: user.id, date: weekStart }
     },
     update: {
       sunday, monday, tuesday, wednesday, thursday, friday, saturday,
@@ -154,12 +158,119 @@ async function handleAssiduite(data: {
     },
     create: {
       userId: user.id,
-      date,
+      date: weekStart,
       sunday, monday, tuesday, wednesday, thursday, friday, saturday,
       comment,
       createdBy: user.id,
     }
   });
+
+  // --- NEW: Also write to DailyProgramCompletion table ---
+  // Get all programs
+  const programs = await prisma.program.findMany({
+    where: { code: { in: DAILY_PROGRAMS } }
+  });
+  const programMap = new Map(programs.map(p => [p.code, p.id]));
+
+  // Get TAFSIR program for weekly objectives
+  const tafsirProgram = await prisma.program.findFirst({ where: { code: 'TAFSIR' } });
+
+  // Process each day's score
+  const dayScores = [sunday, monday, tuesday, wednesday, thursday, friday, saturday];
+  const dayFields = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const incomingData = [data.dimanche, data.lundi, data.mardi, data.mercredi, data.jeudi, data.vendredi, data.samedi];
+
+  for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+    const score = dayScores[dayIndex];
+
+    // Only process if this day had data in the incoming request
+    if (!incomingData[dayIndex] || incomingData[dayIndex] === 0) continue;
+
+    // Calculate the actual date for this day
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(weekStart.getDate() + dayIndex);
+
+    // Create/update DailyProgramCompletion records based on score
+    const programsToMark = Math.min(score, 4); // Max 4 daily programs
+
+    for (let i = 0; i < DAILY_PROGRAMS.length; i++) {
+      const programCode = DAILY_PROGRAMS[i];
+      const programId = programMap.get(programCode);
+
+      if (programId) {
+        const shouldBeCompleted = i < programsToMark;
+
+        if (shouldBeCompleted) {
+          await prisma.dailyProgramCompletion.upsert({
+            where: {
+              userId_programId_date: {
+                userId: user.id,
+                programId: programId,
+                date: dayDate
+              }
+            },
+            update: { completed: true },
+            create: {
+              userId: user.id,
+              programId: programId,
+              date: dayDate,
+              completed: true,
+              createdBy: user.id
+            }
+          });
+        } else {
+          // Remove completion if score dropped
+          await prisma.dailyProgramCompletion.deleteMany({
+            where: {
+              userId: user.id,
+              programId: programId,
+              date: dayDate
+            }
+          });
+        }
+      }
+    }
+
+    // If score is 5, mark Tafsir weekly objective as completed for this week
+    if (score === 5 && tafsirProgram) {
+      // Find or create Tafsir weekly objective
+      let tafsirObjective = await prisma.weeklyObjective.findFirst({
+        where: {
+          userId: user.id,
+          programId: tafsirProgram.id,
+          name: 'Tafsir'
+        }
+      });
+
+      if (!tafsirObjective) {
+        tafsirObjective = await prisma.weeklyObjective.create({
+          data: {
+            userId: user.id,
+            name: 'Tafsir',
+            programId: tafsirProgram.id,
+            isCustom: false,
+            isActive: true
+          }
+        });
+      }
+
+      await prisma.weeklyObjectiveCompletion.upsert({
+        where: {
+          weeklyObjectiveId_weekStartDate: {
+            weeklyObjectiveId: tafsirObjective.id,
+            weekStartDate: weekStart
+          }
+        },
+        update: { completed: true },
+        create: {
+          weeklyObjectiveId: tafsirObjective.id,
+          weekStartDate: weekStart,
+          completed: true,
+          createdBy: user.id
+        }
+      });
+    }
+  }
 
   return NextResponse.json({ success: true, id: attendance.id });
 }

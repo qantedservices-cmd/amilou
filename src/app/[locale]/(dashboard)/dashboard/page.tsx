@@ -527,15 +527,59 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Weekly Attendance Table */}
+      {/* Bilan Assiduité par Programme */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-purple-600" />
-            Assiduité Hebdomadaire
+            Bilan Assiduité - {getProgressLabel()}
           </CardTitle>
           <CardDescription>
-            Score journalier : nombre de programmes réalisés (Mémo → Conso → Révision → Lecture → Tafsir)
+            Taux de réalisation par programme journalier
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* Program Stats */}
+            <div className="space-y-3">
+              <h4 className="font-medium text-sm text-muted-foreground">Programmes Journaliers</h4>
+              {[
+                { code: 'MEMORIZATION', name: 'Mémorisation', color: 'bg-emerald-500' },
+                { code: 'CONSOLIDATION', name: 'Consolidation', color: 'bg-blue-500' },
+                { code: 'REVISION', name: 'Révision', color: 'bg-amber-500' },
+                { code: 'READING', name: 'Lecture', color: 'bg-purple-500' },
+              ].map((program) => {
+                const progressData = getProgressByProgram()
+                const percentage = progressData[program.code] ? Math.min(Math.round(progressData[program.code] / 7 * 100), 100) : 0
+                return (
+                  <div key={program.code} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>{program.name}</span>
+                      <span className="font-medium">{percentage}%</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${program.color} transition-all duration-300`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Weekly Attendance Table (Legacy) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-purple-600" />
+            Historique Assiduité
+          </CardTitle>
+          <CardDescription>
+            Score journalier (ancien système 0-5)
           </CardDescription>
         </CardHeader>
         <CardContent>
