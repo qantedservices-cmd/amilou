@@ -99,20 +99,31 @@ export async function GET(request: Request) {
       ? Math.round((activeWeeksCount / totalWeeksSinceYearStart) * 100)
       : 0
 
+    // Helper: Calculate week number based on Sundays (matching Excel)
+    function getWeekNumber(date: Date): { week: number; year: number } {
+      const d = new Date(date)
+      d.setHours(0, 0, 0, 0)
+
+      const year = d.getFullYear()
+      const jan1 = new Date(year, 0, 1)
+      const jan1Day = jan1.getDay() // 0 = Sunday
+
+      // First Sunday = Jan 1 if Sunday, else previous Sunday (may be in prev year)
+      const firstSunday = new Date(year, 0, 1 - jan1Day)
+
+      // Calculate week number
+      const diffDays = Math.floor((d.getTime() - firstSunday.getTime()) / (24 * 60 * 60 * 1000))
+      const week = Math.floor(diffDays / 7) + 1
+
+      return { week, year }
+    }
+
     // Build weekly attendance data for dashboard display
     const weeklyAttendance = attendanceEntries.map(entry => {
       const date = new Date(entry.date)
-      // The stored date is Sunday (week start), but ISO weeks start Monday
-      // Add 1 day to get the Monday of this week for correct ISO calculation
-      const mondayOfWeek = new Date(date.getTime())
-      mondayOfWeek.setDate(date.getDate() + 1)
-
-      // Calculate ISO week number using the Monday
-      const tempDate = new Date(mondayOfWeek.getTime())
-      tempDate.setHours(0, 0, 0, 0)
-      tempDate.setDate(tempDate.getDate() + 3 - ((tempDate.getDay() + 6) % 7))
-      const week1 = new Date(tempDate.getFullYear(), 0, 4)
-      const weekNumber = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7)
+      // The stored date is Sunday (week start)
+      const weekInfo = getWeekNumber(date)
+      const weekNumber = weekInfo.week
 
       const scores = [
         entry.sunday, entry.monday, entry.tuesday, entry.wednesday,
@@ -207,33 +218,30 @@ export async function GET(request: Request) {
       }
     })
 
-    // Calculate period dates based on params
-    function getMondayOfISOWeek(year: number, week: number): Date {
-      const simple = new Date(year, 0, 1 + (week - 1) * 7)
-      const dow = simple.getDay()
-      const isoWeekStart = new Date(simple)
-      if (dow <= 4) {
-        isoWeekStart.setDate(simple.getDate() - simple.getDay() + 1)
-      } else {
-        isoWeekStart.setDate(simple.getDate() + 8 - simple.getDay())
-      }
-      isoWeekStart.setHours(0, 0, 0, 0)
-      return isoWeekStart
+    // Calculate period dates based on params (Sunday-based weeks)
+    function getSundayOfWeek(year: number, week: number): Date {
+      // Find first Sunday of the year (or last Sunday of previous year)
+      const jan1 = new Date(year, 0, 1)
+      const jan1Day = jan1.getDay() // 0 = Sunday
+      const firstSunday = new Date(year, 0, 1 - jan1Day)
+
+      // Add (week - 1) * 7 days to get the Sunday of the requested week
+      const result = new Date(firstSunday)
+      result.setDate(firstSunday.getDate() + (week - 1) * 7)
+      result.setHours(0, 0, 0, 0)
+      return result
     }
 
     // Determine the selected week
     const selectedYear = paramYear || now.getFullYear()
     let selectedWeek = paramWeek
     if (!selectedWeek) {
-      // Calculate current ISO week
-      const tempDate = new Date(now.getTime())
-      tempDate.setHours(0, 0, 0, 0)
-      tempDate.setDate(tempDate.getDate() + 3 - ((tempDate.getDay() + 6) % 7))
-      const week1 = new Date(tempDate.getFullYear(), 0, 4)
-      selectedWeek = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7)
+      // Calculate current week using Sunday-based calculation (matching Excel)
+      const currentWeekInfo = getWeekNumber(now)
+      selectedWeek = currentWeekInfo.week
     }
 
-    const selectedWeekStart = getMondayOfISOWeek(selectedYear, selectedWeek)
+    const selectedWeekStart = getSundayOfWeek(selectedYear, selectedWeek)
     const selectedWeekEnd = new Date(selectedWeekStart)
     selectedWeekEnd.setDate(selectedWeekStart.getDate() + 7)
 

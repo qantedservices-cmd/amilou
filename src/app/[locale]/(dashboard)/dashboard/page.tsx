@@ -146,18 +146,24 @@ export default function DashboardPage() {
     fetchStats()
   }, [])
 
-  function getISOWeeksInYear(year: number): number {
-    // A year has 53 ISO weeks if Jan 1 is Thursday, or Dec 31 is Thursday
+  function getWeeksInYear(year: number): number {
+    // Calculer le nombre de semaines basé sur les dimanches
     const jan1 = new Date(year, 0, 1)
     const dec31 = new Date(year, 11, 31)
-    return (jan1.getDay() === 4 || dec31.getDay() === 4) ? 53 : 52
+    const jan1Day = jan1.getDay()
+
+    // Premier dimanche de l'année
+    const firstSunday = new Date(year, 0, 1 - jan1Day)
+    // Dernier jour de l'année
+    const diffDays = Math.floor((dec31.getTime() - firstSunday.getTime()) / (24 * 60 * 60 * 1000))
+    return Math.floor(diffDays / 7) + 1
   }
 
   function prevWeek() {
     const w = (selectedWeek || 1) - 1
     if (w < 1) {
       const prevYear = selectedYear - 1
-      const maxWeek = getISOWeeksInYear(prevYear)
+      const maxWeek = getWeeksInYear(prevYear)
       setSelectedWeek(maxWeek)
       setSelectedYear(prevYear)
       fetchStats(maxWeek, prevYear)
@@ -168,7 +174,7 @@ export default function DashboardPage() {
   }
 
   function nextWeek() {
-    const maxWeek = getISOWeeksInYear(selectedYear)
+    const maxWeek = getWeeksInYear(selectedYear)
     const w = (selectedWeek || 1) + 1
     if (w > maxWeek) {
       setSelectedWeek(1)

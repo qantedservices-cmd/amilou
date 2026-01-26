@@ -78,10 +78,20 @@ function getProgramColor(code: string) {
 function getWeekNumber(date: Date): { week: number; year: number } {
   const d = new Date(date)
   d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7))
-  const week1 = new Date(d.getFullYear(), 0, 4)
-  const week = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7)
-  return { week, year: d.getFullYear() }
+
+  // Trouver le premier dimanche de l'année (ou dernier dimanche de l'année précédente)
+  const year = d.getFullYear()
+  const jan1 = new Date(year, 0, 1)
+  const jan1Day = jan1.getDay() // 0 = Dimanche
+
+  // Premier dimanche = Jan 1 si c'est dimanche, sinon le dimanche précédent
+  const firstSunday = new Date(year, 0, 1 - jan1Day)
+
+  // Calculer le numéro de semaine
+  const diffDays = Math.floor((d.getTime() - firstSunday.getTime()) / (24 * 60 * 60 * 1000))
+  const week = Math.floor(diffDays / 7) + 1
+
+  return { week, year }
 }
 
 function getWeekStart(date: Date): Date {
