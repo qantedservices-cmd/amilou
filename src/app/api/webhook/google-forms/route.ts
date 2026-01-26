@@ -123,14 +123,26 @@ async function handleAssiduite(data: {
 
   const date = getSundayOfWeek(data.annee, data.semaine);
 
-  // Store raw score (0-5) representing how many programs were completed
-  const sunday = Math.min(Math.max(Math.round(data.dimanche || 0), 0), 5);
-  const monday = Math.min(Math.max(Math.round(data.lundi || 0), 0), 5);
-  const tuesday = Math.min(Math.max(Math.round(data.mardi || 0), 0), 5);
-  const wednesday = Math.min(Math.max(Math.round(data.mercredi || 0), 0), 5);
-  const thursday = Math.min(Math.max(Math.round(data.jeudi || 0), 0), 5);
-  const friday = Math.min(Math.max(Math.round(data.vendredi || 0), 0), 5);
-  const saturday = Math.min(Math.max(Math.round(data.samedi || 0), 0), 5);
+  // Fetch existing record to merge with new data (cumulative update)
+  const existing = await prisma.dailyAttendance.findUnique({
+    where: { userId_date: { userId: user.id, date } }
+  });
+
+  // Helper to clamp score between 0-5
+  const clamp = (val: number) => Math.min(Math.max(Math.round(val), 0), 5);
+
+  // Only update days that have non-zero values in incoming data
+  // Keep existing values for days with zero/undefined in incoming data
+  const sunday = data.dimanche && data.dimanche > 0 ? clamp(data.dimanche) : (existing?.sunday ?? 0);
+  const monday = data.lundi && data.lundi > 0 ? clamp(data.lundi) : (existing?.monday ?? 0);
+  const tuesday = data.mardi && data.mardi > 0 ? clamp(data.mardi) : (existing?.tuesday ?? 0);
+  const wednesday = data.mercredi && data.mercredi > 0 ? clamp(data.mercredi) : (existing?.wednesday ?? 0);
+  const thursday = data.jeudi && data.jeudi > 0 ? clamp(data.jeudi) : (existing?.thursday ?? 0);
+  const friday = data.vendredi && data.vendredi > 0 ? clamp(data.vendredi) : (existing?.friday ?? 0);
+  const saturday = data.samedi && data.samedi > 0 ? clamp(data.samedi) : (existing?.saturday ?? 0);
+
+  // Only update comment if provided
+  const comment = data.commentaire || existing?.comment || null;
 
   const attendance = await prisma.dailyAttendance.upsert({
     where: {
@@ -138,13 +150,13 @@ async function handleAssiduite(data: {
     },
     update: {
       sunday, monday, tuesday, wednesday, thursday, friday, saturday,
-      comment: data.commentaire || null,
+      comment,
     },
     create: {
       userId: user.id,
       date,
       sunday, monday, tuesday, wednesday, thursday, friday, saturday,
-      comment: data.commentaire || null,
+      comment,
       createdBy: user.id,
     }
   });
