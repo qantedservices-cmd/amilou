@@ -91,17 +91,25 @@ export async function GET(request: Request) {
     const totalMemorizedVerses = memorizedVerses.size
     const memorizedPercentage = Math.round((totalMemorizedVerses / QURAN_TOTAL_VERSES) * 1000) / 10
 
-    // Calculate pages from verses
-    const versePages = await prisma.verse.findMany({
-      where: {
-        OR: Array.from(memorizedVerses).map(v => {
-          const [surah, verse] = v.split(':').map(Number)
-          return { surahNumber: surah, verseNumber: verse }
-        }).slice(0, 1000)
-      },
-      select: { page: true }
+    // Calculate pages from verses - query in batches to avoid OR clause limits
+    const memorizedVersesArray = Array.from(memorizedVerses).map(v => {
+      const [surah, verse] = v.split(':').map(Number)
+      return { surahNumber: surah, verseNumber: verse }
     })
-    const uniquePages = new Set(versePages.map(v => v.page))
+
+    // Query pages in batches of 500
+    const allPages: number[] = []
+    const batchSize = 500
+    for (let i = 0; i < memorizedVersesArray.length; i += batchSize) {
+      const batch = memorizedVersesArray.slice(i, i + batchSize)
+      const batchPages = await prisma.verse.findMany({
+        where: { OR: batch },
+        select: { page: true }
+      })
+      allPages.push(...batchPages.map(v => v.page))
+    }
+
+    const uniquePages = new Set(allPages)
     const totalMemorizedPages = uniquePages.size || Math.round(totalMemorizedVerses / 15)
 
     // Get unique surahs memorized
