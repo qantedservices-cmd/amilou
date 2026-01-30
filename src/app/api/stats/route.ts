@@ -19,8 +19,51 @@ export async function GET(request: Request) {
 
     // Parse period params
     const { searchParams } = new URL(request.url)
-    const paramWeek = searchParams.get('week') ? parseInt(searchParams.get('week')!) : null
-    const paramYear = searchParams.get('year') ? parseInt(searchParams.get('year')!) : null
+    const period = searchParams.get('period') || 'year' // 'year' | 'month' | 'global'
+    const paramYear = searchParams.get('year') ? parseInt(searchParams.get('year')!) : now.getFullYear()
+    const paramMonth = searchParams.get('month') ? parseInt(searchParams.get('month')!) : now.getMonth() + 1
+
+    // Helper: Calculate week number based on Sundays (matching Excel)
+    function getWeekNumber(date: Date): { week: number; year: number } {
+      const d = new Date(date)
+      d.setHours(0, 0, 0, 0)
+
+      const year = d.getFullYear()
+      const jan1 = new Date(year, 0, 1)
+      const jan1Day = jan1.getDay() // 0 = Sunday
+
+      const firstSunday = new Date(year, 0, 1 - jan1Day)
+      const diffDays = Math.floor((d.getTime() - firstSunday.getTime()) / (24 * 60 * 60 * 1000))
+      const week = Math.floor(diffDays / 7) + 1
+
+      return { week, year }
+    }
+
+    // Calculate period boundaries
+    let periodStart: Date
+    let periodEnd: Date
+    let totalWeeksInPeriod: number
+
+    if (period === 'global') {
+      // All time - use a very old start date
+      periodStart = new Date(2020, 0, 1)
+      periodEnd = new Date(now.getFullYear() + 1, 0, 1)
+      // For global, we'll calculate total weeks from first attendance entry
+      totalWeeksInPeriod = 0 // Will be calculated later
+    } else if (period === 'month') {
+      periodStart = new Date(paramYear, paramMonth - 1, 1)
+      periodEnd = new Date(paramYear, paramMonth, 1)
+      // Weeks in a month (approximately 4-5)
+      const daysInMonth = new Date(paramYear, paramMonth, 0).getDate()
+      totalWeeksInPeriod = Math.ceil(daysInMonth / 7)
+    } else {
+      // year (default)
+      periodStart = new Date(paramYear, 0, 1)
+      periodEnd = new Date(paramYear + 1, 0, 1)
+      // Calculate weeks in year up to now (or end of year if past)
+      const effectiveEnd = periodEnd < now ? periodEnd : now
+      totalWeeksInPeriod = Math.ceil((effectiveEnd.getTime() - periodStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
+    }
 
     // Get all progress entries for the user
     const progressEntries = await prisma.progress.findMany({
@@ -28,23 +71,16 @@ export async function GET(request: Request) {
       include: { surah: true, program: true },
     })
 
-    // Get memorization program
-    const memorizationProgram = await prisma.program.findFirst({
-      where: { code: 'MEMORIZATION' }
-    })
+    // Filter progress by period
+    const periodProgress = period === 'global'
+      ? progressEntries
+      : progressEntries.filter(e => {
+          const d = new Date(e.date)
+          return d >= periodStart && d < periodEnd
+        })
 
-    // Calculate total verses worked (all programs)
-    const totalVerses = progressEntries.reduce(
-      (sum, entry) => sum + (entry.verseEnd - entry.verseStart + 1),
-      0
-    )
-
-    // Calculate unique memorized verses (only MEMORIZATION program)
-    const memorizationEntries = progressEntries.filter(
-      e => e.program.code === 'MEMORIZATION'
-    )
-
-    // Create a set of unique verse identifiers for memorization
+    // Calculate unique memorized verses (only MEMORIZATION program) - always global for main progress
+    const memorizationEntries = progressEntries.filter(e => e.program.code === 'MEMORIZATION')
     const memorizedVerses = new Set<string>()
     for (const entry of memorizationEntries) {
       for (let v = entry.verseStart; v <= entry.verseEnd; v++) {
@@ -55,13 +91,13 @@ export async function GET(request: Request) {
     const totalMemorizedVerses = memorizedVerses.size
     const memorizedPercentage = Math.round((totalMemorizedVerses / QURAN_TOTAL_VERSES) * 1000) / 10
 
-    // Calculate pages from verses (using actual verse data if available)
+    // Calculate pages from verses
     const versePages = await prisma.verse.findMany({
       where: {
         OR: Array.from(memorizedVerses).map(v => {
           const [surah, verse] = v.split(':').map(Number)
           return { surahNumber: surah, verseNumber: verse }
-        }).slice(0, 1000) // Limit for performance
+        }).slice(0, 1000)
       },
       select: { page: true }
     })
@@ -77,53 +113,40 @@ export async function GET(request: Request) {
       where: { userId },
     })
 
-    // Calculate attendance rate from DailyAttendance
-    const attendanceEntries = await prisma.dailyAttendance.findMany({
+    // Get attendance entries filtered by period
+    const allAttendanceEntries = await prisma.dailyAttendance.findMany({
       where: { userId },
       orderBy: { date: 'desc' },
     })
 
-    // Calculate active weeks (weeks where at least one day has score > 0)
+    const attendanceEntries = period === 'global'
+      ? allAttendanceEntries
+      : allAttendanceEntries.filter(entry => {
+          const d = new Date(entry.date)
+          return d >= periodStart && d < periodEnd
+        })
+
+    // Calculate active weeks for the period
     const activeWeeksCount = attendanceEntries.filter(entry =>
       entry.sunday > 0 || entry.monday > 0 || entry.tuesday > 0 || entry.wednesday > 0 ||
       entry.thursday > 0 || entry.friday > 0 || entry.saturday > 0
     ).length
 
-    // Calculate total weeks since first entry or start of year
-    const startOfYear = new Date(now.getFullYear(), 0, 1)
-    const totalWeeksSinceYearStart = Math.ceil(
-      (now.getTime() - startOfYear.getTime()) / (7 * 24 * 60 * 60 * 1000)
-    )
-
-    const attendanceRate = totalWeeksSinceYearStart > 0
-      ? Math.round((activeWeeksCount / totalWeeksSinceYearStart) * 100)
-      : 0
-
-    // Helper: Calculate week number based on Sundays (matching Excel)
-    function getWeekNumber(date: Date): { week: number; year: number } {
-      const d = new Date(date)
-      d.setHours(0, 0, 0, 0)
-
-      const year = d.getFullYear()
-      const jan1 = new Date(year, 0, 1)
-      const jan1Day = jan1.getDay() // 0 = Sunday
-
-      // First Sunday = Jan 1 if Sunday, else previous Sunday (may be in prev year)
-      const firstSunday = new Date(year, 0, 1 - jan1Day)
-
-      // Calculate week number
-      const diffDays = Math.floor((d.getTime() - firstSunday.getTime()) / (24 * 60 * 60 * 1000))
-      const week = Math.floor(diffDays / 7) + 1
-
-      return { week, year }
+    // For global period, calculate total weeks from first entry
+    if (period === 'global' && allAttendanceEntries.length > 0) {
+      const firstEntry = allAttendanceEntries[allAttendanceEntries.length - 1]
+      const firstDate = new Date(firstEntry.date)
+      totalWeeksInPeriod = Math.ceil((now.getTime() - firstDate.getTime()) / (7 * 24 * 60 * 60 * 1000))
     }
 
-    // Build weekly attendance data for dashboard display
+    const attendanceRate = totalWeeksInPeriod > 0
+      ? Math.round((activeWeeksCount / totalWeeksInPeriod) * 100)
+      : 0
+
+    // Build weekly attendance data for display
     const weeklyAttendance = attendanceEntries.map(entry => {
       const date = new Date(entry.date)
-      // The stored date is Sunday (week start)
       const weekInfo = getWeekNumber(date)
-      const weekNumber = weekInfo.week
 
       const scores = [
         entry.sunday, entry.monday, entry.tuesday, entry.wednesday,
@@ -131,12 +154,12 @@ export async function GET(request: Request) {
       ]
       const daysActive = scores.filter(s => s > 0).length
       const totalScore = scores.reduce((a, b) => a + b, 0)
-      const maxPossible = 7 * 5 // 7 days * 5 programs
+      const maxPossible = 7 * 5
 
       return {
         id: entry.id,
         date: entry.date,
-        weekNumber,
+        weekNumber: weekInfo.week,
         year: date.getFullYear(),
         sunday: entry.sunday,
         monday: entry.monday,
@@ -152,24 +175,26 @@ export async function GET(request: Request) {
       }
     })
 
-    // Get recent progress entries
-    const recentProgress = await prisma.progress.findMany({
-      where: { userId },
-      include: {
-        program: true,
-        surah: true,
-      },
-      orderBy: { date: 'desc' },
-      take: 5,
-    })
+    // Get recent progress entries (for the period)
+    const recentProgress = periodProgress
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5)
+      .map(entry => ({
+        id: entry.id,
+        date: entry.date,
+        verseStart: entry.verseStart,
+        verseEnd: entry.verseEnd,
+        program: entry.program,
+        surah: entry.surah,
+      }))
 
-    // Get active objectives (old system)
+    // Get active objectives
     const objectives = await prisma.userObjective.findMany({
       where: { userId, isActive: true },
       include: { program: true },
     })
 
-    // Get program settings (new assiduity system)
+    // Get program settings
     const programSettings = await prisma.userProgramSettings.findMany({
       where: { userId, isActive: true },
       include: { program: true },
@@ -184,20 +209,17 @@ export async function GET(request: Request) {
     const todayLogs = await prisma.dailyLog.findMany({
       where: {
         userId,
-        date: {
-          gte: today,
-          lt: tomorrow,
-        },
+        date: { gte: today, lt: tomorrow },
       },
       include: { program: true },
     })
 
-    // Get all programs for objectives vs realized
+    // Get all programs
     const allPrograms = await prisma.program.findMany({
       orderBy: { code: 'asc' },
     })
 
-    // Build objectives vs realized data
+    // Build objectives vs realized
     const objectivesVsRealized = allPrograms.map(program => {
       const setting = programSettings.find(s => s.programId === program.id)
       const todayLog = todayLogs.find(l => l.programId === program.id)
@@ -218,57 +240,7 @@ export async function GET(request: Request) {
       }
     })
 
-    // Calculate period dates based on params (Sunday-based weeks)
-    function getSundayOfWeek(year: number, week: number): Date {
-      // Find first Sunday of the year (or last Sunday of previous year)
-      const jan1 = new Date(year, 0, 1)
-      const jan1Day = jan1.getDay() // 0 = Sunday
-      const firstSunday = new Date(year, 0, 1 - jan1Day)
-
-      // Add (week - 1) * 7 days to get the Sunday of the requested week
-      const result = new Date(firstSunday)
-      result.setDate(firstSunday.getDate() + (week - 1) * 7)
-      result.setHours(0, 0, 0, 0)
-      return result
-    }
-
-    // Determine the selected week
-    const selectedYear = paramYear || now.getFullYear()
-    let selectedWeek = paramWeek
-    if (!selectedWeek) {
-      // Calculate current week using Sunday-based calculation (matching Excel)
-      const currentWeekInfo = getWeekNumber(now)
-      selectedWeek = currentWeekInfo.week
-    }
-
-    const selectedWeekStart = getSundayOfWeek(selectedYear, selectedWeek)
-    const selectedWeekEnd = new Date(selectedWeekStart)
-    selectedWeekEnd.setDate(selectedWeekStart.getDate() + 7)
-
-    // Month range (month containing the selected week)
-    const monthStart = new Date(selectedWeekStart.getFullYear(), selectedWeekStart.getMonth(), 1)
-    const monthEnd = new Date(selectedWeekStart.getFullYear(), selectedWeekStart.getMonth() + 1, 1)
-
-    // Year range
-    const yearStart = new Date(selectedYear, 0, 1)
-    const yearEnd = new Date(selectedYear + 1, 0, 1)
-
-    // Progress by program for each period
-    const allProgressForYear = progressEntries.filter(e => {
-      const d = new Date(e.date)
-      return d >= yearStart && d < yearEnd
-    })
-
-    const weekProgress = allProgressForYear.filter(e => {
-      const d = new Date(e.date)
-      return d >= selectedWeekStart && d < selectedWeekEnd
-    })
-
-    const monthProgress = allProgressForYear.filter(e => {
-      const d = new Date(e.date)
-      return d >= monthStart && d < monthEnd
-    })
-
+    // Aggregate progress by program for the period
     function aggregateByProgram(entries: typeof progressEntries) {
       return entries.reduce((acc, entry) => {
         const code = entry.program.code
@@ -278,11 +250,9 @@ export async function GET(request: Request) {
       }, {} as Record<string, number>)
     }
 
-    const weeklyByProgram = aggregateByProgram(weekProgress)
-    const monthlyByProgram = aggregateByProgram(monthProgress)
-    const yearlyByProgram = aggregateByProgram(allProgressForYear)
+    const progressByProgram = aggregateByProgram(periodProgress)
 
-    // Get evolution data for last 12 weeks (for chart)
+    // Get evolution data for last 12 weeks
     const evolutionData = []
     for (let i = 11; i >= 0; i--) {
       const weekStart = new Date(now)
@@ -292,19 +262,14 @@ export async function GET(request: Request) {
       const weekEnd = new Date(weekStart)
       weekEnd.setDate(weekStart.getDate() + 7)
 
-      // Get daily logs for this week
       const weekLogs = await prisma.dailyLog.findMany({
         where: {
           userId,
-          date: {
-            gte: weekStart,
-            lt: weekEnd
-          }
+          date: { gte: weekStart, lt: weekEnd }
         },
         include: { program: true }
       })
 
-      // Calculate totals per program for this week (convert to pages)
       const weekData: Record<string, number> = {
         MEMORIZATION: 0,
         CONSOLIDATION: 0,
@@ -314,28 +279,40 @@ export async function GET(request: Request) {
       }
 
       weekLogs.forEach(log => {
-        // Convert to pages for uniformity
         let pages = log.quantity
-        if (log.unit === 'HIZB') pages = log.quantity * 10 // 1 hizb ≈ 10 pages
+        if (log.unit === 'HIZB') pages = log.quantity * 10
         else if (log.unit === 'DEMI_HIZB') pages = log.quantity * 5
         else if (log.unit === 'QUART') pages = log.quantity * 2.5
-        else if (log.unit === 'JUZ') pages = log.quantity * 20 // 1 juz ≈ 20 pages
+        else if (log.unit === 'JUZ') pages = log.quantity * 20
 
         if (weekData[log.program.code] !== undefined) {
           weekData[log.program.code] += pages
         }
       })
 
+      const weekInfo = getWeekNumber(weekStart)
       evolutionData.push({
-        week: `S${12 - i}`,
+        week: `S${weekInfo.week}`,
         weekStart: weekStart.toISOString().split('T')[0],
         ...weekData,
         total: Object.values(weekData).reduce((a, b) => a + b, 0)
       })
     }
 
+    // Get available years from attendance data
+    const yearsSet = new Set(allAttendanceEntries.map(e => new Date(e.date).getFullYear()))
+    const availableYears = Array.from(yearsSet).sort((a, b) => b - a)
+    if (!availableYears.includes(now.getFullYear())) {
+      availableYears.unshift(now.getFullYear())
+    }
+
     return NextResponse.json({
-      // Global progress (memorization)
+      // Period info
+      period,
+      selectedYear: paramYear,
+      selectedMonth: paramMonth,
+      availableYears,
+      // Global progress (memorization) - always global
       globalProgress: {
         memorizedVerses: totalMemorizedVerses,
         memorizedPages: totalMemorizedPages,
@@ -345,28 +322,23 @@ export async function GET(request: Request) {
         totalPages: QURAN_TOTAL_PAGES,
         totalSurahs: QURAN_TOTAL_SURAHS
       },
-      // Activity stats
-      totalVerses,
-      totalPages: Math.round(totalVerses / 15),
-      uniqueSurahs: new Set(progressEntries.map(e => e.surahNumber)).size,
+      // Activity stats for period
+      totalVerses: periodProgress.reduce((sum, e) => sum + (e.verseEnd - e.verseStart + 1), 0),
+      totalPages: Math.round(periodProgress.reduce((sum, e) => sum + (e.verseEnd - e.verseStart + 1), 0) / 15),
+      uniqueSurahs: new Set(periodProgress.map(e => e.surahNumber)).size,
       groupsCount,
-      // Attendance/Activity rate
+      // Attendance for period
       attendanceRate,
       activeWeeksCount,
-      totalWeeksSinceYearStart,
-      // Period info
-      selectedWeek,
-      selectedYear,
+      totalWeeksInPeriod,
       // Progress data
       recentProgress,
       objectives,
-      weeklyByProgram,
-      monthlyByProgram,
-      yearlyByProgram,
+      progressByProgram,
       objectivesVsRealized,
       // Evolution chart data
       evolutionData,
-      // Weekly attendance data
+      // Weekly attendance data (filtered by period)
       weeklyAttendance,
     })
   } catch (error) {

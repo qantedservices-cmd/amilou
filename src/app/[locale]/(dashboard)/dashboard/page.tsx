@@ -6,7 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { BookOpen, Calendar, Users, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
 interface Program {
@@ -91,6 +98,10 @@ interface EvolutionData {
 }
 
 interface Stats {
+  period: string
+  selectedYear: number
+  selectedMonth: number
+  availableYears: number[]
   globalProgress: GlobalProgress
   totalVerses: number
   totalPages: number
@@ -98,42 +109,43 @@ interface Stats {
   groupsCount: number
   attendanceRate: number
   activeWeeksCount: number
-  totalWeeksSinceYearStart: number
-  selectedWeek: number
-  selectedYear: number
+  totalWeeksInPeriod: number
   recentProgress: ProgressEntry[]
   objectives: Objective[]
-  weeklyByProgram: Record<string, number>
-  monthlyByProgram: Record<string, number>
-  yearlyByProgram: Record<string, number>
+  progressByProgram: Record<string, number>
   objectivesVsRealized: ObjectiveVsRealized[]
   evolutionData: EvolutionData[]
   weeklyAttendance: WeeklyAttendanceEntry[]
 }
 
-type ViewMode = 'week' | 'month' | 'year'
+type PeriodType = 'year' | 'month' | 'global'
+
+const MONTHS = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+]
 
 export default function DashboardPage() {
   const t = useTranslations()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<ViewMode>('week')
-  const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
+  const [period, setPeriod] = useState<PeriodType>('year')
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1)
 
-  async function fetchStats(week?: number, year?: number) {
+  async function fetchStats() {
+    setLoading(true)
     try {
       const params = new URLSearchParams()
-      if (week) params.set('week', week.toString())
-      if (year) params.set('year', year.toString())
+      params.set('period', period)
+      params.set('year', selectedYear.toString())
+      if (period === 'month') {
+        params.set('month', selectedMonth.toString())
+      }
       const res = await fetch(`/api/stats?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
         setStats(data)
-        if (!week) {
-          setSelectedWeek(data.selectedWeek)
-          setSelectedYear(data.selectedYear)
-        }
       }
     } catch (error) {
       console.error('Error fetching stats:', error)
@@ -144,92 +156,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchStats()
-  }, [])
-
-  function getWeeksInYear(year: number): number {
-    // Calculer le nombre de semaines basé sur les dimanches
-    const jan1 = new Date(year, 0, 1)
-    const dec31 = new Date(year, 11, 31)
-    const jan1Day = jan1.getDay()
-
-    // Premier dimanche de l'année
-    const firstSunday = new Date(year, 0, 1 - jan1Day)
-    // Dernier jour de l'année
-    const diffDays = Math.floor((dec31.getTime() - firstSunday.getTime()) / (24 * 60 * 60 * 1000))
-    return Math.floor(diffDays / 7) + 1
-  }
-
-  function prevWeek() {
-    const w = (selectedWeek || 1) - 1
-    if (w < 1) {
-      const prevYear = selectedYear - 1
-      const maxWeek = getWeeksInYear(prevYear)
-      setSelectedWeek(maxWeek)
-      setSelectedYear(prevYear)
-      fetchStats(maxWeek, prevYear)
-    } else {
-      setSelectedWeek(w)
-      fetchStats(w, selectedYear)
-    }
-  }
-
-  function nextWeek() {
-    const maxWeek = getWeeksInYear(selectedYear)
-    const w = (selectedWeek || 1) + 1
-    if (w > maxWeek) {
-      setSelectedWeek(1)
-      setSelectedYear(selectedYear + 1)
-      fetchStats(1, selectedYear + 1)
-    } else {
-      setSelectedWeek(w)
-      fetchStats(w, selectedYear)
-    }
-  }
-
-  function goToCurrentWeek() {
-    setSelectedWeek(null)
-    setSelectedYear(new Date().getFullYear())
-    fetchStats()
-  }
-
-  // Filter attendance based on view mode
-  function getFilteredAttendance() {
-    if (!stats?.weeklyAttendance) return []
-    if (viewMode === 'week') {
-      return stats.weeklyAttendance.filter(w => w.weekNumber === selectedWeek && w.year === selectedYear)
-    }
-    if (viewMode === 'month') {
-      // Determine month from the selected week (approximate: week * 7 days from Jan 1)
-      const weekEntry = stats.weeklyAttendance.find(w => w.weekNumber === selectedWeek && w.year === selectedYear)
-      let monthNum: number
-      if (weekEntry) {
-        monthNum = new Date(weekEntry.date).getMonth()
-      } else {
-        // Approximate month from week number
-        monthNum = Math.min(Math.floor(((selectedWeek || 1) - 1) * 7 / 30.44), 11)
-      }
-      return stats.weeklyAttendance.filter(w => {
-        const d = new Date(w.date)
-        return d.getMonth() === monthNum && d.getFullYear() === selectedYear
-      })
-    }
-    // year
-    return stats.weeklyAttendance.filter(w => w.year === selectedYear)
-  }
-
-  // Get progress by program for current view mode
-  function getProgressByProgram() {
-    if (!stats) return {}
-    if (viewMode === 'week') return stats.weeklyByProgram
-    if (viewMode === 'month') return stats.monthlyByProgram
-    return stats.yearlyByProgram
-  }
-
-  function getProgressLabel() {
-    if (viewMode === 'week') return `Semaine ${selectedWeek}`
-    if (viewMode === 'month') return 'Ce mois'
-    return `Année ${selectedYear}`
-  }
+  }, [period, selectedYear, selectedMonth])
 
   function getProgramColor(code: string) {
     const colors: Record<string, string> = {
@@ -269,11 +196,16 @@ export default function DashboardPage() {
   function getCompletionStatus(item: ObjectiveVsRealized) {
     if (!item.objective) return 'none'
     if (!item.realized) return 'pending'
-    // Compare in same unit (simplified comparison)
     if (item.realized.quantity >= item.objective.quantity && item.realized.unit === item.objective.unit) {
       return 'complete'
     }
     return 'partial'
+  }
+
+  function getPeriodLabel() {
+    if (period === 'global') return 'Global (tout)'
+    if (period === 'month') return `${MONTHS[selectedMonth - 1]} ${selectedYear}`
+    return `Année ${selectedYear}`
   }
 
   const PROGRAM_ORDER = ['MEMORIZATION', 'CONSOLIDATION', 'REVISION', 'READING', 'TAFSIR']
@@ -287,11 +219,11 @@ export default function DashboardPage() {
   }
 
   const CHART_COLORS = {
-    MEMORIZATION: '#10b981', // emerald
-    CONSOLIDATION: '#3b82f6', // blue
-    REVISION: '#f59e0b', // amber
-    READING: '#8b5cf6', // purple
-    TAFSIR: '#f43f5e', // rose
+    MEMORIZATION: '#10b981',
+    CONSOLIDATION: '#3b82f6',
+    REVISION: '#f59e0b',
+    READING: '#8b5cf6',
+    TAFSIR: '#f43f5e',
   }
 
   const statCards = [
@@ -321,7 +253,7 @@ export default function DashboardPage() {
     },
     {
       title: 'Assiduité',
-      value: `${stats?.activeWeeksCount || 0}/${stats?.totalWeeksSinceYearStart || 0}`,
+      value: `${stats?.activeWeeksCount || 0}/${stats?.totalWeeksInPeriod || 0}`,
       description: `semaines actives (${stats?.attendanceRate || 0}%)`,
       icon: Calendar,
       color: 'text-purple-600',
@@ -346,40 +278,55 @@ export default function DashboardPage() {
         </div>
 
         {/* Period Selector */}
-        <div className="flex items-center gap-3">
-          {/* Week navigation */}
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={prevWeek}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 px-3 text-sm font-medium min-w-[80px]"
-              onClick={goToCurrentWeek}
-            >
-              S{selectedWeek} {selectedYear !== new Date().getFullYear() ? `'${String(selectedYear).slice(2)}` : ''}
-            </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={nextWeek}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* View mode toggle */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Period Type */}
           <div className="flex rounded-md border">
-            {(['week', 'month', 'year'] as ViewMode[]).map((mode) => (
+            {(['year', 'month', 'global'] as PeriodType[]).map((p) => (
               <Button
-                key={mode}
-                variant={viewMode === mode ? 'default' : 'ghost'}
+                key={p}
+                variant={period === p ? 'default' : 'ghost'}
                 size="sm"
                 className={`h-8 px-3 rounded-none first:rounded-l-md last:rounded-r-md ${
-                  viewMode === mode ? 'bg-emerald-600 hover:bg-emerald-700' : ''
+                  period === p ? 'bg-emerald-600 hover:bg-emerald-700' : ''
                 }`}
-                onClick={() => setViewMode(mode)}
+                onClick={() => setPeriod(p)}
               >
-                {mode === 'week' ? 'Sem.' : mode === 'month' ? 'Mois' : 'Année'}
+                {p === 'year' ? 'Année' : p === 'month' ? 'Mois' : 'Global'}
               </Button>
             ))}
           </div>
+
+          {/* Year Selector */}
+          {period !== 'global' && (
+            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+              <SelectTrigger className="w-24 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(stats?.availableYears || [new Date().getFullYear()]).map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Month Selector */}
+          {period === 'month' && (
+            <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+              <SelectTrigger className="w-32 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((month, idx) => (
+                  <SelectItem key={idx + 1} value={(idx + 1).toString()}>
+                    {month}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 
@@ -477,51 +424,11 @@ export default function DashboardPage() {
                     }}
                   />
                   <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="MEMORIZATION"
-                    name="Mémorisation"
-                    stackId="1"
-                    stroke={CHART_COLORS.MEMORIZATION}
-                    fill={CHART_COLORS.MEMORIZATION}
-                    fillOpacity={0.6}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="CONSOLIDATION"
-                    name="Consolidation"
-                    stackId="1"
-                    stroke={CHART_COLORS.CONSOLIDATION}
-                    fill={CHART_COLORS.CONSOLIDATION}
-                    fillOpacity={0.6}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="REVISION"
-                    name="Révision"
-                    stackId="1"
-                    stroke={CHART_COLORS.REVISION}
-                    fill={CHART_COLORS.REVISION}
-                    fillOpacity={0.6}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="READING"
-                    name="Lecture"
-                    stackId="1"
-                    stroke={CHART_COLORS.READING}
-                    fill={CHART_COLORS.READING}
-                    fillOpacity={0.6}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="TAFSIR"
-                    name="Tafsir"
-                    stackId="1"
-                    stroke={CHART_COLORS.TAFSIR}
-                    fill={CHART_COLORS.TAFSIR}
-                    fillOpacity={0.6}
-                  />
+                  <Area type="monotone" dataKey="MEMORIZATION" name="Mémorisation" stackId="1" stroke={CHART_COLORS.MEMORIZATION} fill={CHART_COLORS.MEMORIZATION} fillOpacity={0.6} />
+                  <Area type="monotone" dataKey="CONSOLIDATION" name="Consolidation" stackId="1" stroke={CHART_COLORS.CONSOLIDATION} fill={CHART_COLORS.CONSOLIDATION} fillOpacity={0.6} />
+                  <Area type="monotone" dataKey="REVISION" name="Révision" stackId="1" stroke={CHART_COLORS.REVISION} fill={CHART_COLORS.REVISION} fillOpacity={0.6} />
+                  <Area type="monotone" dataKey="READING" name="Lecture" stackId="1" stroke={CHART_COLORS.READING} fill={CHART_COLORS.READING} fillOpacity={0.6} />
+                  <Area type="monotone" dataKey="TAFSIR" name="Tafsir" stackId="1" stroke={CHART_COLORS.TAFSIR} fill={CHART_COLORS.TAFSIR} fillOpacity={0.6} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -538,7 +445,7 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-purple-600" />
-            Bilan Assiduité - {getProgressLabel()}
+            Bilan Assiduité - {getPeriodLabel()}
           </CardTitle>
           <CardDescription>
             Taux de réalisation par programme journalier
@@ -546,7 +453,6 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {/* Program Stats */}
             <div className="space-y-3">
               <h4 className="font-medium text-sm text-muted-foreground">Programmes Journaliers</h4>
               {[
@@ -555,18 +461,19 @@ export default function DashboardPage() {
                 { code: 'REVISION', name: 'Révision', color: 'bg-amber-500' },
                 { code: 'READING', name: 'Lecture', color: 'bg-purple-500' },
               ].map((program) => {
-                const progressData = getProgressByProgram()
-                const percentage = progressData[program.code] ? Math.min(Math.round(progressData[program.code] / 7 * 100), 100) : 0
+                const days = stats?.progressByProgram?.[program.code] || 0
+                const totalDays = period === 'month' ? 30 : period === 'year' ? 365 : (stats?.totalWeeksInPeriod || 1) * 7
+                const percentage = Math.min(Math.round((days / Math.max(totalDays / 7, 1)) * 100), 100)
                 return (
                   <div key={program.code} className="space-y-1">
                     <div className="flex items-center justify-between text-sm">
                       <span>{program.name}</span>
-                      <span className="font-medium">{percentage}%</span>
+                      <span className="font-medium">{stats?.progressByProgram?.[program.code] || 0} versets</span>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <div
                         className={`h-full ${program.color} transition-all duration-300`}
-                        style={{ width: `${percentage}%` }}
+                        style={{ width: `${Math.min(percentage, 100)}%` }}
                       />
                     </div>
                   </div>
@@ -577,102 +484,89 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Weekly Attendance Table (Legacy) */}
+      {/* Weekly Attendance Table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-purple-600" />
-            Historique Assiduité
+            Historique Assiduité - {getPeriodLabel()}
           </CardTitle>
           <CardDescription>
             Score journalier (ancien système 0-5)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {(() => {
-            const filtered = getFilteredAttendance()
-            return filtered.length > 0 ? (
-              <div className="overflow-x-auto -mx-2 sm:mx-0">
-                <table className="w-full text-sm min-w-[360px]">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2 px-1 sm:px-2 font-medium text-muted-foreground text-xs sm:text-sm">Sem.</th>
-                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">D</th>
-                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">L</th>
-                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">M</th>
-                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">Me</th>
-                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">J</th>
-                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">V</th>
-                      <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">S</th>
-                      <th className="text-center py-2 px-1 sm:px-2 font-medium text-muted-foreground text-xs sm:text-sm">%</th>
+          {stats?.weeklyAttendance && stats.weeklyAttendance.length > 0 ? (
+            <div className="overflow-x-auto -mx-2 sm:mx-0">
+              <table className="w-full text-sm min-w-[360px]">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-1 sm:px-2 font-medium text-muted-foreground text-xs sm:text-sm">Sem.</th>
+                    <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">D</th>
+                    <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">L</th>
+                    <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">M</th>
+                    <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">Me</th>
+                    <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">J</th>
+                    <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">V</th>
+                    <th className="text-center py-2 px-0.5 sm:px-1 font-medium text-muted-foreground text-xs sm:text-sm">S</th>
+                    <th className="text-center py-2 px-1 sm:px-2 font-medium text-muted-foreground text-xs sm:text-sm">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.weeklyAttendance.map((week) => (
+                    <tr key={week.id} className="border-b last:border-0 hover:bg-muted/50">
+                      <td className="py-2 px-1 sm:px-2 font-medium whitespace-nowrap text-xs sm:text-sm">
+                        S{week.weekNumber}
+                        <span className="text-xs text-muted-foreground ml-0.5">
+                          {week.year !== new Date().getFullYear() ? `'${String(week.year).slice(2)}` : ''}
+                        </span>
+                      </td>
+                      {(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const).map((day) => (
+                        <td key={day} className="text-center py-2 px-0.5 sm:px-1">
+                          <ScoreCell score={week[day]} />
+                        </td>
+                      ))}
+                      <td className="text-center py-2 px-1 sm:px-2">
+                        <Badge variant={week.score >= 80 ? 'default' : week.score >= 50 ? 'secondary' : 'outline'}
+                          className={week.score >= 80 ? 'bg-emerald-600' : week.score >= 50 ? 'bg-amber-500' : ''}>
+                          {week.score}%
+                        </Badge>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((week) => (
-                      <tr key={week.id} className="border-b last:border-0 hover:bg-muted/50">
-                        <td className="py-2 px-1 sm:px-2 font-medium whitespace-nowrap text-xs sm:text-sm">
-                          S{week.weekNumber}
-                          <span className="text-xs text-muted-foreground ml-0.5">
-                            {week.year !== new Date().getFullYear() ? `'${String(week.year).slice(2)}` : ''}
-                          </span>
-                        </td>
-                        {(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const).map((day) => (
-                          <td key={day} className="text-center py-2 px-0.5 sm:px-1">
-                            <ScoreCell score={week[day]} />
-                          </td>
-                        ))}
-                        <td className="text-center py-2 px-1 sm:px-2">
-                          <Badge variant={week.score >= 80 ? 'default' : week.score >= 50 ? 'secondary' : 'outline'}
-                            className={week.score >= 80 ? 'bg-emerald-600' : week.score >= 50 ? 'bg-amber-500' : ''}>
-                            {week.score}%
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  ))}
+                </tbody>
+              </table>
 
-                {/* Legend */}
-                <div className="mt-3 pt-2 border-t">
-                  <p className="text-xs text-muted-foreground mb-2">Programmes accomplis dans l'ordre : Mémo → Conso → Révision → Lecture → Tafsir</p>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500"></span> 5 (tous)
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 rounded-sm bg-emerald-300"></span> 4
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 rounded-sm bg-amber-400"></span> 3
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 rounded-sm bg-orange-400"></span> 2
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 rounded-sm bg-red-300"></span> 1
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 rounded-sm bg-gray-200 dark:bg-gray-700"></span> 0
-                    </span>
-                  </div>
+              {/* Legend */}
+              <div className="mt-3 pt-2 border-t">
+                <p className="text-xs text-muted-foreground mb-2">Programmes accomplis dans l'ordre : Mémo - Conso - Révision - Lecture - Tafsir</p>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500"></span> 5 (tous)
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-emerald-300"></span> 4
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-amber-400"></span> 3
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-orange-400"></span> 2
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-red-300"></span> 1
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-gray-200 dark:bg-gray-700"></span> 0
+                  </span>
                 </div>
-
-                {filtered.some(w => w.comment) && (
-                  <div className="mt-3 space-y-1 border-t pt-3">
-                    {filtered.filter(w => w.comment).map(w => (
-                      <p key={w.id} className="text-xs text-muted-foreground">
-                        <span className="font-medium">S{w.weekNumber}:</span> {w.comment}
-                      </p>
-                    ))}
-                  </div>
-                )}
               </div>
-            ) : (
-              <div className="flex h-[100px] items-center justify-center text-muted-foreground">
-                Aucune donnée d'assiduité pour cette période
-              </div>
-            )
-          })()}
+            </div>
+          ) : (
+            <div className="flex h-[100px] items-center justify-center text-muted-foreground">
+              Aucune donnée d'assiduité pour cette période
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -707,29 +601,19 @@ export default function DashboardPage() {
                       <Badge className={getProgramColor(item.programCode)}>
                         {item.programName}
                       </Badge>
-                      {status === 'complete' && (
-                        <CheckCircle className="h-4 w-4 text-emerald-600" />
-                      )}
-                      {status === 'partial' && (
-                        <AlertCircle className="h-4 w-4 text-amber-600" />
-                      )}
-                      {status === 'pending' && (
-                        <Circle className="h-4 w-4 text-muted-foreground" />
-                      )}
+                      {status === 'complete' && <CheckCircle className="h-4 w-4 text-emerald-600" />}
+                      {status === 'partial' && <AlertCircle className="h-4 w-4 text-amber-600" />}
+                      {status === 'pending' && <Circle className="h-4 w-4 text-muted-foreground" />}
                     </div>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Objectif:</span>
-                        <span className="font-medium">
-                          {formatObjective(item.objective)}
-                        </span>
+                        <span className="font-medium">{formatObjective(item.objective)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Réalisé:</span>
                         <span className={`font-medium ${item.realized ? 'text-emerald-600' : 'text-muted-foreground'}`}>
-                          {item.realized
-                            ? formatQuantityUnit(item.realized.quantity, item.realized.unit)
-                            : '-'}
+                          {item.realized ? formatQuantityUnit(item.realized.quantity, item.realized.unit) : '-'}
                         </span>
                       </div>
                     </div>
@@ -750,19 +634,16 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-emerald-600" />
-            Progression par programme
+            Progression par programme - {getPeriodLabel()}
           </CardTitle>
-          <CardDescription>Versets travaillés - {getProgressLabel()}</CardDescription>
+          <CardDescription>Versets travaillés</CardDescription>
         </CardHeader>
         <CardContent>
-          {(() => {
-            const progressData = getProgressByProgram()
-            const sortedEntries = PROGRAM_ORDER
-              .filter(code => progressData[code] !== undefined)
-              .map(code => [code, progressData[code]] as [string, number])
-            return sortedEntries.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                {sortedEntries.map(([code, verses]) => (
+          {stats?.progressByProgram && Object.keys(stats.progressByProgram).length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {PROGRAM_ORDER
+                .filter(code => stats.progressByProgram[code] !== undefined)
+                .map(code => (
                   <div key={code} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <Badge className={getProgramColor(code)}>
                       {code === 'MEMORIZATION' && 'Mémorisation'}
@@ -771,16 +652,17 @@ export default function DashboardPage() {
                       {code === 'READING' && 'Lecture'}
                       {code === 'TAFSIR' && 'Tafsir'}
                     </Badge>
-                    <span className={`font-bold text-lg ${PROGRAM_TEXT_COLORS[code] || 'text-emerald-600'}`}>{verses}</span>
+                    <span className={`font-bold text-lg ${PROGRAM_TEXT_COLORS[code] || 'text-emerald-600'}`}>
+                      {stats.progressByProgram[code]}
+                    </span>
                   </div>
                 ))}
-              </div>
-            ) : (
-              <div className="flex h-[100px] items-center justify-center text-muted-foreground">
-                Aucune activité - {getProgressLabel()}
-              </div>
-            )
-          })()}
+            </div>
+          ) : (
+            <div className="flex h-[100px] items-center justify-center text-muted-foreground">
+              Aucune activité - {getPeriodLabel()}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -788,7 +670,7 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle>{t('progress.title')}</CardTitle>
-          <CardDescription>Vos dernières entrées</CardDescription>
+          <CardDescription>Vos dernières entrées - {getPeriodLabel()}</CardDescription>
         </CardHeader>
         <CardContent>
           {stats?.recentProgress && stats.recentProgress.length > 0 ? (
@@ -823,7 +705,6 @@ export default function DashboardPage() {
   )
 }
 
-// Component to display a score cell (0-5) with color coding
 function ScoreCell({ score }: { score: number }) {
   if (score === 0) {
     return (
