@@ -97,6 +97,13 @@ interface EvolutionData {
   total: number
 }
 
+interface AttendanceStats {
+  rate: number
+  activeWeeks?: number
+  weeksWithSubmission?: number
+  totalWeeks: number
+}
+
 interface Stats {
   period: string
   selectedYear: number
@@ -107,6 +114,10 @@ interface Stats {
   totalPages: number
   uniqueSurahs: number
   groupsCount: number
+  // New structured attendance
+  dailyAttendance?: AttendanceStats
+  weeklyAttendance?: AttendanceStats
+  // Legacy fields
   attendanceRate: number
   activeWeeksCount: number
   totalWeeksInPeriod: number
@@ -115,7 +126,7 @@ interface Stats {
   progressByProgram: Record<string, number>
   objectivesVsRealized: ObjectiveVsRealized[]
   evolutionData: EvolutionData[]
-  weeklyAttendance: WeeklyAttendanceEntry[]
+  weeklyAttendanceDetails: WeeklyAttendanceEntry[]
 }
 
 type PeriodType = 'year' | 'month' | 'global'
@@ -252,9 +263,9 @@ export default function DashboardPage() {
       bgColor: 'bg-amber-100 dark:bg-amber-900',
     },
     {
-      title: 'Assiduité',
-      value: `${stats?.activeWeeksCount || 0}/${stats?.totalWeeksInPeriod || 0}`,
-      description: `semaines actives (${stats?.attendanceRate || 0}%)`,
+      title: 'Assiduité Hebdo',
+      value: `${stats?.weeklyAttendance?.weeksWithSubmission || 0}/${stats?.weeklyAttendance?.totalWeeks || stats?.totalWeeksInPeriod || 0}`,
+      description: `soumissions (${stats?.weeklyAttendance?.rate || 0}%)`,
       icon: Calendar,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100 dark:bg-purple-900',
@@ -383,6 +394,66 @@ export default function DashboardPage() {
         })}
       </div>
 
+      {/* Assiduité Comparison Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-purple-600" />
+            Assiduité - {getPeriodLabel()}
+          </CardTitle>
+          <CardDescription>
+            Comparaison assiduité quotidienne et hebdomadaire
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Assiduité Quotidienne */}
+            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Assiduité Quotidienne</span>
+                <Badge variant="outline" className="text-blue-600 border-blue-300">
+                  {stats?.dailyAttendance?.rate || stats?.attendanceRate || 0}%
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">
+                Semaines avec activité journalière (ancien système 0-5)
+              </p>
+              <div className="h-2 bg-blue-100 dark:bg-blue-900 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-500 transition-all duration-300"
+                  style={{ width: `${stats?.dailyAttendance?.rate || stats?.attendanceRate || 0}%` }}
+                />
+              </div>
+              <p className="text-sm mt-2 text-right font-medium">
+                {stats?.dailyAttendance?.activeWeeks || stats?.activeWeeksCount || 0} / {stats?.dailyAttendance?.totalWeeks || stats?.totalWeeksInPeriod || 0} semaines
+              </p>
+            </div>
+
+            {/* Assiduité Hebdo */}
+            <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-purple-800 dark:text-purple-200">Assiduité Hebdomadaire</span>
+                <Badge variant="outline" className="text-purple-600 border-purple-300">
+                  {stats?.weeklyAttendance?.rate || 0}%
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">
+                Semaines avec soumission d'avancement (Mémorisation)
+              </p>
+              <div className="h-2 bg-purple-100 dark:bg-purple-900 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-purple-500 transition-all duration-300"
+                  style={{ width: `${stats?.weeklyAttendance?.rate || 0}%` }}
+                />
+              </div>
+              <p className="text-sm mt-2 text-right font-medium">
+                {stats?.weeklyAttendance?.weeksWithSubmission || 0} / {stats?.weeklyAttendance?.totalWeeks || stats?.totalWeeksInPeriod || 0} semaines
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Evolution Chart */}
       <Card>
         <CardHeader>
@@ -496,7 +567,7 @@ export default function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {stats?.weeklyAttendance && stats.weeklyAttendance.length > 0 ? (
+          {stats?.weeklyAttendanceDetails && stats.weeklyAttendanceDetails.length > 0 ? (
             <div className="overflow-x-auto -mx-2 sm:mx-0">
               <table className="w-full text-sm min-w-[360px]">
                 <thead>
@@ -513,7 +584,7 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {stats.weeklyAttendance.map((week) => (
+                  {stats.weeklyAttendanceDetails.map((week) => (
                     <tr key={week.id} className="border-b last:border-0 hover:bg-muted/50">
                       <td className="py-2 px-1 sm:px-2 font-medium whitespace-nowrap text-xs sm:text-sm">
                         S{week.weekNumber}

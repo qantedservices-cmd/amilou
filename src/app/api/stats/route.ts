@@ -151,8 +151,21 @@ export async function GET(request: Request) {
       ? Math.round((activeWeeksCount / totalWeeksInPeriod) * 100)
       : 0
 
+    // Calculate weekly attendance (assiduité hebdo) - based on Progress submissions
+    // A week is "attended" if user has at least one MEMORIZATION progress entry for that week
+    const weeklyProgressSubmissions = new Set<string>()
+    for (const entry of periodProgress.filter(e => e.program.code === 'MEMORIZATION')) {
+      const entryDate = new Date(entry.date)
+      const weekInfo = getWeekNumber(entryDate)
+      weeklyProgressSubmissions.add(`${weekInfo.year}-${weekInfo.week}`)
+    }
+    const weeklyAttendanceCount = weeklyProgressSubmissions.size
+    const weeklyAttendanceRate = totalWeeksInPeriod > 0
+      ? Math.round((weeklyAttendanceCount / totalWeeksInPeriod) * 100)
+      : 0
+
     // Build weekly attendance data for display
-    const weeklyAttendance = attendanceEntries.map(entry => {
+    const weeklyAttendanceDetails = attendanceEntries.map(entry => {
       const date = new Date(entry.date)
       const weekInfo = getWeekNumber(date)
 
@@ -335,7 +348,19 @@ export async function GET(request: Request) {
       totalPages: Math.round(periodProgress.reduce((sum, e) => sum + (e.verseEnd - e.verseStart + 1), 0) / 15),
       uniqueSurahs: new Set(periodProgress.map(e => e.surahNumber)).size,
       groupsCount,
-      // Attendance for period
+      // Daily attendance for period (assiduité quotidienne)
+      dailyAttendance: {
+        rate: attendanceRate,
+        activeWeeks: activeWeeksCount,
+        totalWeeks: totalWeeksInPeriod,
+      },
+      // Weekly attendance for period (assiduité hebdo - soumission avancement)
+      weeklyAttendance: {
+        rate: weeklyAttendanceRate,
+        weeksWithSubmission: weeklyAttendanceCount,
+        totalWeeks: totalWeeksInPeriod,
+      },
+      // Legacy fields for backwards compatibility
       attendanceRate,
       activeWeeksCount,
       totalWeeksInPeriod,
@@ -346,8 +371,8 @@ export async function GET(request: Request) {
       objectivesVsRealized,
       // Evolution chart data
       evolutionData,
-      // Weekly attendance data (filtered by period)
-      weeklyAttendance,
+      // Weekly attendance details data (filtered by period)
+      weeklyAttendanceDetails,
     })
   } catch (error) {
     console.error('Error fetching stats:', error)

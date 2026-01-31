@@ -282,8 +282,8 @@ model Verse {
   surahNumber Int
   verseNumber Int
   page        Int
-  juz         Int
-  hizb        Float
+  juz         Int?
+  hizb        Float?
 
   surah Surah @relation(fields: [surahNumber], references: [number])
 
