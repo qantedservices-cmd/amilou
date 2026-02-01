@@ -80,6 +80,7 @@ interface RecitationEntry {
   odComment: string
   isNew?: boolean
   toDelete?: boolean
+  modified?: boolean
 }
 
 export default function SessionEditPage({ params }: { params: Promise<{ id: string }> }) {
@@ -190,7 +191,11 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
   function updateRecitation(index: number, field: keyof RecitationEntry, value: string | number) {
     setRecitations(prev => {
       const updated = [...prev]
-      updated[index] = { ...updated[index], [field]: value }
+      updated[index] = {
+        ...updated[index],
+        [field]: value,
+        modified: !updated[index].isNew // Mark as modified if it's an existing recitation
+      }
       return updated
     })
   }
@@ -247,6 +252,23 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
       for (const r of toDelete) {
         await fetch(`/api/sessions/${id}/recitations/${r.odId}`, {
           method: 'DELETE'
+        })
+      }
+
+      // Update modified existing recitations
+      const toUpdate = recitations.filter(r => r.modified && r.odId && !r.toDelete)
+      for (const r of toUpdate) {
+        await fetch(`/api/sessions/${id}/recitations/${r.odId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            surahNumber: r.odSurahNumber,
+            type: r.odType,
+            verseStart: r.odVerseStart,
+            verseEnd: r.odVerseEnd,
+            status: r.odStatus,
+            comment: r.odComment || null,
+          })
         })
       }
 
@@ -468,7 +490,7 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
                                 <Select
                                   value={rec.odSurahNumber.toString()}
                                   onValueChange={(v) => updateRecitation(globalIdx, 'odSurahNumber', parseInt(v))}
-                                  disabled={!canEdit || !rec.isNew}
+                                  disabled={!canEdit}
                                 >
                                   <SelectTrigger>
                                     <SelectValue />
@@ -489,7 +511,7 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
                                 <Select
                                   value={rec.odType}
                                   onValueChange={(v) => updateRecitation(globalIdx, 'odType', v)}
-                                  disabled={!canEdit || !rec.isNew}
+                                  disabled={!canEdit}
                                 >
                                   <SelectTrigger>
                                     <SelectValue />
@@ -511,7 +533,7 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
                                     max={maxVerses}
                                     value={rec.odVerseStart}
                                     onChange={(e) => updateRecitation(globalIdx, 'odVerseStart', parseInt(e.target.value) || 1)}
-                                    disabled={!canEdit || !rec.isNew}
+                                    disabled={!canEdit}
                                   />
                                 </div>
                                 <div className="flex-1">
@@ -522,7 +544,7 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
                                     max={maxVerses}
                                     value={rec.odVerseEnd}
                                     onChange={(e) => updateRecitation(globalIdx, 'odVerseEnd', parseInt(e.target.value) || 1)}
-                                    disabled={!canEdit || !rec.isNew}
+                                    disabled={!canEdit}
                                   />
                                 </div>
                               </div>
