@@ -410,7 +410,7 @@ model SurahMastery {
   id            String    @id @default(cuid())
   userId        String
   surahNumber   Int
-  status        String    // AM (à mémoriser) | PARTIAL | VALIDATED | KNOWN
+  status        String    // Code statut (X, AM, 50%, 51%, 90%, V, S, etc.)
   validatedWeek Int?      // Numéro de semaine de validation (ex: 12 pour V12)
   validatedAt   DateTime?
   verseStart    Int?      // Si progression partielle
@@ -438,7 +438,7 @@ model SurahRecitation {
   type        String   // MEMORIZATION | REVISION
   verseStart  Int
   verseEnd    Int
-  status      String   // AM | PARTIAL | VALIDATED | KNOWN
+  status      String   // Code statut (X, AM, 50%, 51%, 90%, V, S, etc.)
   comment     String?
   createdBy   String
   createdAt   DateTime @default(now())
@@ -450,4 +450,22 @@ model SurahRecitation {
   @@index([sessionId])
   @@index([userId])
   @@index([userId, surahNumber])
+}
+
+// ============================================
+// Recitation Status Codes (Codes de statut personnalisables)
+// ============================================
+
+model RecitationStatus {
+  id          String   @id @default(cuid())
+  code        String   @unique // X, AM, 50%, 51%, 90%, V, S, etc.
+  label       String   // Libellé court
+  tooltip     String   // Description tooltip
+  color       String?  // Couleur hex optionnelle (ex: #10B981)
+  sortOrder   Int      @default(0) // Ordre d'affichage
+  isDefault   Boolean  @default(false) // Statuts système non supprimables
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sortOrder])
 }

@@ -17,7 +17,23 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Users, BookOpen, Check, X, Plus, Trash2, ArrowLeft, Save } from 'lucide-react'
+import { Calendar, Users, BookOpen, Check, X, Plus, Trash2, ArrowLeft, Save, HelpCircle } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+
+interface RecitationStatus {
+  id: string
+  code: string
+  label: string
+  tooltip: string
+  color: string | null
+  sortOrder: number
+  isDefault: boolean
+}
 
 interface Surah {
   number: number
@@ -90,6 +106,7 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
 
   const [session, setSession] = useState<GroupSession | null>(null)
   const [surahs, setSurahs] = useState<Surah[]>([])
+  const [statuses, setStatuses] = useState<RecitationStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -102,6 +119,7 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     fetchSession()
     fetchSurahs()
+    fetchStatuses()
   }, [id])
 
   async function fetchSession() {
@@ -159,6 +177,35 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
       }
     } catch (err) {
       console.error('Error fetching surahs:', err)
+    }
+  }
+
+  async function fetchStatuses() {
+    try {
+      const res = await fetch('/api/recitation-statuses')
+      if (res.ok) {
+        const data = await res.json()
+        setStatuses(data)
+      }
+    } catch (err) {
+      console.error('Error fetching statuses:', err)
+    }
+  }
+
+  function getStatusInfo(code: string): { label: string; tooltip: string; color: string } {
+    const status = statuses.find(s => s.code === code)
+    if (status) {
+      return {
+        label: status.label,
+        tooltip: status.tooltip,
+        color: status.color || '#6B7280'
+      }
+    }
+    // Fallback for unknown codes
+    return {
+      label: code,
+      tooltip: code,
+      color: '#6B7280'
     }
   }
 
@@ -551,20 +598,62 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
 
                               {/* Status */}
                               <div>
-                                <Label className="text-xs">Statut</Label>
+                                <div className="flex items-center gap-1">
+                                  <Label className="text-xs">Statut</Label>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="max-w-xs">
+                                        <p className="text-xs">{getStatusInfo(rec.odStatus).tooltip}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </div>
                                 <Select
                                   value={rec.odStatus}
                                   onValueChange={(v) => updateRecitation(globalIdx, 'odStatus', v)}
                                   disabled={!canEdit}
                                 >
                                   <SelectTrigger>
-                                    <SelectValue />
+                                    <SelectValue>
+                                      <span
+                                        className="inline-flex items-center gap-1.5"
+                                        style={{ color: getStatusInfo(rec.odStatus).color }}
+                                      >
+                                        <span
+                                          className="w-2 h-2 rounded-full"
+                                          style={{ backgroundColor: getStatusInfo(rec.odStatus).color }}
+                                        />
+                                        {rec.odStatus}
+                                      </span>
+                                    </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="AM">AM - À mémoriser</SelectItem>
-                                    <SelectItem value="PARTIAL">Partiel</SelectItem>
-                                    <SelectItem value="VALIDATED">Validé</SelectItem>
-                                    <SelectItem value="KNOWN">Acquis</SelectItem>
+                                    {statuses.map((s) => (
+                                      <SelectItem key={s.code} value={s.code}>
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <span className="inline-flex items-center gap-2">
+                                                <span
+                                                  className="w-2 h-2 rounded-full"
+                                                  style={{ backgroundColor: s.color || '#6B7280' }}
+                                                />
+                                                <span style={{ color: s.color || '#6B7280' }}>
+                                                  {s.code}
+                                                </span>
+                                                <span className="text-muted-foreground">- {s.label}</span>
+                                              </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="right">
+                                              <p className="text-xs">{s.tooltip}</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      </SelectItem>
+                                    ))}
                                   </SelectContent>
                                 </Select>
                               </div>
