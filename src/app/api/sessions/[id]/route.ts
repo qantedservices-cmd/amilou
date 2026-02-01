@@ -29,6 +29,16 @@ export async function GET(
             },
           },
         },
+        recitations: {
+          include: {
+            user: { select: { id: true, name: true } },
+            surah: { select: { number: true, nameFr: true, nameAr: true, totalVerses: true } }
+          },
+          orderBy: [
+            { userId: 'asc' },
+            { surahNumber: 'desc' }
+          ]
+        },
       },
     })
 

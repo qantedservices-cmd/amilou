@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, ChevronLeft, ChevronRight, Users, Check, X, BookOpen, Plus } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Users, Check, X, BookOpen, Plus, Pencil } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface Group {
@@ -58,6 +58,24 @@ interface CalendarData {
   members: { id: string; name: string }[]
 }
 
+interface GroupSessionItem {
+  id: string
+  date: string
+  weekNumber: number
+  notes: string | null
+  group: { id: string; name: string }
+  attendance: {
+    userId: string
+    present: boolean
+    user: { id: string; name: string | null }
+  }[]
+  recitations: {
+    id: string
+    userId: string
+    surahNumber: number
+  }[]
+}
+
 const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
@@ -71,6 +89,7 @@ export default function SessionsPage() {
   const router = useRouter()
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null)
   const [groups, setGroups] = useState<Group[]>([])
+  const [groupSessions, setGroupSessions] = useState<GroupSessionItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedGroup, setSelectedGroup] = useState<string>('all')
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
@@ -84,6 +103,7 @@ export default function SessionsPage() {
 
   useEffect(() => {
     fetchCalendarData()
+    fetchGroupSessions()
   }, [currentYear, currentMonth, selectedGroup])
 
   async function fetchGroups() {
@@ -118,6 +138,23 @@ export default function SessionsPage() {
       console.error('Error fetching calendar:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function fetchGroupSessions() {
+    try {
+      const params = new URLSearchParams()
+      if (selectedGroup !== 'all') {
+        params.set('groupId', selectedGroup)
+      }
+
+      const res = await fetch(`/api/sessions${params.toString() ? '?' + params : ''}`)
+      if (res.ok) {
+        const data = await res.json()
+        setGroupSessions(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Error fetching group sessions:', error)
     }
   }
 
@@ -393,6 +430,82 @@ export default function SessionsPage() {
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
               <Calendar className="h-12 w-12 mb-4 opacity-50" />
               <p>Aucune séance enregistrée</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Group Sessions List (Editable) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-blue-600" />
+            Séances de groupe
+          </CardTitle>
+          <CardDescription>Séances créées avec suivi de présence et récitations</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {groupSessions.length > 0 ? (
+            <div className="space-y-3">
+              {groupSessions.slice(0, 20).map((session) => {
+                const presentCount = session.attendance.filter(a => a.present).length
+                const totalCount = session.attendance.length
+                const recitationCount = session.recitations?.length || 0
+
+                return (
+                  <div
+                    key={session.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
+                        <Calendar className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{formatDate(session.date)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {session.group.name} - Semaine {session.weekNumber}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex gap-2">
+                        <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                          <Users className="h-3 w-3 mr-1" />
+                          {presentCount}/{totalCount}
+                        </Badge>
+                        {recitationCount > 0 && (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            <BookOpen className="h-3 w-3 mr-1" />
+                            {recitationCount}
+                          </Badge>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/${locale}/sessions/${session.id}`)}
+                      >
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Modifier
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <BookOpen className="h-12 w-12 mb-4 opacity-50" />
+              <p>Aucune séance de groupe créée</p>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => router.push(`/${locale}/sessions/new`)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Créer une séance
+              </Button>
             </div>
           )}
         </CardContent>

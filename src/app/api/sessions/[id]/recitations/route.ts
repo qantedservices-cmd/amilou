@@ -51,8 +51,24 @@ export async function POST(
     const { id: sessionId } = await params
     const body = await request.json()
 
-    // Support both single recitation and array of recitations
-    const recitations = Array.isArray(body) ? body : [body]
+    // Support multiple formats: { recitations: [...] }, [...], or single object
+    let recitations: Array<{
+      userId: string
+      surahNumber: number
+      type?: string
+      verseStart: number
+      verseEnd: number
+      status: string
+      comment?: string | null
+    }>
+
+    if (body.recitations && Array.isArray(body.recitations)) {
+      recitations = body.recitations
+    } else if (Array.isArray(body)) {
+      recitations = body
+    } else {
+      recitations = [body]
+    }
 
     // Validate session exists
     const groupSession = await prisma.groupSession.findUnique({
