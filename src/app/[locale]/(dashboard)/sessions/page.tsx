@@ -42,19 +42,32 @@ interface SessionParticipant {
 }
 
 interface SessionData {
+  id: string
+  type: 'group' | 'progress'
+  color: string
   date: string
+  weekNumber: number | null
+  groupId: string | null
+  groupName: string
+  notes: string | null
   participants: SessionParticipant[]
   presentCount: number
   totalMembers: number
   absentMembers: string[]
-  groupNames?: string[]
+  recitationCount: number
+}
+
+interface SessionDateInfo {
+  date: string
+  type: string
+  color: string
 }
 
 interface CalendarData {
   year: number
   month: number | null
   sessions: SessionData[]
-  sessionDates: string[]
+  sessionDates: SessionDateInfo[]
   totalSessions: number
   members: { id: string; name: string }[]
 }
@@ -185,16 +198,25 @@ export default function SessionsPage() {
     }
   }
 
-  function isSessionDate(day: number): boolean {
-    if (!calendarData) return false
+  function getSessionDateInfo(day: number): SessionDateInfo | undefined {
+    if (!calendarData) return undefined
     const dateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    return calendarData.sessionDates.includes(dateStr)
+    return calendarData.sessionDates.find(s => s.date === dateStr)
+  }
+
+  function isSessionDate(day: number): boolean {
+    return !!getSessionDateInfo(day)
   }
 
   function getSessionForDate(day: number): SessionData | undefined {
     if (!calendarData) return undefined
     const dateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     return calendarData.sessions.find(s => s.date === dateStr)
+  }
+
+  function getSessionColor(day: number): string {
+    const info = getSessionDateInfo(day)
+    return info?.color || '#3B82F6'
   }
 
   function openSessionDetail(day: number) {
@@ -349,6 +371,7 @@ export default function SessionsPage() {
               const hasSession = isSessionDate(day)
               const isToday = isCurrentMonth && day === today.getDate()
               const session = hasSession ? getSessionForDate(day) : null
+              const sessionColor = hasSession ? getSessionColor(day) : ''
 
               return (
                 <div
@@ -357,18 +380,29 @@ export default function SessionsPage() {
                   className={`
                     relative p-2 min-h-[60px] rounded-lg border text-center transition-all
                     ${hasSession
-                      ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-300 dark:border-emerald-700 cursor-pointer hover:bg-emerald-200 dark:hover:bg-emerald-800'
+                      ? 'cursor-pointer hover:opacity-80'
                       : 'bg-background border-transparent hover:bg-muted/50'
                     }
-                    ${isToday ? 'ring-2 ring-blue-500' : ''}
+                    ${isToday ? 'ring-2 ring-offset-1 ring-blue-500' : ''}
                   `}
+                  style={hasSession ? {
+                    backgroundColor: `${sessionColor}20`,
+                    borderColor: sessionColor
+                  } : {}}
                 >
-                  <span className={`text-sm ${hasSession ? 'font-bold text-emerald-800 dark:text-emerald-200' : ''}`}>
+                  <span
+                    className={`text-sm ${hasSession ? 'font-bold' : ''}`}
+                    style={hasSession ? { color: sessionColor } : {}}
+                  >
                     {day}
                   </span>
                   {hasSession && session && (
                     <div className="mt-1">
-                      <Badge variant="secondary" className="text-xs px-1 py-0 bg-emerald-200 dark:bg-emerald-800">
+                      <Badge
+                        variant="secondary"
+                        className="text-xs px-1 py-0 text-white"
+                        style={{ backgroundColor: sessionColor }}
+                      >
                         {session.presentCount} <Users className="inline h-3 w-3 ml-0.5" />
                       </Badge>
                     </div>
@@ -379,10 +413,18 @@ export default function SessionsPage() {
           </div>
 
           {/* Legend */}
-          <div className="mt-4 pt-4 border-t flex items-center gap-6 text-sm text-muted-foreground">
+          <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-emerald-100 dark:bg-emerald-900/50 border border-emerald-300" />
-              <span>Séance avec avancement</span>
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#3B82F6' }} />
+              <span>Montmagny</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#8B5CF6' }} />
+              <span>Famille</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#10B981' }} />
+              <span>Amilou</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded ring-2 ring-blue-500" />
@@ -523,12 +565,15 @@ export default function SessionsPage() {
                   {formatDate(selectedSession.date)}
                 </DialogTitle>
                 <DialogDescription className="space-y-1">
-                  {selectedSession.groupNames && selectedSession.groupNames.length > 0 && (
-                    <span className="block font-medium text-foreground">
-                      {selectedSession.groupNames.join(', ')}
+                  {selectedSession.groupName && (
+                    <span
+                      className="inline-block px-2 py-0.5 rounded text-white text-xs font-medium mb-1"
+                      style={{ backgroundColor: selectedSession.color }}
+                    >
+                      {selectedSession.groupName}
                     </span>
                   )}
-                  <span>
+                  <span className="block">
                     {selectedSession.presentCount} participant(s) sur {selectedSession.totalMembers} membres
                   </span>
                 </DialogDescription>
