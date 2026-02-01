@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -65,6 +66,7 @@ const TYPE_OPTIONS = [
 
 export default function NewSessionPage() {
   const router = useRouter()
+  const locale = useLocale()
   const [groups, setGroups] = useState<Group[]>([])
   const [surahs, setSurahs] = useState<Surah[]>([])
   const [loading, setLoading] = useState(true)
@@ -238,7 +240,7 @@ export default function NewSessionPage() {
         })
       }
 
-      router.push('/sessions')
+      router.push(`/${locale}/sessions`)
     } catch (error) {
       console.error('Error saving session:', error)
       alert('Erreur lors de la sauvegarde')
@@ -258,7 +260,7 @@ export default function NewSessionPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.push('/sessions')}>
+        <Button variant="ghost" size="icon" onClick={() => router.push(`/${locale}/sessions`)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
@@ -540,7 +542,7 @@ export default function NewSessionPage() {
 
       {/* Save button */}
       <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={() => router.push('/sessions')}>
+        <Button variant="outline" onClick={() => router.push(`/${locale}/sessions`)}>
           Annuler
         </Button>
         <Button onClick={handleSave} disabled={saving || !selectedGroupId}>

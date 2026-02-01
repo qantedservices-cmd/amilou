@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -67,6 +67,7 @@ const DAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
 export default function SessionsPage() {
   const t = useTranslations()
+  const locale = useLocale()
   const router = useRouter()
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null)
   const [groups, setGroups] = useState<Group[]>([])
@@ -207,7 +208,7 @@ export default function SessionsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button onClick={() => router.push('/sessions/new')}>
+          <Button onClick={() => router.push(`/${locale}/sessions/new`)}>
             <Plus className="h-4 w-4 mr-2" />
             Nouvelle séance
           </Button>
