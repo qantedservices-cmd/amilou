@@ -220,9 +220,9 @@ async function main() {
 
     console.log(`Séance ${sessionNum}: ${date.toISOString().split('T')[0]}`);
 
-    // Parse present/absent names
-    const presentNames = presentsStr.split(', ').filter(Boolean).map((n: string) => NAME_MAPPING[n.trim()] || n.trim());
-    const absentNames = absentsStr.split(', ').filter(Boolean).map((n: string) => NAME_MAPPING[n.trim()] || n.trim());
+    // Parse present/absent names - keep full names as they match database
+    const presentNames = presentsStr.split(', ').filter(Boolean).map((n: string) => n.trim());
+    const absentNames = absentsStr.split(', ').filter(Boolean).map((n: string) => n.trim());
 
     // Create session
     const session = await prisma.groupSession.create({
