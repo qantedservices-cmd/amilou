@@ -47,6 +47,7 @@ interface SessionData {
   presentCount: number
   totalMembers: number
   absentMembers: string[]
+  groupNames?: string[]
 }
 
 interface CalendarData {
@@ -521,8 +522,15 @@ export default function SessionsPage() {
                   <Calendar className="h-5 w-5 text-emerald-600" />
                   {formatDate(selectedSession.date)}
                 </DialogTitle>
-                <DialogDescription>
-                  {selectedSession.presentCount} participant(s) sur {selectedSession.totalMembers} membres
+                <DialogDescription className="space-y-1">
+                  {selectedSession.groupNames && selectedSession.groupNames.length > 0 && (
+                    <span className="block font-medium text-foreground">
+                      {selectedSession.groupNames.join(', ')}
+                    </span>
+                  )}
+                  <span>
+                    {selectedSession.presentCount} participant(s) sur {selectedSession.totalMembers} membres
+                  </span>
                 </DialogDescription>
               </DialogHeader>
 

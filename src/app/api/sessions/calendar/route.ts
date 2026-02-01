@@ -21,12 +21,37 @@ export async function GET(request: Request) {
     })
     const groupIds = groupId ? [groupId] : userGroups.map(g => g.groupId)
 
-    // Get group members
+    // Get group members with their group info
     const groupMembers = await prisma.groupMember.findMany({
       where: { groupId: { in: groupIds } },
-      include: { user: { select: { id: true, name: true, email: true } } }
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        group: { select: { id: true, name: true } }
+      }
     })
     const memberUserIds = [...new Set(groupMembers.map(m => m.userId))]
+
+    // Create a map: userId -> list of groupIds they belong to
+    const userToGroups = new Map<string, string[]>()
+    for (const m of groupMembers) {
+      const groups = userToGroups.get(m.userId) || []
+      if (!groups.includes(m.groupId)) {
+        groups.push(m.groupId)
+      }
+      userToGroups.set(m.userId, groups)
+    }
+
+    // Create a map: groupId -> list of members (excluding REFERENT/ADMIN)
+    const groupToMembers = new Map<string, { id: string; name: string | null }[]>()
+    for (const m of groupMembers) {
+      if (m.role !== 'REFERENT' && m.role !== 'ADMIN') {
+        const members = groupToMembers.get(m.groupId) || []
+        if (!members.find(member => member.id === m.userId)) {
+          members.push({ id: m.user.id, name: m.user.name })
+        }
+        groupToMembers.set(m.groupId, members)
+      }
+    }
 
     // Calculate date range
     let startDate: Date
@@ -103,7 +128,7 @@ export async function GET(request: Request) {
       })
     }
 
-    // Get all group members for attendance comparison
+    // Get all group members for reference (when a specific group is selected)
     const allMembers = [...new Map(groupMembers.map(m => [m.userId, {
       id: m.user.id,
       name: m.user.name
@@ -112,13 +137,51 @@ export async function GET(request: Request) {
     // Convert to array and add absent members info
     const sessions = Object.values(sessionsByDate).map(session => {
       const presentUserIds = session.participants.map(p => p.userId)
-      const absentMembers = allMembers.filter(m => !presentUserIds.includes(m.id))
+
+      // Deduce the group(s) from the present participants
+      // Find the intersection of groups that all present participants belong to
+      let deducedGroupIds: string[] = []
+
+      if (presentUserIds.length > 0) {
+        // Start with the groups of the first participant
+        const firstUserGroups = userToGroups.get(presentUserIds[0]) || []
+        deducedGroupIds = [...firstUserGroups]
+
+        // Intersect with groups of other participants
+        for (let i = 1; i < presentUserIds.length; i++) {
+          const userGroups = userToGroups.get(presentUserIds[i]) || []
+          deducedGroupIds = deducedGroupIds.filter(gId => userGroups.includes(gId))
+        }
+      }
+
+      // If a specific group was selected, use that; otherwise use deduced groups
+      const effectiveGroupIds = groupId ? [groupId] : deducedGroupIds
+
+      // Get members from the effective groups (students only, no REFERENT/ADMIN)
+      const effectiveMembers: { id: string; name: string | null }[] = []
+      for (const gId of effectiveGroupIds) {
+        const members = groupToMembers.get(gId) || []
+        for (const m of members) {
+          if (!effectiveMembers.find(em => em.id === m.id)) {
+            effectiveMembers.push(m)
+          }
+        }
+      }
+
+      // Calculate absent members from the effective group(s)
+      const absentMembers = effectiveMembers.filter(m => !presentUserIds.includes(m.id))
+
+      // Get group name(s) for display
+      const groupNames = effectiveGroupIds
+        .map(gId => groupMembers.find(gm => gm.groupId === gId)?.group.name)
+        .filter(Boolean)
 
       return {
         ...session,
         presentCount: session.participants.length,
-        totalMembers: allMembers.length,
-        absentMembers: absentMembers.map(m => m.name)
+        totalMembers: effectiveMembers.length,
+        absentMembers: absentMembers.map(m => m.name),
+        groupNames // Add group names for better display
       }
     })
 

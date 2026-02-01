@@ -16,19 +16,27 @@ const USER_MAP: Record<string, string> = {
 
 // Get Sunday (week start for Sun-Sat weeks) from ISO week number
 function getSundayOfWeek(year: number, week: number): Date {
-  // First, find the Monday of the ISO week
-  const simple = new Date(year, 0, 1 + (week - 1) * 7);
-  const dow = simple.getDay();
-  const monday = new Date(simple);
-  if (dow <= 4) {
-    monday.setDate(simple.getDate() - simple.getDay() + 1);
-  } else {
-    monday.setDate(simple.getDate() + 8 - simple.getDay());
-  }
-  // Subtract 1 day to get Sunday (week start for Sun-Sat)
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() - 1);
-  return sunday;
+  // ISO week 1 is the week containing January 4th
+  // Find January 4th of the given year
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+
+  // Find the Monday of week 1 (ISO week starts on Monday)
+  const dayOfWeek = jan4.getUTCDay(); // 0=Sun, 1=Mon, ...
+  const mondayWeek1 = new Date(jan4);
+  // Move back to Monday (if Jan 4 is Sunday, go back 6 days; if Monday, 0 days; etc.)
+  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  mondayWeek1.setUTCDate(jan4.getUTCDate() - daysToMonday);
+
+  // Now find the Monday of the requested week
+  const targetMonday = new Date(mondayWeek1);
+  targetMonday.setUTCDate(mondayWeek1.getUTCDate() + (week - 1) * 7);
+
+  // Subtract 1 day to get Sunday (week start for Sun-Sat calendar)
+  const sunday = new Date(targetMonday);
+  sunday.setUTCDate(targetMonday.getUTCDate() - 1);
+
+  // Return at midnight UTC
+  return new Date(Date.UTC(sunday.getUTCFullYear(), sunday.getUTCMonth(), sunday.getUTCDate()));
 }
 
 export async function POST(request: NextRequest) {
