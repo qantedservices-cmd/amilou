@@ -2,6 +2,17 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 
+// Couleurs par groupe
+const GROUP_COLORS: Record<string, string> = {
+  'Cours Montmagny': '#3B82F6', // Bleu
+  'Famille': '#8B5CF6',          // Violet
+  'Groupe Amilou': '#10B981',    // Vert
+}
+
+function getGroupColor(groupName: string): string {
+  return GROUP_COLORS[groupName] || '#6B7280' // Gris par défaut
+}
+
 export async function GET(request: Request) {
   try {
     const session = await auth()
@@ -104,7 +115,7 @@ export async function GET(request: Request) {
       return {
         id: gs.id,
         type: 'group' as const,
-        color: '#3B82F6', // Bleu
+        color: getGroupColor(gs.group.name),
         date: gs.date.toISOString().split('T')[0],
         weekNumber: gs.weekNumber,
         groupId: gs.groupId,
@@ -170,14 +181,15 @@ export async function GET(request: Request) {
       const firstUserId = entries[0].userId
       const userGroup = groupMembers.find(m => m.userId === firstUserId)
 
+      const groupName = userGroup?.group.name || 'Groupe Amilou'
       return {
         id: `progress-${dateKey}`,
         type: 'progress' as const,
-        color: '#10B981', // Vert
+        color: getGroupColor(groupName),
         date: dateKey,
         weekNumber: null,
         groupId: userGroup?.groupId || null,
-        groupName: userGroup?.group.name || 'Famille',
+        groupName,
         notes: null,
         participants,
         presentCount: participants.length,
