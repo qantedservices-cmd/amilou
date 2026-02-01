@@ -204,16 +204,17 @@ export default function NewSessionPage() {
       const session = await sessionRes.json()
 
       // 2. Update attendance
-      for (const member of members) {
-        await fetch(`/api/sessions/${session.id}/attendance`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            odUserId: member.user.id,
-            present: presentUserIds.has(member.user.id),
-          })
-        })
-      }
+      const attendanceData = members.map(member => ({
+        userId: member.user.id,
+        present: presentUserIds.has(member.user.id),
+        excused: false,
+      }))
+
+      await fetch(`/api/sessions/${session.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attendance: attendanceData })
+      })
 
       // 3. Create recitations
       const allRecitations = []

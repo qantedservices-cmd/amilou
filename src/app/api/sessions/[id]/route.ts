@@ -80,20 +80,28 @@ export async function PUT(
       return NextResponse.json({ error: 'Séance non trouvée' }, { status: 404 })
     }
 
-    // Check if user is admin or referent
-    const membership = await prisma.groupMember.findFirst({
-      where: {
-        groupId: groupSession.groupId,
-        userId: session.user.id,
-        role: { in: ['ADMIN', 'REFERENT'] },
-      },
+    // Check if user is global admin or group admin/referent
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true }
     })
+    const isGlobalAdmin = currentUser?.role === 'ADMIN'
 
-    if (!membership) {
-      return NextResponse.json(
-        { error: 'Vous devez être administrateur ou référent pour modifier la séance' },
-        { status: 403 }
-      )
+    if (!isGlobalAdmin) {
+      const membership = await prisma.groupMember.findFirst({
+        where: {
+          groupId: groupSession.groupId,
+          userId: session.user.id,
+          role: { in: ['ADMIN', 'REFERENT'] },
+        },
+      })
+
+      if (!membership) {
+        return NextResponse.json(
+          { error: 'Vous devez être administrateur ou référent pour modifier la séance' },
+          { status: 403 }
+        )
+      }
     }
 
     // Update session notes if provided
