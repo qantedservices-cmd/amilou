@@ -13,6 +13,15 @@ function getGroupColor(groupName: string): string {
   return GROUP_COLORS[groupName] || '#6B7280' // Gris par défaut
 }
 
+// Get ISO week number from date
+function getWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dayNum = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+}
+
 export async function GET(request: Request) {
   try {
     const session = await auth()
@@ -70,6 +79,61 @@ export async function GET(request: Request) {
       .map(m => ({ id: m.user.id, name: m.user.name }))
 
     // ============================================
+    // Count total sessions (all time) per group
+    // ============================================
+    const totalSessionsAllTime = await prisma.groupSession.count({
+      where: { groupId: { in: groupIds } }
+    })
+
+    const totalSessionsThisYear = await prisma.groupSession.count({
+      where: {
+        groupId: { in: groupIds },
+        date: {
+          gte: new Date(year, 0, 1),
+          lte: new Date(year, 11, 31, 23, 59, 59)
+        }
+      }
+    })
+
+    // Get all sessions for numbering (ordered by date ascending)
+    const allGroupSessionsForNumbering = await prisma.groupSession.findMany({
+      where: { groupId: { in: groupIds } },
+      select: { id: true, groupId: true, date: true },
+      orderBy: { date: 'asc' }
+    })
+
+    // Create session number maps (per group)
+    const sessionNumberMap: Record<string, { globalNumber: number; yearNumber: number }> = {}
+    const groupCounters: Record<string, { global: number; year: Record<number, number> }> = {}
+
+    for (const s of allGroupSessionsForNumbering) {
+      if (!groupCounters[s.groupId]) {
+        groupCounters[s.groupId] = { global: 0, year: {} }
+      }
+      groupCounters[s.groupId].global++
+
+      const sessionYear = s.date.getFullYear()
+      if (!groupCounters[s.groupId].year[sessionYear]) {
+        groupCounters[s.groupId].year[sessionYear] = 0
+      }
+      groupCounters[s.groupId].year[sessionYear]++
+
+      sessionNumberMap[s.id] = {
+        globalNumber: groupCounters[s.groupId].global,
+        yearNumber: groupCounters[s.groupId].year[sessionYear]
+      }
+    }
+
+    // Get total per group
+    const totalPerGroup: Record<string, { global: number; year: number }> = {}
+    for (const gId of groupIds) {
+      totalPerGroup[gId] = {
+        global: groupCounters[gId]?.global || 0,
+        year: groupCounters[gId]?.year[year] || 0
+      }
+    }
+
+    // ============================================
     // 1. GroupSession (Cours Montmagny) - BLEU
     // ============================================
     const groupSessions = await prisma.groupSession.findMany({
@@ -113,6 +177,9 @@ export async function GET(request: Request) {
         }
       })
 
+      const numbers = sessionNumberMap[gs.id] || { globalNumber: 0, yearNumber: 0 }
+      const totals = totalPerGroup[gs.groupId] || { global: 0, year: 0 }
+
       return {
         id: gs.id,
         type: 'group' as const,
@@ -126,7 +193,11 @@ export async function GET(request: Request) {
         presentCount: presentAttendance.length,
         totalMembers: gs.attendance.length,
         absentMembers: absentAttendance.map(a => a.user.name || a.user.email),
-        recitationCount: gs.recitations.length
+        recitationCount: gs.recitations.length,
+        sessionNumber: numbers.globalNumber,
+        sessionNumberYear: numbers.yearNumber,
+        totalSessionsGroup: totals.global,
+        totalSessionsGroupYear: totals.year
       }
     })
 
@@ -197,7 +268,11 @@ export async function GET(request: Request) {
         presentCount: participants.length,
         totalMembers: participants.length,
         absentMembers: [],
-        recitationCount: entries.length
+        recitationCount: entries.length,
+        sessionNumber: null,
+        sessionNumberYear: null,
+        totalSessionsGroup: null,
+        totalSessionsGroupYear: null
       }
     })
 
@@ -208,10 +283,15 @@ export async function GET(request: Request) {
     allSessions.sort((a, b) => b.date.localeCompare(a.date))
 
     // Group sessions by date for calendar (multiple sessions per day)
-    const sessionsByDate: Record<string, { date: string; sessions: { type: string; color: string; groupName: string }[] }> = {}
+    const sessionsByDate: Record<string, { date: string; weekNumber: number; sessions: { type: string; color: string; groupName: string }[] }> = {}
     for (const s of allSessions) {
       if (!sessionsByDate[s.date]) {
-        sessionsByDate[s.date] = { date: s.date, sessions: [] }
+        const dateObj = new Date(s.date)
+        sessionsByDate[s.date] = {
+          date: s.date,
+          weekNumber: s.weekNumber || getWeekNumber(dateObj),
+          sessions: []
+        }
       }
       sessionsByDate[s.date].sessions.push({
         type: s.type,
@@ -227,6 +307,8 @@ export async function GET(request: Request) {
       sessions: allSessions,
       sessionDates,
       totalSessions: allSessions.length,
+      totalSessionsAllTime,
+      totalSessionsThisYear,
       members: allMembers
     })
   } catch (error) {

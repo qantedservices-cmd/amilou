@@ -51,10 +51,15 @@ interface SessionData {
   totalMembers: number
   absentMembers: string[]
   recitationCount: number
+  sessionNumber: number | null
+  sessionNumberYear: number | null
+  totalSessionsGroup: number | null
+  totalSessionsGroupYear: number | null
 }
 
 interface SessionDateInfo {
   date: string
+  weekNumber: number
   sessions: { type: string; color: string; groupName: string }[]
 }
 
@@ -64,6 +69,8 @@ interface CalendarData {
   sessions: SessionData[]
   sessionDates: SessionDateInfo[]
   totalSessions: number
+  totalSessionsAllTime: number
+  totalSessionsThisYear: number
   members: { id: string; name: string }[]
 }
 
@@ -145,11 +152,11 @@ export default function SessionsPage() {
     }
   }
 
-  function getSessionsForDay(day: number): { colors: string[]; count: number } {
-    if (!calendarData) return { colors: [], count: 0 }
+  function getSessionsForDay(day: number): { colors: string[]; count: number; weekNumber: number | null } {
+    if (!calendarData) return { colors: [], count: 0, weekNumber: null }
     const dateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const dateInfo = calendarData.sessionDates.find(s => s.date === dateStr)
-    if (!dateInfo) return { colors: [], count: 0 }
+    if (!dateInfo) return { colors: [], count: 0, weekNumber: null }
 
     // Filtrer par groupe si un filtre est actif
     let sessions = dateInfo.sessions
@@ -159,8 +166,19 @@ export default function SessionsPage() {
 
     return {
       colors: sessions.map(s => s.color),
-      count: sessions.length
+      count: sessions.length,
+      weekNumber: dateInfo.weekNumber
     }
+  }
+
+  // Get week number for any day (for display)
+  function getWeekNumberForDay(day: number): number {
+    const date = new Date(currentYear, currentMonth - 1, day)
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+    const dayNum = d.getUTCDay() || 7
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
   }
 
   function openDayDetail(day: number) {
@@ -233,10 +251,18 @@ export default function SessionsPage() {
           <h1 className="text-2xl font-bold">Séances</h1>
           <p className="text-muted-foreground">Calendrier et suivi des séances</p>
         </div>
-        <Button onClick={() => router.push(`/${locale}/sessions/new`)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nouvelle séance
-        </Button>
+        <div className="flex items-center gap-4">
+          {calendarData && (
+            <div className="text-right text-sm">
+              <p className="font-medium">{calendarData.totalSessionsThisYear} séances en {currentYear}</p>
+              <p className="text-muted-foreground">{calendarData.totalSessionsAllTime} au total</p>
+            </div>
+          )}
+          <Button onClick={() => router.push(`/${locale}/sessions/new`)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nouvelle séance
+          </Button>
+        </div>
       </div>
 
       {/* Calendar Card */}
@@ -268,49 +294,145 @@ export default function SessionsPage() {
           ) : (
             <>
               {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-1 mb-4">
+              <div className="grid grid-cols-8 gap-1 mb-4">
+                {/* Week number header */}
+                <div className="text-center text-xs font-medium text-muted-foreground py-2">
+                  Sem.
+                </div>
                 {DAYS.map(day => (
                   <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
                     {day}
                   </div>
                 ))}
 
-                {calendarDays.map((day, index) => {
-                  if (day === null) {
-                    return <div key={`empty-${index}`} className="p-2" />
+                {/* Calendar rows with week numbers */}
+                {(() => {
+                  const rows: React.ReactNode[] = []
+                  let currentRow: (number | null)[] = []
+                  let weekNum: number | null = null
+
+                  calendarDays.forEach((day, index) => {
+                    currentRow.push(day)
+
+                    // Get week number from first non-null day in row
+                    if (day !== null && weekNum === null) {
+                      weekNum = getWeekNumberForDay(day)
+                    }
+
+                    // End of row (7 days)
+                    if (currentRow.length === 7) {
+                      const rowIndex = Math.floor(index / 7)
+
+                      // Add week number cell
+                      rows.push(
+                        <div
+                          key={`week-${rowIndex}`}
+                          className="flex items-center justify-center text-xs font-medium text-muted-foreground bg-muted/30 rounded"
+                        >
+                          {weekNum !== null ? `S${weekNum}` : ''}
+                        </div>
+                      )
+
+                      // Add day cells
+                      currentRow.forEach((d, i) => {
+                        if (d === null) {
+                          rows.push(<div key={`empty-${rowIndex}-${i}`} className="p-2" />)
+                        } else {
+                          const { colors, count } = getSessionsForDay(d)
+                          const hasSession = count > 0
+                          const isToday = isCurrentMonth && d === today.getDate()
+
+                          rows.push(
+                            <div
+                              key={`day-${d}`}
+                              onClick={() => hasSession && openDayDetail(d)}
+                              className={`
+                                relative p-2 min-h-[60px] rounded-lg border text-center transition-all
+                                ${hasSession ? 'cursor-pointer hover:opacity-80 bg-muted/30' : 'bg-background border-transparent hover:bg-muted/50'}
+                                ${isToday ? 'ring-2 ring-offset-1 ring-blue-500' : ''}
+                              `}
+                            >
+                              <span className={`text-sm ${hasSession ? 'font-bold' : ''}`}>
+                                {d}
+                              </span>
+                              {hasSession && (
+                                <div className="mt-1 flex justify-center gap-1 flex-wrap">
+                                  {colors.map((color, ci) => (
+                                    <div
+                                      key={ci}
+                                      className="w-3 h-3 rounded-full"
+                                      style={{ backgroundColor: color }}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        }
+                      })
+
+                      currentRow = []
+                      weekNum = null
+                    }
+                  })
+
+                  // Handle last incomplete row
+                  if (currentRow.length > 0) {
+                    const rowIndex = Math.ceil(calendarDays.length / 7)
+                    rows.push(
+                      <div
+                        key={`week-${rowIndex}`}
+                        className="flex items-center justify-center text-xs font-medium text-muted-foreground bg-muted/30 rounded"
+                      >
+                        {weekNum !== null ? `S${weekNum}` : ''}
+                      </div>
+                    )
+
+                    currentRow.forEach((d, i) => {
+                      if (d === null) {
+                        rows.push(<div key={`empty-last-${i}`} className="p-2" />)
+                      } else {
+                        const { colors, count } = getSessionsForDay(d)
+                        const hasSession = count > 0
+                        const isToday = isCurrentMonth && d === today.getDate()
+
+                        rows.push(
+                          <div
+                            key={`day-${d}`}
+                            onClick={() => hasSession && openDayDetail(d)}
+                            className={`
+                              relative p-2 min-h-[60px] rounded-lg border text-center transition-all
+                              ${hasSession ? 'cursor-pointer hover:opacity-80 bg-muted/30' : 'bg-background border-transparent hover:bg-muted/50'}
+                              ${isToday ? 'ring-2 ring-offset-1 ring-blue-500' : ''}
+                            `}
+                          >
+                            <span className={`text-sm ${hasSession ? 'font-bold' : ''}`}>
+                              {d}
+                            </span>
+                            {hasSession && (
+                              <div className="mt-1 flex justify-center gap-1 flex-wrap">
+                                {colors.map((color, ci) => (
+                                  <div
+                                    key={ci}
+                                    className="w-3 h-3 rounded-full"
+                                    style={{ backgroundColor: color }}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
+                    })
+
+                    // Fill remaining cells
+                    for (let i = currentRow.length; i < 7; i++) {
+                      rows.push(<div key={`fill-${i}`} className="p-2" />)
+                    }
                   }
 
-                  const { colors, count } = getSessionsForDay(day)
-                  const hasSession = count > 0
-                  const isToday = isCurrentMonth && day === today.getDate()
-
-                  return (
-                    <div
-                      key={day}
-                      onClick={() => hasSession && openDayDetail(day)}
-                      className={`
-                        relative p-2 min-h-[60px] rounded-lg border text-center transition-all
-                        ${hasSession ? 'cursor-pointer hover:opacity-80 bg-muted/30' : 'bg-background border-transparent hover:bg-muted/50'}
-                        ${isToday ? 'ring-2 ring-offset-1 ring-blue-500' : ''}
-                      `}
-                    >
-                      <span className={`text-sm ${hasSession ? 'font-bold' : ''}`}>
-                        {day}
-                      </span>
-                      {hasSession && (
-                        <div className="mt-1 flex justify-center gap-1 flex-wrap">
-                          {colors.map((color, i) => (
-                            <div
-                              key={i}
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: color }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+                  return rows
+                })()}
               </div>
 
               {/* Legend - Clickable filters */}
@@ -387,6 +509,11 @@ export default function SessionsPage() {
                       {session.weekNumber && (
                         <Badge variant="outline">S{session.weekNumber}</Badge>
                       )}
+                      {session.sessionNumber && session.totalSessionsGroup && (
+                        <Badge variant="secondary">
+                          Séance {session.sessionNumber}/{session.totalSessionsGroup}
+                        </Badge>
+                      )}
                     </div>
                     <div className="text-sm text-muted-foreground flex items-center gap-3">
                       <span
@@ -435,7 +562,7 @@ export default function SessionsPage() {
                   <div key={session.id} className="space-y-4">
                     {/* Session header */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span
                           className="px-3 py-1 rounded-full text-white text-sm font-medium"
                           style={{ backgroundColor: session.color }}
@@ -444,6 +571,11 @@ export default function SessionsPage() {
                         </span>
                         {session.weekNumber && (
                           <Badge variant="outline">Semaine {session.weekNumber}</Badge>
+                        )}
+                        {session.sessionNumber && session.totalSessionsGroup && (
+                          <Badge variant="secondary">
+                            Séance {session.sessionNumber}/{session.totalSessionsGroup}
+                          </Badge>
                         )}
                       </div>
                       {session.type === 'group' && (
