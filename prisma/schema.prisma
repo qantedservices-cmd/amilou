@@ -39,6 +39,8 @@ model User {
   dailyLogs               DailyLog[]
   dailyProgramCompletions DailyProgramCompletion[]
   weeklyObjectives        WeeklyObjective[]
+  surahMasteries          SurahMastery[]
+  surahRecitations        SurahRecitation[]
 }
 
 model Account {
@@ -234,15 +236,18 @@ model Evaluation {
 // ============================================
 
 model GroupSession {
-  id        String   @id @default(cuid())
-  groupId   String
-  date      DateTime
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  groupId    String
+  date       DateTime
+  weekNumber Int?     // Numéro de semaine (S1, S2, S12...)
+  notes      String?
+  createdBy  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  group      Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  attendance SessionAttendance[]
+  group       Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  attendance  SessionAttendance[]
+  recitations SurahRecitation[]
 }
 
 model SessionAttendance {
@@ -275,6 +280,8 @@ model Surah {
   verses      Verse[]
   progress    Progress[]
   evaluations Evaluation[]
+  masteries   SurahMastery[]
+  recitations SurahRecitation[]
 }
 
 model Verse {
@@ -393,4 +400,54 @@ model WeeklyObjectiveCompletion {
   weeklyObjective WeeklyObjective @relation(fields: [weeklyObjectiveId], references: [id], onDelete: Cascade)
 
   @@unique([weeklyObjectiveId, weekStartDate])
+}
+
+// ============================================
+// Surah Mastery (État actuel par élève/sourate)
+// ============================================
+
+model SurahMastery {
+  id            String    @id @default(cuid())
+  userId        String
+  surahNumber   Int
+  status        String    // AM (à mémoriser) | PARTIAL | VALIDATED | KNOWN
+  validatedWeek Int?      // Numéro de semaine de validation (ex: 12 pour V12)
+  validatedAt   DateTime?
+  verseStart    Int?      // Si progression partielle
+  verseEnd      Int?      // Si progression partielle
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surah Surah @relation(fields: [surahNumber], references: [number])
+
+  @@unique([userId, surahNumber])
+  @@index([userId])
+  @@index([userId, status])
+}
+
+// ============================================
+// Surah Recitation (Historique des récitations par séance)
+// ============================================
+
+model SurahRecitation {
+  id          String   @id @default(cuid())
+  sessionId   String
+  userId      String
+  surahNumber Int
+  type        String   // MEMORIZATION | REVISION
+  verseStart  Int
+  verseEnd    Int
+  status      String   // AM | PARTIAL | VALIDATED | KNOWN
+  comment     String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  session GroupSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surah   Surah        @relation(fields: [surahNumber], references: [number])
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([userId, surahNumber])
 }

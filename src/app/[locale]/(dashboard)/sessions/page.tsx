@@ -19,7 +19,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, ChevronLeft, ChevronRight, Users, Check, X, BookOpen } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Users, Check, X, BookOpen, Plus } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface Group {
   id: string
@@ -66,6 +67,7 @@ const DAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
 export default function SessionsPage() {
   const t = useTranslations()
+  const router = useRouter()
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null)
   const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
@@ -204,21 +206,28 @@ export default function SessionsPage() {
           <p className="text-muted-foreground">Calendrier des séances et avancement hebdomadaire</p>
         </div>
 
-        {groups.length > 0 && (
-          <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Tous les groupes" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les groupes</SelectItem>
-              {groups.map((group) => (
-                <SelectItem key={group.id} value={group.id}>
-                  {group.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <div className="flex items-center gap-3">
+          <Button onClick={() => router.push('/sessions/new')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nouvelle séance
+          </Button>
+
+          {groups.length > 0 && (
+            <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Tous les groupes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les groupes</SelectItem>
+                {groups.map((group) => (
+                  <SelectItem key={group.id} value={group.id}>
+                    {group.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
       {/* Stats Card */}

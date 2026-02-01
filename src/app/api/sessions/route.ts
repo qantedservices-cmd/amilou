@@ -41,6 +41,12 @@ export async function GET(request: Request) {
             },
           },
         },
+        recitations: {
+          include: {
+            user: { select: { id: true, name: true } },
+            surah: { select: { number: true, nameFr: true, nameAr: true, totalVerses: true } }
+          }
+        }
       },
       orderBy: { date: 'desc' },
       take: 50,
@@ -63,10 +69,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const { groupId, date, notes } = await request.json()
+    const { groupId, date, weekNumber, notes } = await request.json()
 
     if (!groupId || !date) {
       return NextResponse.json({ error: 'Groupe et date requis' }, { status: 400 })
+    }
+
+    // Calculate week number if not provided
+    let calculatedWeekNumber = weekNumber
+    if (!calculatedWeekNumber) {
+      const d = new Date(date)
+      const startOfYear = new Date(d.getFullYear(), 0, 1)
+      const days = Math.floor((d.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000))
+      calculatedWeekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7)
     }
 
     // Check if user is admin or referent of the group
@@ -96,7 +111,9 @@ export async function POST(request: Request) {
       data: {
         groupId,
         date: new Date(date),
+        weekNumber: calculatedWeekNumber,
         notes,
+        createdBy: session.user.id,
         attendance: {
           create: members.map(m => ({
             userId: m.userId,
