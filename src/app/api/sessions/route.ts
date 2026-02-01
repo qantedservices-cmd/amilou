@@ -12,6 +12,13 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const groupId = searchParams.get('groupId')
 
+    // Check if user is ADMIN
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true }
+    })
+    const isAdmin = currentUser?.role === 'ADMIN'
+
     // Get groups where user is a member
     const memberships = await prisma.groupMember.findMany({
       where: { userId: session.user.id },
@@ -20,14 +27,20 @@ export async function GET(request: Request) {
 
     const groupIds = memberships.map(m => m.groupId)
 
-    if (groupId && !groupIds.includes(groupId)) {
+    // Admin can access any group
+    if (groupId && !isAdmin && !groupIds.includes(groupId)) {
       return NextResponse.json({ error: 'Groupe non trouvé' }, { status: 404 })
     }
 
+    // Build where clause
+    const whereClause = groupId
+      ? { groupId }
+      : isAdmin
+        ? {}
+        : { groupId: { in: groupIds } }
+
     const sessions = await prisma.groupSession.findMany({
-      where: {
-        groupId: groupId || { in: groupIds },
-      },
+      where: whereClause,
       include: {
         group: true,
         attendance: {
@@ -84,20 +97,28 @@ export async function POST(request: Request) {
       calculatedWeekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7)
     }
 
-    // Check if user is admin or referent of the group
-    const membership = await prisma.groupMember.findFirst({
-      where: {
-        groupId,
-        userId: session.user.id,
-        role: { in: ['ADMIN', 'REFERENT'] },
-      },
+    // Check if user is global admin or group admin/referent
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true }
     })
+    const isGlobalAdmin = currentUser?.role === 'ADMIN'
 
-    if (!membership) {
-      return NextResponse.json(
-        { error: 'Vous devez être administrateur ou référent pour créer une séance' },
-        { status: 403 }
-      )
+    if (!isGlobalAdmin) {
+      const membership = await prisma.groupMember.findFirst({
+        where: {
+          groupId,
+          userId: session.user.id,
+          role: { in: ['ADMIN', 'REFERENT'] },
+        },
+      })
+
+      if (!membership) {
+        return NextResponse.json(
+          { error: 'Vous devez être administrateur ou référent pour créer une séance' },
+          { status: 403 }
+        )
+      }
     }
 
     // Get all group members

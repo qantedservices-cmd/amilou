@@ -9,7 +9,49 @@ export async function GET() {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    // Get groups where user is a member
+    // Check if user is ADMIN
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true }
+    })
+    const isAdmin = currentUser?.role === 'ADMIN'
+
+    // Get groups where user is a member (or all groups if admin)
+    if (isAdmin) {
+      // Admin sees all groups
+      const allGroups = await prisma.group.findMany({
+        include: {
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                },
+              },
+            },
+          },
+          _count: {
+            select: { members: true },
+          },
+        },
+      })
+
+      const groups = allGroups.map(group => {
+        const myMembership = group.members.find(m => m.userId === session.user.id)
+        return {
+          ...group,
+          myRole: myMembership?.role || 'ADMIN',
+          memberCount: group._count.members,
+        }
+      })
+
+      return NextResponse.json(groups)
+    }
+
+    // Non-admin: only groups where user is member
     const memberships = await prisma.groupMember.findMany({
       where: { userId: session.user.id },
       include: {
