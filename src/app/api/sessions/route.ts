@@ -121,9 +121,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // Get all group members
+    // Get all group members (exclude REFERENT and ADMIN - they are teachers, not students)
     const members = await prisma.groupMember.findMany({
-      where: { groupId },
+      where: {
+        groupId,
+        role: { notIn: ['REFERENT', 'ADMIN'] }
+      },
       select: { userId: true },
     })
 

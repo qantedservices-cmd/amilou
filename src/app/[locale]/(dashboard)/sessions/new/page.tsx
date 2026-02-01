@@ -24,6 +24,7 @@ interface Group {
   members: {
     id: string
     userId: string
+    role: string
     user: { id: string; name: string }
   }[]
 }
@@ -112,7 +113,8 @@ export default function NewSessionPage() {
   }
 
   const selectedGroup = groups.find(g => g.id === selectedGroupId)
-  const members = selectedGroup?.members || []
+  // Filter out REFERENT and ADMIN (teachers) from attendance list - only show students (MEMBER)
+  const members = (selectedGroup?.members || []).filter(m => m.role === 'MEMBER')
 
   function togglePresence(userId: string) {
     const newSet = new Set(presentUserIds)
