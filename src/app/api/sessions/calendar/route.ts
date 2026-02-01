@@ -104,6 +104,7 @@ export async function GET(request: Request) {
           entries: userRecitations.map(r => ({
             surahNumber: r.surah.number,
             surahName: r.surah.nameFr,
+            surahNameAr: r.surah.nameAr,
             verseStart: r.verseStart,
             verseEnd: r.verseEnd,
             status: r.status,
@@ -169,6 +170,7 @@ export async function GET(request: Request) {
         entries: userEntries.map(e => ({
           surahNumber: e.surahNumber,
           surahName: e.surah?.nameFr || `Sourate ${e.surahNumber}`,
+          surahNameAr: e.surah?.nameAr,
           verseStart: e.verseStart,
           verseEnd: e.verseEnd,
           program: e.program.nameFr,
@@ -205,8 +207,19 @@ export async function GET(request: Request) {
     const allSessions = [...sessionsFromGroup, ...sessionsFromProgress]
     allSessions.sort((a, b) => b.date.localeCompare(a.date))
 
-    // Get unique dates for calendar highlighting
-    const sessionDates = allSessions.map(s => ({ date: s.date, type: s.type, color: s.color }))
+    // Group sessions by date for calendar (multiple sessions per day)
+    const sessionsByDate: Record<string, { date: string; sessions: { type: string; color: string; groupName: string }[] }> = {}
+    for (const s of allSessions) {
+      if (!sessionsByDate[s.date]) {
+        sessionsByDate[s.date] = { date: s.date, sessions: [] }
+      }
+      sessionsByDate[s.date].sessions.push({
+        type: s.type,
+        color: s.color,
+        groupName: s.groupName
+      })
+    }
+    const sessionDates = Object.values(sessionsByDate)
 
     return NextResponse.json({
       year,

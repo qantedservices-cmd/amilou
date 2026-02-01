@@ -1,16 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useTranslations, useLocale } from 'next-intl'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useLocale } from 'next-intl'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -19,20 +12,23 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, ChevronLeft, ChevronRight, Users, Check, X, BookOpen, Plus, Pencil } from 'lucide-react'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import { Calendar, ChevronLeft, ChevronRight, Users, Check, X, BookOpen, Plus, Pencil, ChevronDown } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-
-interface Group {
-  id: string
-  name: string
-}
 
 interface SessionEntry {
   surahNumber: number
   surahName: string
+  surahNameAr?: string
   verseStart: number
   verseEnd: number
-  program: string
+  status?: string | null
+  comment?: string | null
+  program?: string
 }
 
 interface SessionParticipant {
@@ -59,8 +55,7 @@ interface SessionData {
 
 interface SessionDateInfo {
   date: string
-  type: string
-  color: string
+  sessions: { type: string; color: string; groupName: string }[]
 }
 
 interface CalendarData {
@@ -72,22 +67,11 @@ interface CalendarData {
   members: { id: string; name: string }[]
 }
 
-interface GroupSessionItem {
-  id: string
-  date: string
-  weekNumber: number
-  notes: string | null
-  group: { id: string; name: string }
-  attendance: {
-    userId: string
-    present: boolean
-    user: { id: string; name: string | null }
-  }[]
-  recitations: {
-    id: string
-    userId: string
-    surahNumber: number
-  }[]
+// Couleurs des groupes
+const GROUP_COLORS: Record<string, string> = {
+  'Cours Montmagny': '#3B82F6',
+  'Famille': '#8B5CF6',
+  'Groupe Amilou': '#10B981',
 }
 
 const MONTHS = [
@@ -98,39 +82,22 @@ const MONTHS = [
 const DAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
 export default function SessionsPage() {
-  const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null)
-  const [groups, setGroups] = useState<Group[]>([])
-  const [groupSessions, setGroupSessions] = useState<GroupSessionItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedGroup, setSelectedGroup] = useState<string>('all')
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1)
-  const [selectedSession, setSelectedSession] = useState<SessionData | null>(null)
+  const [selectedDateSessions, setSelectedDateSessions] = useState<SessionData[]>([])
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [expandedParticipants, setExpandedParticipants] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
-    fetchGroups()
-  }, [])
+  // Filtre par groupe (null = tous)
+  const [filterGroup, setFilterGroup] = useState<string | null>(null)
 
   useEffect(() => {
     fetchCalendarData()
-    fetchGroupSessions()
-  }, [currentYear, currentMonth, selectedGroup])
-
-  async function fetchGroups() {
-    try {
-      const res = await fetch('/api/groups')
-      if (res.ok) {
-        const data = await res.json()
-        setGroups(Array.isArray(data) ? data : [])
-      }
-    } catch (error) {
-      console.error('Error fetching groups:', error)
-    }
-  }
+  }, [currentYear, currentMonth])
 
   async function fetchCalendarData() {
     setLoading(true)
@@ -139,9 +106,6 @@ export default function SessionsPage() {
         year: currentYear.toString(),
         month: currentMonth.toString()
       })
-      if (selectedGroup !== 'all') {
-        params.set('groupId', selectedGroup)
-      }
 
       const res = await fetch(`/api/sessions/calendar?${params}`)
       if (res.ok) {
@@ -152,23 +116,6 @@ export default function SessionsPage() {
       console.error('Error fetching calendar:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function fetchGroupSessions() {
-    try {
-      const params = new URLSearchParams()
-      if (selectedGroup !== 'all') {
-        params.set('groupId', selectedGroup)
-      }
-
-      const res = await fetch(`/api/sessions${params.toString() ? '?' + params : ''}`)
-      if (res.ok) {
-        const data = await res.json()
-        setGroupSessions(Array.isArray(data) ? data : [])
-      }
-    } catch (error) {
-      console.error('Error fetching group sessions:', error)
     }
   }
 
@@ -198,33 +145,51 @@ export default function SessionsPage() {
     }
   }
 
-  function getSessionDateInfo(day: number): SessionDateInfo | undefined {
-    if (!calendarData) return undefined
+  function getSessionsForDay(day: number): { colors: string[]; count: number } {
+    if (!calendarData) return { colors: [], count: 0 }
     const dateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    return calendarData.sessionDates.find(s => s.date === dateStr)
+    const dateInfo = calendarData.sessionDates.find(s => s.date === dateStr)
+    if (!dateInfo) return { colors: [], count: 0 }
+
+    // Filtrer par groupe si un filtre est actif
+    let sessions = dateInfo.sessions
+    if (filterGroup) {
+      sessions = sessions.filter(s => s.groupName === filterGroup)
+    }
+
+    return {
+      colors: sessions.map(s => s.color),
+      count: sessions.length
+    }
   }
 
-  function isSessionDate(day: number): boolean {
-    return !!getSessionDateInfo(day)
-  }
-
-  function getSessionForDate(day: number): SessionData | undefined {
-    if (!calendarData) return undefined
+  function openDayDetail(day: number) {
+    if (!calendarData) return
     const dateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    return calendarData.sessions.find(s => s.date === dateStr)
-  }
+    let sessions = calendarData.sessions.filter(s => s.date === dateStr)
 
-  function getSessionColor(day: number): string {
-    const info = getSessionDateInfo(day)
-    return info?.color || '#3B82F6'
-  }
+    // Filtrer par groupe si actif
+    if (filterGroup) {
+      sessions = sessions.filter(s => s.groupName === filterGroup)
+    }
 
-  function openSessionDetail(day: number) {
-    const session = getSessionForDate(day)
-    if (session) {
-      setSelectedSession(session)
+    if (sessions.length > 0) {
+      setSelectedDateSessions(sessions)
+      setExpandedParticipants(new Set())
       setDetailDialogOpen(true)
     }
+  }
+
+  function toggleParticipant(odId: string) {
+    setExpandedParticipants(prev => {
+      const next = new Set(prev)
+      if (next.has(odId)) {
+        next.delete(odId)
+      } else {
+        next.add(odId)
+      }
+      return next
+    })
   }
 
   function formatDate(dateStr: string): string {
@@ -236,6 +201,15 @@ export default function SessionsPage() {
       year: 'numeric'
     })
   }
+
+  function toggleFilter(groupName: string) {
+    setFilterGroup(prev => prev === groupName ? null : groupName)
+  }
+
+  // Filtrer les séances pour la liste
+  const filteredSessions = calendarData?.sessions.filter(s =>
+    !filterGroup || s.groupName === filterGroup
+  ) || []
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth)
   const firstDay = getFirstDayOfMonth(currentYear, currentMonth)
@@ -251,96 +225,33 @@ export default function SessionsPage() {
     calendarDays.push(day)
   }
 
-  if (loading && !calendarData) {
-    return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground">{t('common.loading')}</p>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('sessions.title')}</h1>
-          <p className="text-muted-foreground">Calendrier des séances et avancement hebdomadaire</p>
+          <h1 className="text-2xl font-bold">Séances</h1>
+          <p className="text-muted-foreground">Calendrier et suivi des séances</p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <Button onClick={() => router.push(`/${locale}/sessions/new`)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nouvelle séance
-          </Button>
-
-          {groups.length > 0 && (
-            <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Tous les groupes" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les groupes</SelectItem>
-                {groups.map((group) => (
-                  <SelectItem key={group.id} value={group.id}>
-                    {group.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
+        <Button onClick={() => router.push(`/${locale}/sessions/new`)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nouvelle séance
+        </Button>
       </div>
 
-      {/* Stats Card */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Séances ce mois</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">
-              {calendarData?.sessions.filter(s => {
-                const d = new Date(s.date)
-                return d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear
-              }).length || 0}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Membres du groupe</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {calendarData?.members.length || 0}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total séances (année)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
-              {calendarData?.totalSessions || 0}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Calendar */}
+      {/* Calendar Card */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-emerald-600" />
-              Calendrier des séances
+              <Calendar className="h-5 w-5" />
+              Calendrier
             </CardTitle>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="icon" onClick={() => navigateMonth('prev')}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="min-w-[150px] text-center font-medium">
+              <span className="font-medium min-w-[150px] text-center">
                 {MONTHS[currentMonth - 1]} {currentYear}
               </span>
               <Button variant="outline" size="icon" onClick={() => navigateMonth('next')}>
@@ -348,285 +259,324 @@ export default function SessionsPage() {
               </Button>
             </div>
           </div>
-          <CardDescription>
-            Cliquez sur un jour vert pour voir les détails de la séance
-          </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-1">
-            {/* Day headers */}
-            {DAYS.map(day => (
-              <div key={day} className="p-2 text-center text-sm font-medium text-muted-foreground">
-                {day}
-              </div>
-            ))}
-
-            {/* Calendar days */}
-            {calendarDays.map((day, index) => {
-              if (day === null) {
-                return <div key={`empty-${index}`} className="p-2" />
-              }
-
-              const hasSession = isSessionDate(day)
-              const isToday = isCurrentMonth && day === today.getDate()
-              const session = hasSession ? getSessionForDate(day) : null
-              const sessionColor = hasSession ? getSessionColor(day) : ''
-
-              return (
-                <div
-                  key={day}
-                  onClick={() => hasSession && openSessionDetail(day)}
-                  className={`
-                    relative p-2 min-h-[60px] rounded-lg border text-center transition-all
-                    ${hasSession
-                      ? 'cursor-pointer hover:opacity-80'
-                      : 'bg-background border-transparent hover:bg-muted/50'
-                    }
-                    ${isToday ? 'ring-2 ring-offset-1 ring-blue-500' : ''}
-                  `}
-                  style={hasSession ? {
-                    backgroundColor: `${sessionColor}20`,
-                    borderColor: sessionColor
-                  } : {}}
-                >
-                  <span
-                    className={`text-sm ${hasSession ? 'font-bold' : ''}`}
-                    style={hasSession ? { color: sessionColor } : {}}
-                  >
-                    {day}
-                  </span>
-                  {hasSession && session && (
-                    <div className="mt-1">
-                      <Badge
-                        variant="secondary"
-                        className="text-xs px-1 py-0 text-white"
-                        style={{ backgroundColor: sessionColor }}
-                      >
-                        {session.presentCount} <Users className="inline h-3 w-3 ml-0.5" />
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Legend */}
-          <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#3B82F6' }} />
-              <span>Montmagny</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#8B5CF6' }} />
-              <span>Famille</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#10B981' }} />
-              <span>Amilou</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded ring-2 ring-blue-500" />
-              <span>Aujourd'hui</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Sessions List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Dernières séances</CardTitle>
-          <CardDescription>Historique des soumissions d'avancement</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {calendarData?.sessions && calendarData.sessions.length > 0 ? (
-            <div className="space-y-3">
-              {calendarData.sessions.slice(0, 10).map((session) => (
-                <div
-                  key={session.date}
-                  onClick={() => {
-                    setSelectedSession(session)
-                    setDetailDialogOpen(true)
-                  }}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900">
-                      <Calendar className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{formatDate(session.date)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {session.participants.map(p => p.userName).join(', ')}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-                    {session.presentCount}/{session.totalMembers}
-                  </Badge>
-                </div>
-              ))}
+          {loading ? (
+            <div className="h-[300px] flex items-center justify-center">
+              <p className="text-muted-foreground">Chargement...</p>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-              <Calendar className="h-12 w-12 mb-4 opacity-50" />
-              <p>Aucune séance enregistrée</p>
-            </div>
+            <>
+              {/* Calendar Grid */}
+              <div className="grid grid-cols-7 gap-1 mb-4">
+                {DAYS.map(day => (
+                  <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
+                    {day}
+                  </div>
+                ))}
+
+                {calendarDays.map((day, index) => {
+                  if (day === null) {
+                    return <div key={`empty-${index}`} className="p-2" />
+                  }
+
+                  const { colors, count } = getSessionsForDay(day)
+                  const hasSession = count > 0
+                  const isToday = isCurrentMonth && day === today.getDate()
+
+                  return (
+                    <div
+                      key={day}
+                      onClick={() => hasSession && openDayDetail(day)}
+                      className={`
+                        relative p-2 min-h-[60px] rounded-lg border text-center transition-all
+                        ${hasSession ? 'cursor-pointer hover:opacity-80 bg-muted/30' : 'bg-background border-transparent hover:bg-muted/50'}
+                        ${isToday ? 'ring-2 ring-offset-1 ring-blue-500' : ''}
+                      `}
+                    >
+                      <span className={`text-sm ${hasSession ? 'font-bold' : ''}`}>
+                        {day}
+                      </span>
+                      {hasSession && (
+                        <div className="mt-1 flex justify-center gap-1 flex-wrap">
+                          {colors.map((color, i) => (
+                            <div
+                              key={i}
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Legend - Clickable filters */}
+              <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-3 text-sm">
+                <span className="text-muted-foreground">Filtrer :</span>
+                {Object.entries(GROUP_COLORS).map(([name, color]) => (
+                  <button
+                    key={name}
+                    onClick={() => toggleFilter(name)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all hover:bg-muted`}
+                    style={{
+                      backgroundColor: filterGroup === name ? `${color}20` : undefined,
+                      boxShadow: filterGroup === name ? `0 0 0 2px white, 0 0 0 4px ${color}` : undefined
+                    }}
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: color }}
+                    />
+                    <span className={filterGroup === name ? 'font-medium' : ''}>
+                      {name.replace('Cours ', '').replace('Groupe ', '')}
+                    </span>
+                  </button>
+                ))}
+                {filterGroup && (
+                  <button
+                    onClick={() => setFilterGroup(null)}
+                    className="text-muted-foreground hover:text-foreground ml-2"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* Group Sessions List (Editable) */}
+      {/* Sessions List */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-blue-600" />
-            Séances de groupe
+            <BookOpen className="h-5 w-5" />
+            Séances {filterGroup && `- ${filterGroup}`}
+            <Badge variant="secondary" className="ml-2">
+              {filteredSessions.length}
+            </Badge>
           </CardTitle>
-          <CardDescription>Séances créées avec suivi de présence et récitations</CardDescription>
         </CardHeader>
         <CardContent>
-          {groupSessions.length > 0 ? (
+          {filteredSessions.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              Aucune séance pour cette période
+            </p>
+          ) : (
             <div className="space-y-3">
-              {groupSessions.slice(0, 20).map((session) => {
-                const presentCount = session.attendance.filter(a => a.present).length
-                const totalCount = session.attendance.length
-                const recitationCount = session.recitations?.length || 0
-
-                return (
+              {filteredSessions.map((session) => (
+                <div
+                  key={session.id}
+                  onClick={() => {
+                    setSelectedDateSessions([session])
+                    setExpandedParticipants(new Set())
+                    setDetailDialogOpen(true)
+                  }}
+                  className="flex items-center gap-4 p-4 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
+                >
                   <div
-                    key={session.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-                        <Calendar className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{formatDate(session.date)}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {session.group.name} - Semaine {session.weekNumber}
-                        </p>
-                      </div>
+                    className="w-1 h-12 rounded-full"
+                    style={{ backgroundColor: session.color }}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{formatDate(session.date)}</span>
+                      {session.weekNumber && (
+                        <Badge variant="outline">S{session.weekNumber}</Badge>
+                      )}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex gap-2">
-                        <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-                          <Users className="h-3 w-3 mr-1" />
-                          {presentCount}/{totalCount}
-                        </Badge>
-                        {recitationCount > 0 && (
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            <BookOpen className="h-3 w-3 mr-1" />
-                            {recitationCount}
-                          </Badge>
-                        )}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push(`/${locale}/sessions/${session.id}`)}
+                    <div className="text-sm text-muted-foreground flex items-center gap-3">
+                      <span
+                        className="px-2 py-0.5 rounded text-white text-xs"
+                        style={{ backgroundColor: session.color }}
                       >
-                        <Pencil className="h-4 w-4 mr-1" />
-                        Modifier
-                      </Button>
+                        {session.groupName.replace('Cours ', '').replace('Groupe ', '')}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        {session.presentCount}/{session.totalMembers}
+                      </span>
+                      {session.recitationCount > 0 && (
+                        <span className="flex items-center gap-1">
+                          <BookOpen className="h-3 w-3" />
+                          {session.recitationCount}
+                        </span>
+                      )}
                     </div>
                   </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-              <BookOpen className="h-12 w-12 mb-4 opacity-50" />
-              <p>Aucune séance de groupe créée</p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => router.push(`/${locale}/sessions/new`)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Créer une séance
-              </Button>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Session Detail Dialog */}
+      {/* Detail Dialog */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-auto">
-          {selectedSession && (
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          {selectedDateSessions.length > 0 && (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-emerald-600" />
-                  {formatDate(selectedSession.date)}
+                  <Calendar className="h-5 w-5" />
+                  {formatDate(selectedDateSessions[0].date)}
                 </DialogTitle>
-                <DialogDescription className="space-y-1">
-                  {selectedSession.groupName && (
-                    <span
-                      className="inline-block px-2 py-0.5 rounded text-white text-xs font-medium mb-1"
-                      style={{ backgroundColor: selectedSession.color }}
-                    >
-                      {selectedSession.groupName}
-                    </span>
-                  )}
-                  <span className="block">
-                    {selectedSession.presentCount} participant(s) sur {selectedSession.totalMembers} membres
-                  </span>
+                <DialogDescription>
+                  {selectedDateSessions.length} séance(s) ce jour
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-4">
-                {/* Participants with their progress */}
-                <div>
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-600" />
-                    Présents ({selectedSession.participants.length})
-                  </h4>
-                  <div className="space-y-3">
-                    {selectedSession.participants.map((participant) => (
-                      <div key={participant.userId} className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
-                        <p className="font-medium text-emerald-800 dark:text-emerald-200 mb-2">
-                          {participant.userName}
-                        </p>
-                        <div className="space-y-1">
-                          {participant.entries.map((entry, idx) => (
-                            <div key={idx} className="flex items-center gap-2 text-sm">
-                              <BookOpen className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">{entry.surahName}</span>
-                              <span className="text-muted-foreground">
-                                v.{entry.verseStart}-{entry.verseEnd}
-                              </span>
-                              <Badge variant="outline" className="text-xs">
-                                {entry.program}
-                              </Badge>
-                            </div>
+              <div className="space-y-6">
+                {selectedDateSessions.map((session) => (
+                  <div key={session.id} className="space-y-4">
+                    {/* Session header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="px-3 py-1 rounded-full text-white text-sm font-medium"
+                          style={{ backgroundColor: session.color }}
+                        >
+                          {session.groupName}
+                        </span>
+                        {session.weekNumber && (
+                          <Badge variant="outline">Semaine {session.weekNumber}</Badge>
+                        )}
+                      </div>
+                      {session.type === 'group' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/${locale}/sessions/${session.id}`)}
+                        >
+                          <Pencil className="h-4 w-4 mr-1" />
+                          Modifier
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Présents - Cliquables */}
+                    <div>
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <Check className="h-4 w-4 text-emerald-600" />
+                        Présents ({session.participants.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {session.participants.map((participant) => {
+                          const odId = `${session.id}-${participant.userId}`
+                          const isExpanded = expandedParticipants.has(odId)
+
+                          return (
+                            <Collapsible
+                              key={odId}
+                              open={isExpanded}
+                              onOpenChange={() => toggleParticipant(odId)}
+                            >
+                              <CollapsibleTrigger className="w-full">
+                                <div
+                                  className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                                    isExpanded
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
+                                      : 'hover:bg-muted/50'
+                                  }`}
+                                >
+                                  <span className="font-medium">{participant.userName}</span>
+                                  <div className="flex items-center gap-2">
+                                    {participant.entries.length > 0 && (
+                                      <Badge variant="secondary">
+                                        {participant.entries.length} récitation(s)
+                                      </Badge>
+                                    )}
+                                    <ChevronDown
+                                      className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                    />
+                                  </div>
+                                </div>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <div className="pl-4 pt-2 space-y-2">
+                                  {participant.entries.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground py-2">
+                                      Aucune récitation enregistrée
+                                    </p>
+                                  ) : (
+                                    participant.entries.map((entry, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="p-3 rounded-lg bg-muted/30 border"
+                                      >
+                                        <div className="flex items-start justify-between">
+                                          <div>
+                                            <p className="font-medium">
+                                              {entry.surahName}
+                                              {entry.surahNameAr && (
+                                                <span className="text-muted-foreground mr-2"> ({entry.surahNameAr})</span>
+                                              )}
+                                            </p>
+                                            <p className="text-sm text-muted-foreground">
+                                              Versets {entry.verseStart} - {entry.verseEnd}
+                                            </p>
+                                          </div>
+                                          {entry.status && (
+                                            <Badge variant="outline">{entry.status}</Badge>
+                                          )}
+                                        </div>
+                                        {entry.comment && (
+                                          <p className="text-sm mt-2 text-muted-foreground italic">
+                                            "{entry.comment}"
+                                          </p>
+                                        )}
+                                        {entry.program && (
+                                          <p className="text-xs mt-1 text-muted-foreground">
+                                            Programme: {entry.program}
+                                          </p>
+                                        )}
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Absents */}
+                    {session.absentMembers.length > 0 && (
+                      <div>
+                        <h4 className="font-medium mb-2 flex items-center gap-2 text-muted-foreground">
+                          <X className="h-4 w-4" />
+                          Absents ({session.absentMembers.length})
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {session.absentMembers.map((name, idx) => (
+                            <Badge key={idx} variant="outline" className="text-muted-foreground">
+                              {name}
+                            </Badge>
                           ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    )}
 
-                {/* Absent members */}
-                {selectedSession.absentMembers.length > 0 && (
-                  <div>
-                    <h4 className="font-medium mb-3 flex items-center gap-2">
-                      <X className="h-4 w-4 text-red-600" />
-                      Absents ({selectedSession.absentMembers.length})
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedSession.absentMembers.map((name) => (
-                        <Badge key={name} variant="outline" className="text-red-600 border-red-200">
-                          {name}
-                        </Badge>
-                      ))}
-                    </div>
+                    {/* Notes */}
+                    {session.notes && (
+                      <div className="p-3 rounded-lg bg-muted/30 border">
+                        <p className="text-sm text-muted-foreground">
+                          <span className="font-medium">Notes : </span>
+                          {session.notes}
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedDateSessions.length > 1 && (
+                      <hr className="my-4" />
+                    )}
                   </div>
-                )}
+                ))}
               </div>
             </>
           )}
