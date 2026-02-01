@@ -23,15 +23,41 @@ export async function PATCH(
     }
 
     const { id } = await params
-    const { role } = await request.json()
+    const body = await request.json()
+    const { role, email, name } = body
 
-    if (!role || !['USER', 'REFERENT', 'MANAGER', 'ADMIN'].includes(role)) {
-      return NextResponse.json({ error: 'Rôle invalide' }, { status: 400 })
+    // Build update data
+    const updateData: { role?: string; email?: string; name?: string } = {}
+
+    if (role) {
+      if (!['USER', 'REFERENT', 'MANAGER', 'ADMIN'].includes(role)) {
+        return NextResponse.json({ error: 'Rôle invalide' }, { status: 400 })
+      }
+      updateData.role = role
+    }
+
+    if (email) {
+      // Check if email is already used by another user
+      const existingUser = await prisma.user.findFirst({
+        where: { email, id: { not: id } }
+      })
+      if (existingUser) {
+        return NextResponse.json({ error: 'Cet email est déjà utilisé' }, { status: 400 })
+      }
+      updateData.email = email
+    }
+
+    if (name !== undefined) {
+      updateData.name = name
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: 'Aucune donnée à mettre à jour' }, { status: 400 })
     }
 
     const updatedUser = await prisma.user.update({
       where: { id },
-      data: { role },
+      data: updateData,
       select: {
         id: true,
         name: true,

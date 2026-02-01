@@ -44,7 +44,8 @@ import {
   ArrowUp,
   ArrowDown,
   Minus,
-  Activity
+  Activity,
+  Pencil
 } from 'lucide-react'
 
 interface User {
@@ -132,6 +133,13 @@ export default function AdminPage() {
   // Add progress dialog
   const [dialogOpen, setDialogOpen] = useState(false)
   const [formUser, setFormUser] = useState('')
+
+  // Edit user dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editRole, setEditRole] = useState('')
   const [formProgram, setFormProgram] = useState('')
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0])
   const [formSurah, setFormSurah] = useState('')
@@ -276,6 +284,43 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error('Error updating role:', error)
+    }
+  }
+
+  function openEditDialog(user: User) {
+    setEditingUser(user)
+    setEditName(user.name || '')
+    setEditEmail(user.email)
+    setEditRole(user.role)
+    setEditDialogOpen(true)
+  }
+
+  async function handleSaveUser() {
+    if (!editingUser) return
+
+    try {
+      const res = await fetch(`/api/users/${editingUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName,
+          email: editEmail,
+          role: editRole,
+        }),
+      })
+
+      if (res.ok) {
+        const updatedUser = await res.json()
+        setUsers(users.map(u => u.id === editingUser.id ? { ...u, ...updatedUser } : u))
+        setEditDialogOpen(false)
+        setEditingUser(null)
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Erreur lors de la mise à jour')
+      }
+    } catch (error) {
+      console.error('Error updating user:', error)
+      alert('Erreur lors de la mise à jour')
     }
   }
 
@@ -688,29 +733,24 @@ export default function AdminPage() {
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <Select
-                      value={user.role}
-                      onValueChange={(value) => handleRoleChange(user.id, value)}
-                    >
-                      <SelectTrigger className="w-32">
-                        <Badge className={getRoleBadgeColor(user.role)}>
-                          {t(`roles.${user.role.toLowerCase()}`)}
-                        </Badge>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="USER">{t('roles.user')}</SelectItem>
-                        <SelectItem value="REFERENT">{t('roles.referent')}</SelectItem>
-                        <SelectItem value="MANAGER">{t('roles.manager')}</SelectItem>
-                        <SelectItem value="ADMIN">{t('roles.admin')}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Badge className={getRoleBadgeColor(user.role)}>
+                      {t(`roles.${user.role.toLowerCase()}`)}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <span className="text-emerald-600 font-medium">
                       {user._count.progressEntries}
                     </span> {t('admin.entries')}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditDialog(user)}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Modifier
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -816,6 +856,59 @@ export default function AdminPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit User Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Modifier l'utilisateur</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations de l'utilisateur
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Nom</Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Nom de l'utilisateur"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                placeholder="email@exemple.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Rôle</Label>
+              <Select value={editRole} onValueChange={setEditRole}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un rôle" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USER">{t('roles.user')}</SelectItem>
+                  <SelectItem value="REFERENT">{t('roles.referent')}</SelectItem>
+                  <SelectItem value="MANAGER">{t('roles.manager')}</SelectItem>
+                  <SelectItem value="ADMIN">{t('roles.admin')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSaveUser}>
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
