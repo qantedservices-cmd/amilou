@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     // Get user's groups
     const userGroups = await prisma.groupMember.findMany({
       where: { userId: session.user.id },
-      select: { groupId: true }
+      select: { groupId: true, group: { select: { name: true } } }
     })
     const groupIds = groupId ? [groupId] : userGroups.map(g => g.groupId)
 
@@ -44,21 +44,32 @@ export async function GET(request: Request) {
       endDate = new Date(year, 11, 31, 23, 59, 59)
     }
 
-    // Get GroupSessions with attendance and recitations
+    // Get group members for reference
+    const groupMembers = await prisma.groupMember.findMany({
+      where: { groupId: { in: groupIds } },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        group: { select: { id: true, name: true } }
+      }
+    })
+    const memberUserIds = [...new Set(groupMembers.map(m => m.userId))]
+
+    const allMembers = groupMembers
+      .filter(m => m.role === 'MEMBER')
+      .map(m => ({ id: m.user.id, name: m.user.name }))
+
+    // ============================================
+    // 1. GroupSession (Cours Montmagny) - BLEU
+    // ============================================
     const groupSessions = await prisma.groupSession.findMany({
       where: {
         groupId: { in: groupIds },
-        date: {
-          gte: startDate,
-          lte: endDate
-        }
+        date: { gte: startDate, lte: endDate }
       },
       include: {
         group: { select: { id: true, name: true } },
         attendance: {
-          include: {
-            user: { select: { id: true, name: true, email: true } }
-          }
+          include: { user: { select: { id: true, name: true, email: true } } }
         },
         recitations: {
           include: {
@@ -70,28 +81,10 @@ export async function GET(request: Request) {
       orderBy: { date: 'desc' }
     })
 
-    // Get group members for reference
-    const groupMembers = await prisma.groupMember.findMany({
-      where: {
-        groupId: { in: groupIds },
-        role: 'MEMBER' // Only students
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true } }
-      }
-    })
-
-    const allMembers = groupMembers.map(m => ({
-      id: m.user.id,
-      name: m.user.name
-    }))
-
-    // Transform sessions for calendar view
-    const sessions = groupSessions.map(gs => {
+    const sessionsFromGroup = groupSessions.map(gs => {
       const presentAttendance = gs.attendance.filter(a => a.present)
       const absentAttendance = gs.attendance.filter(a => !a.present)
 
-      // Group recitations by user
       const participants = presentAttendance.map(att => {
         const userRecitations = gs.recitations.filter(r => r.userId === att.userId)
         return {
@@ -110,6 +103,8 @@ export async function GET(request: Request) {
 
       return {
         id: gs.id,
+        type: 'group' as const,
+        color: '#3B82F6', // Bleu
         date: gs.date.toISOString().split('T')[0],
         weekNumber: gs.weekNumber,
         groupId: gs.groupId,
@@ -123,15 +118,90 @@ export async function GET(request: Request) {
       }
     })
 
+    // ============================================
+    // 2. Progress (Famille Amilou) - VERT
+    // ============================================
+    const progressEntries = await prisma.progress.findMany({
+      where: {
+        userId: { in: memberUserIds },
+        date: { gte: startDate, lte: endDate }
+      },
+      include: {
+        user: { select: { id: true, name: true } },
+        surah: { select: { number: true, nameFr: true, nameAr: true } },
+        program: { select: { code: true, nameFr: true } }
+      },
+      orderBy: { date: 'desc' }
+    })
+
+    // Group Progress by date to create "sessions"
+    const progressByDate: Record<string, typeof progressEntries> = {}
+    for (const entry of progressEntries) {
+      const dateKey = new Date(entry.date).toISOString().split('T')[0]
+      if (!progressByDate[dateKey]) {
+        progressByDate[dateKey] = []
+      }
+      progressByDate[dateKey].push(entry)
+    }
+
+    const sessionsFromProgress = Object.entries(progressByDate).map(([dateKey, entries]) => {
+      // Group by user
+      const byUser: Record<string, typeof entries> = {}
+      for (const e of entries) {
+        if (!byUser[e.userId]) byUser[e.userId] = []
+        byUser[e.userId].push(e)
+      }
+
+      const participants = Object.entries(byUser).map(([userId, userEntries]) => ({
+        userId,
+        userName: userEntries[0].user.name || 'Inconnu',
+        entries: userEntries.map(e => ({
+          surahNumber: e.surahNumber,
+          surahName: e.surah?.nameFr || `Sourate ${e.surahNumber}`,
+          verseStart: e.verseStart,
+          verseEnd: e.verseEnd,
+          program: e.program.nameFr,
+          status: null,
+          comment: e.comment
+        }))
+      }))
+
+      // Determine group name from participants
+      const firstUserId = entries[0].userId
+      const userGroup = groupMembers.find(m => m.userId === firstUserId)
+
+      return {
+        id: `progress-${dateKey}`,
+        type: 'progress' as const,
+        color: '#10B981', // Vert
+        date: dateKey,
+        weekNumber: null,
+        groupId: userGroup?.groupId || null,
+        groupName: userGroup?.group.name || 'Famille',
+        notes: null,
+        participants,
+        presentCount: participants.length,
+        totalMembers: participants.length,
+        absentMembers: [],
+        recitationCount: entries.length
+      }
+    })
+
+    // ============================================
+    // Merge and sort all sessions
+    // ============================================
+    const allSessions = [...sessionsFromGroup, ...sessionsFromProgress]
+    allSessions.sort((a, b) => b.date.localeCompare(a.date))
+
     // Get unique dates for calendar highlighting
-    const sessionDates = sessions.map(s => s.date)
+    const sessionDates = allSessions.map(s => ({ date: s.date, type: s.type, color: s.color }))
 
     return NextResponse.json({
       year,
       month,
-      sessions,
+      sessions: allSessions,
       sessionDates,
-      totalSessions: sessions.length,
+      totalSessions: allSessions.length,
       members: allMembers
     })
   } catch (error) {
