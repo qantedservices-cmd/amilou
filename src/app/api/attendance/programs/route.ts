@@ -5,21 +5,20 @@ import prisma from '@/lib/db'
 // Daily programs in order
 const DAILY_PROGRAMS = ['MEMORIZATION', 'CONSOLIDATION', 'REVISION', 'READING']
 
-// Get Sunday (week start) from a date
+// Get Sunday (week start) from a date in UTC
 function getWeekStart(date: Date): Date {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  const dow = d.getDay()
-  d.setDate(d.getDate() - dow)
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dow = d.getUTCDay()
+  d.setUTCDate(d.getUTCDate() - dow)
   return d
 }
 
-// Get all dates for a week starting from Sunday
+// Get all dates for a week starting from Sunday in UTC
 function getWeekDates(weekStart: Date): Date[] {
   const dates: Date[] = []
   for (let i = 0; i < 7; i++) {
     const d = new Date(weekStart)
-    d.setDate(weekStart.getDate() + i)
+    d.setUTCDate(weekStart.getUTCDate() + i)
     dates.push(d)
   }
   return dates
@@ -48,22 +47,22 @@ export async function GET(request: Request) {
       }
     }
 
-    // Determine week start date
+    // Determine week start date (in UTC)
     let weekStart: Date
     if (weekStartParam) {
-      weekStart = new Date(weekStartParam)
-      weekStart.setHours(0, 0, 0, 0)
+      // Parse as UTC
+      weekStart = new Date(weekStartParam + 'T00:00:00.000Z')
       // Ensure it's a Sunday
-      const dow = weekStart.getDay()
+      const dow = weekStart.getUTCDay()
       if (dow !== 0) {
-        weekStart.setDate(weekStart.getDate() - dow)
+        weekStart.setUTCDate(weekStart.getUTCDate() - dow)
       }
     } else {
       weekStart = getWeekStart(new Date())
     }
 
     const weekEnd = new Date(weekStart)
-    weekEnd.setDate(weekStart.getDate() + 7)
+    weekEnd.setUTCDate(weekStart.getUTCDate() + 7)
 
     // Get all programs
     const programs = await prisma.program.findMany({
@@ -96,7 +95,7 @@ export async function GET(request: Request) {
 
     for (const completion of completions) {
       const date = new Date(completion.date)
-      date.setHours(0, 0, 0, 0)
+      // Calculate day index based on UTC dates
       const dayIndex = Math.round((date.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000))
       if (dayIndex >= 0 && dayIndex < 7 && completionMatrix[completion.programId]) {
         completionMatrix[completion.programId][dayIndex] = completion.completed
@@ -179,8 +178,8 @@ export async function POST(request: Request) {
       const programCompletions = completions[programId]
       for (const dayIndex of Object.keys(programCompletions)) {
         const { date, completed } = programCompletions[dayIndex]
-        const dateObj = new Date(date)
-        dateObj.setHours(0, 0, 0, 0)
+        // Parse date as YYYY-MM-DD in UTC to avoid timezone issues
+        const dateObj = new Date(date + 'T00:00:00.000Z')
 
         if (completed) {
           operations.push(

@@ -325,6 +325,14 @@ export default function DashboardPage() {
     }
   }, [stats?.weeklyObjectivesStatus])
 
+  // Helper to format date as YYYY-MM-DD (timezone-safe)
+  function formatDateLocal(date: Date): string {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   async function toggleTodayProgram(code: string) {
     const programId = programsMap[code]
     if (!programId || togglingProgram) return
@@ -342,7 +350,6 @@ export default function DashboardPage() {
 
     try {
       const today = new Date()
-      today.setHours(0, 0, 0, 0)
       const dayIndex = today.getDay()
 
       const res = await fetch('/api/attendance/programs', {
@@ -352,7 +359,7 @@ export default function DashboardPage() {
           completions: {
             [programId]: {
               [dayIndex]: {
-                date: today.toISOString(),
+                date: formatDateLocal(today),
                 completed: newCompleted
               }
             }
@@ -403,7 +410,6 @@ export default function DashboardPage() {
       const weekStart = stats?.weekStartDate ? new Date(stats.weekStartDate) : new Date()
       const targetDate = new Date(weekStart)
       targetDate.setDate(weekStart.getDate() + dayIndex)
-      targetDate.setHours(0, 0, 0, 0)
 
       const res = await fetch('/api/attendance/programs', {
         method: 'POST',
@@ -412,7 +418,7 @@ export default function DashboardPage() {
           completions: {
             [programId]: {
               [dayIndex]: {
-                date: targetDate.toISOString(),
+                date: formatDateLocal(targetDate),
                 completed: newCompleted
               }
             }
