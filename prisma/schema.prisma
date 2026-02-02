@@ -41,6 +41,7 @@ model User {
   weeklyObjectives        WeeklyObjective[]
   surahMasteries          SurahMastery[]
   surahRecitations        SurahRecitation[]
+  completionCycles        CompletionCycle[]
 }
 
 model Account {
@@ -450,6 +451,25 @@ model SurahRecitation {
   @@index([sessionId])
   @@index([userId])
   @@index([userId, surahNumber])
+}
+
+// ============================================
+// Completion Cycles (Révision & Lecture complètes)
+// ============================================
+
+model CompletionCycle {
+  id             String   @id @default(cuid())
+  userId         String
+  type           String   // "REVISION" | "LECTURE"
+  completedAt    DateTime
+  daysToComplete Int?     // Jours depuis le dernier cycle du même type
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([userId, completedAt])
 }
 
 // ============================================

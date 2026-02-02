@@ -13,8 +13,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays } from 'lucide-react'
+import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 interface Program {
   id: string
@@ -172,6 +182,27 @@ interface Stats {
   // NEW: Trend
   trend: 'up' | 'down' | 'stable'
   trendPercentage: number
+  // NEW: Completion Cycles
+  completionCycles: {
+    revision: {
+      totalCycles: number
+      lastDate: string | null
+      daysSinceLast: number | null
+      averageDays: number | null
+    }
+    lecture: {
+      totalCycles: number
+      lastDate: string | null
+      daysSinceLast: number | null
+      averageDays: number | null
+    }
+  }
+  // NEW: Tafsir Coverage
+  tafsirCoverage: {
+    percentage: number
+    coveredVerses: number
+    completedSurahs: number
+  }
 }
 
 type PeriodType = 'year' | 'month' | 'global'
@@ -201,6 +232,13 @@ export default function DashboardPage() {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1)
 
+  // Completion cycle dialog
+  const [cycleDialogOpen, setCycleDialogOpen] = useState(false)
+  const [cycleType, setCycleType] = useState<'REVISION' | 'LECTURE'>('REVISION')
+  const [cycleDate, setCycleDate] = useState(new Date().toISOString().split('T')[0])
+  const [cycleNotes, setCycleNotes] = useState('')
+  const [cycleSaving, setCycleSaving] = useState(false)
+
   async function fetchStats() {
     setLoading(true)
     try {
@@ -225,6 +263,38 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchStats()
   }, [period, selectedYear, selectedMonth])
+
+  async function handleSaveCycle() {
+    setCycleSaving(true)
+    try {
+      const res = await fetch('/api/completion-cycles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: cycleType,
+          completedAt: cycleDate,
+          notes: cycleNotes || null
+        })
+      })
+
+      if (res.ok) {
+        setCycleDialogOpen(false)
+        setCycleNotes('')
+        fetchStats()
+      }
+    } catch (error) {
+      console.error('Error saving cycle:', error)
+    } finally {
+      setCycleSaving(false)
+    }
+  }
+
+  function openCycleDialog(type: 'REVISION' | 'LECTURE') {
+    setCycleType(type)
+    setCycleDate(new Date().toISOString().split('T')[0])
+    setCycleNotes('')
+    setCycleDialogOpen(true)
+  }
 
   function getProgramColor(code: string) {
     const colors: Record<string, string> = {
@@ -712,6 +782,167 @@ export default function DashboardPage() {
         </Card>
       )}
 
+      {/* Cycles de Complétion (Révision & Lecture) */}
+      <Card className="border-2 border-amber-200 dark:border-amber-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RotateCcw className="h-5 w-5 text-amber-600" />
+            Cycles de Complétion
+          </CardTitle>
+          <CardDescription>
+            Suivi des révisions et lectures complètes du Coran
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Révision */}
+            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5 text-blue-600" />
+                  <span className="font-medium text-blue-800 dark:text-blue-200">Révision</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => openCycleDialog('REVISION')}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Terminer
+                </Button>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Cycles terminés</span>
+                  <span className="font-bold text-lg">{stats?.completionCycles?.revision?.totalCycles || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Dernier cycle</span>
+                  <span className="font-medium">
+                    {stats?.completionCycles?.revision?.lastDate
+                      ? new Date(stats.completionCycles.revision.lastDate).toLocaleDateString('fr-FR')
+                      : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Jours depuis</span>
+                  <span className={`font-bold ${
+                    (stats?.completionCycles?.revision?.daysSinceLast || 0) > 30
+                      ? 'text-red-600'
+                      : (stats?.completionCycles?.revision?.daysSinceLast || 0) > 14
+                      ? 'text-amber-600'
+                      : 'text-emerald-600'
+                  }`}>
+                    {stats?.completionCycles?.revision?.daysSinceLast ?? '-'} j
+                  </span>
+                </div>
+                {stats?.completionCycles?.revision?.averageDays && (
+                  <div className="flex justify-between pt-2 border-t">
+                    <span className="text-muted-foreground">Moyenne</span>
+                    <span className="font-medium">{stats.completionCycles.revision.averageDays} jours</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Lecture */}
+            <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <BookMarked className="h-5 w-5 text-purple-600" />
+                  <span className="font-medium text-purple-800 dark:text-purple-200">Lecture</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => openCycleDialog('LECTURE')}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Terminer
+                </Button>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Cycles terminés</span>
+                  <span className="font-bold text-lg">{stats?.completionCycles?.lecture?.totalCycles || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Dernier cycle</span>
+                  <span className="font-medium">
+                    {stats?.completionCycles?.lecture?.lastDate
+                      ? new Date(stats.completionCycles.lecture.lastDate).toLocaleDateString('fr-FR')
+                      : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Jours depuis</span>
+                  <span className={`font-bold ${
+                    (stats?.completionCycles?.lecture?.daysSinceLast || 0) > 60
+                      ? 'text-red-600'
+                      : (stats?.completionCycles?.lecture?.daysSinceLast || 0) > 30
+                      ? 'text-amber-600'
+                      : 'text-emerald-600'
+                  }`}>
+                    {stats?.completionCycles?.lecture?.daysSinceLast ?? '-'} j
+                  </span>
+                </div>
+                {stats?.completionCycles?.lecture?.averageDays && (
+                  <div className="flex justify-between pt-2 border-t">
+                    <span className="text-muted-foreground">Moyenne</span>
+                    <span className="font-medium">{stats.completionCycles.lecture.averageDays} jours</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tafsir Coverage */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-rose-600" />
+            Couverture Tafsir
+          </CardTitle>
+          <CardDescription>
+            Versets étudiés avec explication (Tafsir)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Progression globale</span>
+              <span className="font-bold text-lg text-rose-600">{stats?.tafsirCoverage?.percentage || 0}%</span>
+            </div>
+            <Progress value={stats?.tafsirCoverage?.percentage || 0} className="h-3" />
+            <div className="grid grid-cols-3 gap-4 pt-2">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-rose-600">{stats?.tafsirCoverage?.coveredVerses || 0}</p>
+                <p className="text-xs text-muted-foreground">Versets couverts</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-emerald-600">{stats?.tafsirCoverage?.completedSurahs || 0}</p>
+                <p className="text-xs text-muted-foreground">Sourates complètes</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-muted-foreground">6236</p>
+                <p className="text-xs text-muted-foreground">Total versets</p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              className="w-full mt-2"
+              onClick={() => window.location.href = '/tafsir'}
+            >
+              Voir détails par sourate
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Assiduité Comparison Card */}
       <Card>
         <CardHeader>
@@ -1090,6 +1321,53 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Cycle Completion Dialog */}
+      <Dialog open={cycleDialogOpen} onOpenChange={setCycleDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>
+              {cycleType === 'REVISION' ? 'Fin de cycle Révision' : 'Fin de cycle Lecture'}
+            </DialogTitle>
+            <DialogDescription>
+              {cycleType === 'REVISION'
+                ? 'Enregistrez la fin d\'une boucle complète de révision'
+                : 'Enregistrez la fin d\'une lecture complète du Coran'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Date de complétion</Label>
+              <Input
+                type="date"
+                value={cycleDate}
+                onChange={(e) => setCycleDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes (optionnel)</Label>
+              <Input
+                value={cycleNotes}
+                onChange={(e) => setCycleNotes(e.target.value)}
+                placeholder="Ex: Révision des juz 1-10..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCycleDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSaveCycle}
+              disabled={cycleSaving}
+              className={cycleType === 'REVISION' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-purple-600 hover:bg-purple-700'}
+            >
+              {cycleSaving ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

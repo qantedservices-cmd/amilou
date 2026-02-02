@@ -572,6 +572,83 @@ export async function GET(request: Request) {
     }
 
     // =============================================
+    // NEW: Completion Cycles (Révision & Lecture)
+    // =============================================
+    const completionCycles = await prisma.completionCycle.findMany({
+      where: { userId },
+      orderBy: { completedAt: 'desc' }
+    })
+
+    const revisionCycles = completionCycles.filter(c => c.type === 'REVISION')
+    const lectureCycles = completionCycles.filter(c => c.type === 'LECTURE')
+
+    const lastRevision = revisionCycles[0]
+    const lastLecture = lectureCycles[0]
+
+    const daysSinceRevision = lastRevision
+      ? Math.floor((now.getTime() - new Date(lastRevision.completedAt).getTime()) / (24 * 60 * 60 * 1000))
+      : null
+
+    const daysSinceLecture = lastLecture
+      ? Math.floor((now.getTime() - new Date(lastLecture.completedAt).getTime()) / (24 * 60 * 60 * 1000))
+      : null
+
+    const avgRevisionDays = revisionCycles.length > 1
+      ? Math.round(revisionCycles.slice(0, -1).reduce((sum, c) => sum + (c.daysToComplete || 0), 0) / (revisionCycles.length - 1))
+      : null
+
+    const avgLectureDays = lectureCycles.length > 1
+      ? Math.round(lectureCycles.slice(0, -1).reduce((sum, c) => sum + (c.daysToComplete || 0), 0) / (lectureCycles.length - 1))
+      : null
+
+    // =============================================
+    // NEW: Tafsir Coverage
+    // =============================================
+    const tafsirProgram = await prisma.program.findFirst({
+      where: { code: 'TAFSIR' }
+    })
+
+    let tafsirCoverage = { percentage: 0, coveredVerses: 0, completedSurahs: 0 }
+
+    if (tafsirProgram) {
+      const tafsirEntries = await prisma.progress.findMany({
+        where: { userId, programId: tafsirProgram.id },
+        include: { surah: true }
+      })
+
+      // Calculate covered verses per surah
+      const surahVerses: Record<number, Set<number>> = {}
+      for (const entry of tafsirEntries) {
+        if (!surahVerses[entry.surahNumber]) {
+          surahVerses[entry.surahNumber] = new Set()
+        }
+        for (let v = entry.verseStart; v <= entry.verseEnd; v++) {
+          surahVerses[entry.surahNumber].add(v)
+        }
+      }
+
+      // Get all surahs to check completion
+      const allSurahs = await prisma.surah.findMany()
+      const surahTotals = new Map(allSurahs.map(s => [s.number, s.totalVerses]))
+
+      let totalCovered = 0
+      let completed = 0
+      for (const [surahNum, verses] of Object.entries(surahVerses)) {
+        totalCovered += verses.size
+        const surahTotal = surahTotals.get(parseInt(surahNum)) || 0
+        if (verses.size >= surahTotal) {
+          completed++
+        }
+      }
+
+      tafsirCoverage = {
+        percentage: Math.round((totalCovered / 6236) * 100),
+        coveredVerses: totalCovered,
+        completedSurahs: completed
+      }
+    }
+
+    // =============================================
     // NEW: Comparison with previous period
     // =============================================
     let previousPeriodStart: Date
@@ -672,6 +749,23 @@ export async function GET(request: Request) {
       // NEW: Trend
       trend,
       trendPercentage,
+      // NEW: Completion Cycles
+      completionCycles: {
+        revision: {
+          totalCycles: revisionCycles.length,
+          lastDate: lastRevision?.completedAt || null,
+          daysSinceLast: daysSinceRevision,
+          averageDays: avgRevisionDays
+        },
+        lecture: {
+          totalCycles: lectureCycles.length,
+          lastDate: lastLecture?.completedAt || null,
+          daysSinceLast: daysSinceLecture,
+          averageDays: avgLectureDays
+        }
+      },
+      // NEW: Tafsir Coverage
+      tafsirCoverage,
     })
   } catch (error) {
     console.error('Error fetching stats:', error)
