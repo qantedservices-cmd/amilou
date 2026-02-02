@@ -52,6 +52,12 @@ interface Program {
   nameAr: string
 }
 
+interface ProgramObjective {
+  quantity: number
+  unit: string
+  period: string
+}
+
 interface WeeklyObjective {
   id: string
   name: string
@@ -73,6 +79,33 @@ function getProgramColor(code: string) {
     TAFSIR: 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-100',
   }
   return colors[code] || 'bg-gray-100 text-gray-800'
+}
+
+function formatObjective(obj: ProgramObjective | null): string {
+  if (!obj) return ''
+
+  const qtyLabel = obj.quantity === 0.25 ? '1/4'
+    : obj.quantity === 0.33 ? '1/3'
+    : obj.quantity === 0.5 ? '1/2'
+    : obj.quantity === 0.75 ? '3/4'
+    : obj.quantity.toString()
+
+  const unitLabels: Record<string, string> = {
+    PAGE: 'page',
+    QUART: 'quart',
+    DEMI_HIZB: 'demi-hizb',
+    HIZB: 'hizb',
+    JUZ: 'juz'
+  }
+  const unitLabel = unitLabels[obj.unit] || obj.unit
+
+  const periodLabels: Record<string, string> = {
+    DAY: 'jour',
+    WEEK: 'sem.'
+  }
+  const periodLabel = periodLabels[obj.period] || obj.period
+
+  return `${qtyLabel} ${unitLabel}/${periodLabel}`
 }
 
 function getWeekNumber(date: Date): { week: number; year: number } {
@@ -109,6 +142,7 @@ export default function AttendancePage() {
   const [manageableUsers, setManageableUsers] = useState<ManageableUser[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
   const [completions, setCompletions] = useState<Record<string, Record<number, boolean>>>({})
+  const [objectives, setObjectives] = useState<Record<string, ProgramObjective | null>>({})
   const [weeklyObjectives, setWeeklyObjectives] = useState<WeeklyObjective[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -137,6 +171,7 @@ export default function AttendancePage() {
         const data = await programsRes.json()
         setPrograms(data.programs || [])
         setCompletions(data.completions || {})
+        setObjectives(data.objectives || {})
       }
 
       if (objectivesRes.ok) {
@@ -436,12 +471,25 @@ export default function AttendancePage() {
                 </tr>
               </thead>
               <tbody>
-                {programs.map((program) => (
+                {programs.map((program) => {
+                  const objective = objectives[program.id]
+                  return (
                   <tr key={program.id} className="border-b last:border-0 hover:bg-muted/50">
                     <td className="py-3 px-2">
-                      <Badge className={getProgramColor(program.code)}>
-                        {program.nameFr}
-                      </Badge>
+                      <div className="flex flex-col gap-1">
+                        <Badge className={getProgramColor(program.code)}>
+                          {program.nameFr}
+                        </Badge>
+                        {objective ? (
+                          <span className="text-xs text-muted-foreground">
+                            {formatObjective(objective)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-orange-500 flex items-center gap-1">
+                            ⚙️ À définir
+                          </span>
+                        )}
+                      </div>
                     </td>
                     {weekDates.map((date, dayIndex) => {
                       const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
@@ -460,7 +508,7 @@ export default function AttendancePage() {
                       )
                     })}
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>

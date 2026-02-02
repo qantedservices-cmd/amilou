@@ -108,11 +108,30 @@ export async function GET(request: Request) {
       .map(code => programs.find(p => p.code === code))
       .filter(Boolean)
 
+    // Get user's program settings (objectives)
+    const programSettings = await prisma.userProgramSettings.findMany({
+      where: {
+        userId: targetUserId,
+        isActive: true,
+        programId: { in: programs.map(p => p.id) }
+      }
+    })
+
+    // Build objectives map: { programId: { quantity, unit, period } }
+    const objectives: Record<string, { quantity: number; unit: string; period: string } | null> = {}
+    for (const program of programs) {
+      const setting = programSettings.find(s => s.programId === program.id)
+      objectives[program.id] = setting
+        ? { quantity: setting.quantity, unit: setting.unit, period: setting.period }
+        : null
+    }
+
     return NextResponse.json({
       weekStart: weekStart.toISOString(),
       weekDates: weekDates.map(d => d.toISOString()),
       programs: sortedPrograms,
-      completions: completionMatrix
+      completions: completionMatrix,
+      objectives
     })
   } catch (error) {
     console.error('Error fetching program completions:', error)
