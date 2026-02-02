@@ -224,6 +224,12 @@ function getWeekNumber(date: Date): { week: number; year: number } {
   return { week, year }
 }
 
+interface ProgramInfo {
+  id: string
+  code: string
+  nameFr: string
+}
+
 export default function DashboardPage() {
   const t = useTranslations()
   const [stats, setStats] = useState<Stats | null>(null)
@@ -238,6 +244,11 @@ export default function DashboardPage() {
   const [cycleDate, setCycleDate] = useState(new Date().toISOString().split('T')[0])
   const [cycleNotes, setCycleNotes] = useState('')
   const [cycleSaving, setCycleSaving] = useState(false)
+
+  // Interactive today programs
+  const [localTodayPrograms, setLocalTodayPrograms] = useState<TodayProgram[]>([])
+  const [programsMap, setProgramsMap] = useState<Record<string, string>>({}) // code -> id
+  const [togglingProgram, setTogglingProgram] = useState<string | null>(null)
 
   async function fetchStats() {
     setLoading(true)
@@ -263,6 +274,81 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchStats()
   }, [period, selectedYear, selectedMonth])
+
+  // Fetch program IDs for today's toggle
+  useEffect(() => {
+    async function fetchProgramIds() {
+      try {
+        const res = await fetch('/api/attendance/programs')
+        if (res.ok) {
+          const data = await res.json()
+          const map: Record<string, string> = {}
+          for (const prog of data.programs || []) {
+            map[prog.code] = prog.id
+          }
+          setProgramsMap(map)
+        }
+      } catch (error) {
+        console.error('Error fetching program IDs:', error)
+      }
+    }
+    fetchProgramIds()
+  }, [])
+
+  // Sync local today programs with stats
+  useEffect(() => {
+    if (stats?.todayPrograms) {
+      setLocalTodayPrograms(stats.todayPrograms)
+    }
+  }, [stats?.todayPrograms])
+
+  async function toggleTodayProgram(code: string) {
+    const programId = programsMap[code]
+    if (!programId || togglingProgram) return
+
+    setTogglingProgram(code)
+
+    // Optimistic update
+    const newPrograms = localTodayPrograms.map(p =>
+      p.code === code ? { ...p, completed: !p.completed } : p
+    )
+    setLocalTodayPrograms(newPrograms)
+
+    const program = localTodayPrograms.find(p => p.code === code)
+    const newCompleted = !program?.completed
+
+    try {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const dayIndex = today.getDay()
+
+      const res = await fetch('/api/attendance/programs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          completions: {
+            [programId]: {
+              [dayIndex]: {
+                date: today.toISOString(),
+                completed: newCompleted
+              }
+            }
+          }
+        })
+      })
+
+      if (!res.ok) {
+        // Revert on error
+        setLocalTodayPrograms(localTodayPrograms)
+      }
+    } catch (error) {
+      console.error('Error toggling program:', error)
+      // Revert on error
+      setLocalTodayPrograms(localTodayPrograms)
+    } finally {
+      setTogglingProgram(null)
+    }
+  }
 
   async function handleSaveCycle() {
     setCycleSaving(true)
@@ -550,13 +636,17 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
-              {stats?.todayPrograms?.map((prog) => (
-                <div
+              {localTodayPrograms.map((prog) => (
+                <button
                   key={prog.code}
-                  className={`flex items-center gap-2 p-3 rounded-lg border ${
+                  onClick={() => toggleTodayProgram(prog.code)}
+                  disabled={togglingProgram === prog.code || !programsMap[prog.code]}
+                  className={`flex items-center gap-2 p-3 rounded-lg border transition-all duration-200 text-left ${
                     prog.completed
-                      ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800'
-                      : 'bg-muted/30 border-muted'
+                      ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/50'
+                      : 'bg-muted/30 border-muted hover:bg-muted/50 hover:border-emerald-300'
+                  } ${togglingProgram === prog.code ? 'opacity-50' : ''} ${
+                    !programsMap[prog.code] ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
                   }`}
                 >
                   {prog.completed ? (
@@ -567,14 +657,14 @@ export default function DashboardPage() {
                   <span className={`text-sm font-medium ${prog.completed ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground'}`}>
                     {prog.name}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
-            {stats?.todayPrograms && (
+            {localTodayPrograms.length > 0 && (
               <div className="mt-3 pt-3 border-t flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Progression du jour</span>
                 <span className="font-bold text-lg">
-                  {stats.todayPrograms.filter(p => p.completed).length}/{stats.todayPrograms.length}
+                  {localTodayPrograms.filter(p => p.completed).length}/{localTodayPrograms.length}
                 </span>
               </div>
             )}
