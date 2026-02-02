@@ -94,7 +94,7 @@ export async function GET(
     const currentMonth = now.getMonth()
 
     // ========================================
-    // SURAH MASTERY STATS
+    // SURAH MASTERY STATS (from SurahMastery table)
     // ========================================
     const surahMasteries = await prisma.surahMastery.findMany({
       where: { userId: id },
@@ -107,17 +107,122 @@ export async function GET(
     const validatedStatuses = ['V', 'S']
     const inProgressStatuses = ['AM', '50%', '51%', '90%']
 
-    const surahsValidated = surahMasteries.filter(m =>
+    const surahsValidatedFromMastery = surahMasteries.filter(m =>
       validatedStatuses.some(s => m.status.startsWith(s))
     )
-    const surahsInProgress = surahMasteries.filter(m =>
+    const surahsInProgressFromMastery = surahMasteries.filter(m =>
       inProgressStatuses.includes(m.status)
     )
 
-    // Calculate total verses memorized (from validated surahs)
-    let totalVersesMemorized = 0
-    for (const mastery of surahsValidated) {
-      totalVersesMemorized += mastery.surah.totalVerses
+    // ========================================
+    // PROGRESS TABLE STATS (from Google Forms webhook)
+    // ========================================
+    const allSurahs = await prisma.surah.findMany({
+      orderBy: { number: 'asc' }
+    })
+    const surahMap = new Map(allSurahs.map(s => [s.number, s]))
+
+    // Get MEMORIZATION program
+    const memoProgram = await prisma.program.findFirst({ where: { code: 'MEMORIZATION' } })
+
+    const progressEntries = await prisma.progress.findMany({
+      where: {
+        userId: id,
+        programId: memoProgram?.id
+      },
+      include: {
+        surah: { select: { number: true, nameAr: true, nameFr: true, totalVerses: true } }
+      },
+      orderBy: { date: 'desc' }
+    })
+
+    // Calculate verses covered per surah from Progress entries
+    const surahCoverage: Record<number, {
+      surahNumber: number
+      surahName: string
+      surahNameAr: string
+      totalVerses: number
+      coveredVerses: Set<number>
+      entries: { date: string; verseStart: number; verseEnd: number }[]
+    }> = {}
+
+    for (const entry of progressEntries) {
+      if (!entry.surah) continue
+      const sn = entry.surahNumber
+      if (!surahCoverage[sn]) {
+        surahCoverage[sn] = {
+          surahNumber: sn,
+          surahName: entry.surah.nameFr,
+          surahNameAr: entry.surah.nameAr,
+          totalVerses: entry.surah.totalVerses,
+          coveredVerses: new Set(),
+          entries: []
+        }
+      }
+      // Add covered verses
+      for (let v = entry.verseStart; v <= entry.verseEnd; v++) {
+        surahCoverage[sn].coveredVerses.add(v)
+      }
+      surahCoverage[sn].entries.push({
+        date: entry.date.toISOString().split('T')[0],
+        verseStart: entry.verseStart,
+        verseEnd: entry.verseEnd
+      })
+    }
+
+    // Build surah progress from Progress entries
+    const surahProgressFromEntries = Object.values(surahCoverage).map(sc => {
+      const coverage = (sc.coveredVerses.size / sc.totalVerses) * 100
+      return {
+        surahNumber: sc.surahNumber,
+        surahName: sc.surahName,
+        surahNameAr: sc.surahNameAr,
+        totalVerses: sc.totalVerses,
+        coveredVerses: sc.coveredVerses.size,
+        coverage: Math.round(coverage),
+        isComplete: sc.coveredVerses.size >= sc.totalVerses,
+        entries: sc.entries
+      }
+    })
+
+    // Count surahs from Progress data
+    const surahsCompleteFromProgress = surahProgressFromEntries.filter(s => s.isComplete)
+    const surahsInProgressFromProgress = surahProgressFromEntries.filter(s => !s.isComplete && s.coveredVerses > 0)
+
+    // Calculate total verses memorized
+    // Use the higher count between SurahMastery and Progress
+    let totalVersesFromMastery = 0
+    for (const mastery of surahsValidatedFromMastery) {
+      totalVersesFromMastery += mastery.surah.totalVerses
+    }
+
+    let totalVersesFromProgress = 0
+    for (const sp of surahProgressFromEntries) {
+      totalVersesFromProgress += sp.coveredVerses
+    }
+
+    // Use the best data source
+    const hasMasteryData = surahMasteries.length > 0
+    const hasProgressData = progressEntries.length > 0
+
+    let totalVersesMemorized: number
+    let surahsValidatedCount: number
+    let surahsInProgressCount: number
+
+    if (hasMasteryData && totalVersesFromMastery >= totalVersesFromProgress) {
+      // Use SurahMastery data
+      totalVersesMemorized = totalVersesFromMastery
+      surahsValidatedCount = surahsValidatedFromMastery.length
+      surahsInProgressCount = surahsInProgressFromMastery.length
+    } else if (hasProgressData) {
+      // Use Progress data
+      totalVersesMemorized = totalVersesFromProgress
+      surahsValidatedCount = surahsCompleteFromProgress.length
+      surahsInProgressCount = surahsInProgressFromProgress.length
+    } else {
+      totalVersesMemorized = 0
+      surahsValidatedCount = 0
+      surahsInProgressCount = 0
     }
 
     // Approximate pages (about 15 verses per page)
@@ -219,7 +324,7 @@ export async function GET(
     }))
 
     // ========================================
-    // RECITATION HISTORY
+    // RECITATION HISTORY (from SurahRecitation or Progress)
     // ========================================
     const recitations = await prisma.surahRecitation.findMany({
       where: { userId: id },
@@ -231,20 +336,54 @@ export async function GET(
       take: 20
     })
 
-    const recentRecitations = recitations.map(r => ({
-      id: r.id,
-      date: r.session.date.toISOString().split('T')[0],
-      weekNumber: r.session.weekNumber,
-      groupName: r.session.group.name,
-      surahNumber: r.surahNumber,
-      surahName: r.surah.nameFr,
-      surahNameAr: r.surah.nameAr,
-      type: r.type,
-      verseStart: r.verseStart,
-      verseEnd: r.verseEnd,
-      status: r.status,
-      comment: r.comment
-    }))
+    let recentRecitations: {
+      id: string
+      date: string
+      weekNumber: number | null
+      groupName: string
+      surahNumber: number
+      surahName: string
+      surahNameAr: string
+      type: string
+      verseStart: number
+      verseEnd: number
+      status: string
+      comment: string | null
+    }[]
+
+    if (recitations.length > 0) {
+      // Use SurahRecitation data
+      recentRecitations = recitations.map(r => ({
+        id: r.id,
+        date: r.session.date.toISOString().split('T')[0],
+        weekNumber: r.session.weekNumber,
+        groupName: r.session.group.name,
+        surahNumber: r.surahNumber,
+        surahName: r.surah.nameFr,
+        surahNameAr: r.surah.nameAr,
+        type: r.type,
+        verseStart: r.verseStart,
+        verseEnd: r.verseEnd,
+        status: r.status,
+        comment: r.comment
+      }))
+    } else {
+      // Fall back to Progress entries
+      recentRecitations = progressEntries.slice(0, 20).map(p => ({
+        id: p.id,
+        date: p.date.toISOString().split('T')[0],
+        weekNumber: getWeekNumber(p.date),
+        groupName: 'Personnel',
+        surahNumber: p.surahNumber,
+        surahName: p.surah?.nameFr || `Sourate ${p.surahNumber}`,
+        surahNameAr: p.surah?.nameAr || '',
+        type: 'MEMORIZATION',
+        verseStart: p.verseStart,
+        verseEnd: p.verseEnd,
+        status: 'Enregistré',
+        comment: p.comment
+      }))
+    }
 
     // ========================================
     // MONTHLY PROGRESSION (last 6 months)
@@ -260,8 +399,10 @@ export async function GET(
       _count: true
     })
 
-    // Get validated masteries by month
-    const recentValidations = surahMasteries
+    // Get validated masteries by month (or completed surahs from Progress)
+    let recentValidations: { surahNumber: number; surahName: string; validatedAt: string | undefined; validatedWeek: number | null }[]
+
+    const masteryValidations = surahMasteries
       .filter(m => m.validatedAt && m.validatedAt >= sixMonthsAgo)
       .map(m => ({
         surahNumber: m.surahNumber,
@@ -269,6 +410,18 @@ export async function GET(
         validatedAt: m.validatedAt?.toISOString().split('T')[0],
         validatedWeek: m.validatedWeek
       }))
+
+    if (masteryValidations.length > 0) {
+      recentValidations = masteryValidations
+    } else {
+      // Use completed surahs from Progress
+      recentValidations = surahsCompleteFromProgress.map(sp => ({
+        surahNumber: sp.surahNumber,
+        surahName: sp.surahName,
+        validatedAt: sp.entries[0]?.date,
+        validatedWeek: null
+      }))
+    }
 
     // ========================================
     // BUILD RESPONSE
@@ -287,8 +440,8 @@ export async function GET(
         }))
       },
       memorization: {
-        surahsValidated: surahsValidated.length,
-        surahsInProgress: surahsInProgress.length,
+        surahsValidated: surahsValidatedCount,
+        surahsInProgress: surahsInProgressCount,
         totalVerses: totalVersesMemorized,
         totalPages: pagesMemorized,
         progressPercent
@@ -315,15 +468,25 @@ export async function GET(
       },
       weeklyObjectives: objectivesData,
       recentRecitations,
-      surahMasteries: surahMasteries.map(m => ({
-        surahNumber: m.surahNumber,
-        surahName: m.surah.nameFr,
-        surahNameAr: m.surah.nameAr,
-        totalVerses: m.surah.totalVerses,
-        status: m.status,
-        validatedWeek: m.validatedWeek,
-        validatedAt: m.validatedAt?.toISOString().split('T')[0] || null
-      })),
+      surahMasteries: surahMasteries.length > 0
+        ? surahMasteries.map(m => ({
+            surahNumber: m.surahNumber,
+            surahName: m.surah.nameFr,
+            surahNameAr: m.surah.nameAr,
+            totalVerses: m.surah.totalVerses,
+            status: m.status,
+            validatedWeek: m.validatedWeek,
+            validatedAt: m.validatedAt?.toISOString().split('T')[0] || null
+          }))
+        : surahProgressFromEntries.map(sp => ({
+            surahNumber: sp.surahNumber,
+            surahName: sp.surahName,
+            surahNameAr: sp.surahNameAr,
+            totalVerses: sp.totalVerses,
+            status: sp.isComplete ? 'V' : `${sp.coverage}%`,
+            validatedWeek: null,
+            validatedAt: null
+          })),
       recentValidations,
       stats: {
         monthlyRecitations
