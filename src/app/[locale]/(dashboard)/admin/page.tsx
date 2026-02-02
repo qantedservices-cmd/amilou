@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -115,6 +115,7 @@ interface AdminStats {
 
 export default function AdminPage() {
   const t = useTranslations()
+  const locale = useLocale()
   const { data: session } = useSession()
   const router = useRouter()
   const [users, setUsers] = useState<User[]>([])
@@ -756,7 +757,7 @@ export default function AdminPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => router.push(`/users/${user.id}`)}
+                      onClick={() => router.push(`/${locale}/users/${user.id}`)}
                     >
                       <Eye className="h-4 w-4 mr-1" />
                       Voir profil

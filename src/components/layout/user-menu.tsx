@@ -1,6 +1,6 @@
 'use client'
 
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { signOut, useSession } from 'next-auth/react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -16,6 +16,7 @@ import Link from 'next/link'
 
 export function UserMenu() {
   const t = useTranslations()
+  const locale = useLocale()
   const { data: session } = useSession()
 
   const user = session?.user
@@ -46,13 +47,13 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href={`/users/${session?.user?.id}`} className="flex items-center gap-2">
+          <Link href={`/${locale}/users/${session?.user?.id}`} className="flex items-center gap-2">
             <User className="h-4 w-4" />
             Mon profil
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings" className="flex items-center gap-2">
+          <Link href={`/${locale}/settings`} className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             {t('nav.settings')}
           </Link>
