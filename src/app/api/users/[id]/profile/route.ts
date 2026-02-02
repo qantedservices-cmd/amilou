@@ -171,6 +171,7 @@ export async function GET(
     }
 
     // Build surah progress from Progress entries
+    // Any surah with at least one entry is considered VALIDATED
     const surahProgressFromEntries = Object.values(surahCoverage).map(sc => {
       const coverage = (sc.coveredVerses.size / sc.totalVerses) * 100
       return {
@@ -180,14 +181,14 @@ export async function GET(
         totalVerses: sc.totalVerses,
         coveredVerses: sc.coveredVerses.size,
         coverage: Math.round(coverage),
-        isComplete: sc.coveredVerses.size >= sc.totalVerses,
+        isComplete: true, // Any recorded surah is considered validated
         entries: sc.entries
       }
     })
 
-    // Count surahs from Progress data
-    const surahsCompleteFromProgress = surahProgressFromEntries.filter(s => s.isComplete)
-    const surahsInProgressFromProgress = surahProgressFromEntries.filter(s => !s.isComplete && s.coveredVerses > 0)
+    // Count surahs from Progress data - all are validated
+    const surahsCompleteFromProgress = surahProgressFromEntries
+    const surahsInProgressFromProgress: typeof surahProgressFromEntries = [] // None in progress, all validated
 
     // Calculate total verses memorized
     // Use the higher count between SurahMastery and Progress
@@ -232,9 +233,8 @@ export async function GET(
     const progressPercent = Math.round((totalVersesMemorized / 6236) * 100)
 
     // ========================================
-    // ATTENDANCE STATS
+    // ATTENDANCE STATS (from SessionAttendance or DailyProgramCompletion)
     // ========================================
-    const userGroupIds = user.groupMembers.map(m => m.groupId)
 
     // Get session attendance for this user
     const sessionAttendances = await prisma.sessionAttendance.findMany({
@@ -247,35 +247,94 @@ export async function GET(
       orderBy: { session: { date: 'desc' } }
     })
 
-    // Calculate attendance rates
-    const totalSessions = sessionAttendances.length
-    const presentSessions = sessionAttendances.filter(a => a.present).length
+    // Get daily program completions for fallback
+    const allDailyCompletions = await prisma.dailyProgramCompletion.findMany({
+      where: { userId: id, completed: true },
+      orderBy: { date: 'desc' }
+    })
 
-    // This year's sessions
-    const thisYearAttendances = sessionAttendances.filter(a =>
-      a.session.date.getFullYear() === currentYear
-    )
-    const thisYearPresent = thisYearAttendances.filter(a => a.present).length
+    // Get unique dates with at least one completion
+    const completionDates = [...new Set(allDailyCompletions.map(c => c.date.toISOString().split('T')[0]))]
+    const completionDatesSet = new Set(completionDates)
 
-    // This month's sessions
-    const thisMonthAttendances = sessionAttendances.filter(a =>
-      a.session.date.getFullYear() === currentYear &&
-      a.session.date.getMonth() === currentMonth
-    )
-    const thisMonthPresent = thisMonthAttendances.filter(a => a.present).length
+    let totalSessions: number
+    let presentSessions: number
+    let thisYearSessions: number
+    let thisYearPresent: number
+    let thisMonthSessions: number
+    let thisMonthPresent: number
+    let streak: number
 
-    // Current streak (consecutive present sessions)
-    let streak = 0
-    const sortedAttendances = [...sessionAttendances].sort((a, b) =>
-      b.session.date.getTime() - a.session.date.getTime()
-    )
-    for (const att of sortedAttendances) {
-      if (att.present) streak++
-      else break
+    if (sessionAttendances.length > 0) {
+      // Use SessionAttendance data
+      totalSessions = sessionAttendances.length
+      presentSessions = sessionAttendances.filter(a => a.present).length
+
+      const thisYearAttendances = sessionAttendances.filter(a =>
+        a.session.date.getFullYear() === currentYear
+      )
+      thisYearSessions = thisYearAttendances.length
+      thisYearPresent = thisYearAttendances.filter(a => a.present).length
+
+      const thisMonthAttendances = sessionAttendances.filter(a =>
+        a.session.date.getFullYear() === currentYear &&
+        a.session.date.getMonth() === currentMonth
+      )
+      thisMonthSessions = thisMonthAttendances.length
+      thisMonthPresent = thisMonthAttendances.filter(a => a.present).length
+
+      // Current streak (consecutive present sessions)
+      streak = 0
+      const sortedAttendances = [...sessionAttendances].sort((a, b) =>
+        b.session.date.getTime() - a.session.date.getTime()
+      )
+      for (const att of sortedAttendances) {
+        if (att.present) streak++
+        else break
+      }
+    } else {
+      // Fallback to DailyProgramCompletion data
+      // Count unique days with completions
+      totalSessions = completionDates.length
+      presentSessions = completionDates.length // All are "present" days
+
+      // This year
+      const thisYearDates = completionDates.filter(d => d.startsWith(currentYear.toString()))
+      thisYearSessions = thisYearDates.length
+      thisYearPresent = thisYearDates.length
+
+      // This month
+      const monthStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`
+      const thisMonthDates = completionDates.filter(d => d.startsWith(monthStr))
+      thisMonthSessions = thisMonthDates.length
+      thisMonthPresent = thisMonthDates.length
+
+      // Calculate streak from daily completions (consecutive days)
+      streak = 0
+      const sortedDates = [...completionDates].sort().reverse() // Most recent first
+      if (sortedDates.length > 0) {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        let checkDate = new Date(today)
+
+        // Start from today or yesterday
+        let checkDateStr = checkDate.toISOString().split('T')[0]
+        if (!completionDatesSet.has(checkDateStr)) {
+          checkDate.setDate(checkDate.getDate() - 1)
+          checkDateStr = checkDate.toISOString().split('T')[0]
+        }
+
+        // Count consecutive days
+        while (completionDatesSet.has(checkDateStr)) {
+          streak++
+          checkDate.setDate(checkDate.getDate() - 1)
+          checkDateStr = checkDate.toISOString().split('T')[0]
+        }
+      }
     }
 
     // ========================================
-    // DAILY ATTENDANCE (PROGRAM COMPLETIONS)
+    // DAILY ATTENDANCE (PROGRAM COMPLETIONS) - for current week display
     // ========================================
     const dailyCompletions = await prisma.dailyProgramCompletion.findMany({
       where: { userId: id },
@@ -451,14 +510,14 @@ export async function GET(
         presentSessions,
         globalRate: totalSessions > 0 ? Math.round((presentSessions / totalSessions) * 100) : 0,
         thisYear: {
-          sessions: thisYearAttendances.length,
+          sessions: thisYearSessions,
           present: thisYearPresent,
-          rate: thisYearAttendances.length > 0 ? Math.round((thisYearPresent / thisYearAttendances.length) * 100) : 0
+          rate: thisYearSessions > 0 ? Math.round((thisYearPresent / thisYearSessions) * 100) : 0
         },
         thisMonth: {
-          sessions: thisMonthAttendances.length,
+          sessions: thisMonthSessions,
           present: thisMonthPresent,
-          rate: thisMonthAttendances.length > 0 ? Math.round((thisMonthPresent / thisMonthAttendances.length) * 100) : 0
+          rate: thisMonthSessions > 0 ? Math.round((thisMonthPresent / thisMonthSessions) * 100) : 0
         },
         currentStreak: streak
       },
