@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus } from 'lucide-react'
+import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import {
   Dialog,
@@ -250,6 +251,14 @@ export default function DashboardPage() {
   const [programsMap, setProgramsMap] = useState<Record<string, string>>({}) // code -> id
   const [togglingProgram, setTogglingProgram] = useState<string | null>(null)
 
+  // Interactive week grid
+  const [localWeekGrid, setLocalWeekGrid] = useState<Record<string, boolean[]>>({})
+  const [togglingWeekCell, setTogglingWeekCell] = useState<string | null>(null) // "CODE-dayIndex"
+
+  // Interactive weekly objectives
+  const [localWeeklyObjectives, setLocalWeeklyObjectives] = useState<WeeklyObjectiveStatus[]>([])
+  const [togglingObjective, setTogglingObjective] = useState<string | null>(null)
+
   async function fetchStats() {
     setLoading(true)
     try {
@@ -302,20 +311,34 @@ export default function DashboardPage() {
     }
   }, [stats?.todayPrograms])
 
+  // Sync local week grid with stats
+  useEffect(() => {
+    if (stats?.weekGrid) {
+      setLocalWeekGrid(stats.weekGrid)
+    }
+  }, [stats?.weekGrid])
+
+  // Sync local weekly objectives with stats
+  useEffect(() => {
+    if (stats?.weeklyObjectivesStatus) {
+      setLocalWeeklyObjectives(stats.weeklyObjectivesStatus)
+    }
+  }, [stats?.weeklyObjectivesStatus])
+
   async function toggleTodayProgram(code: string) {
     const programId = programsMap[code]
     if (!programId || togglingProgram) return
 
     setTogglingProgram(code)
 
-    // Optimistic update
-    const newPrograms = localTodayPrograms.map(p =>
-      p.code === code ? { ...p, completed: !p.completed } : p
-    )
-    setLocalTodayPrograms(newPrograms)
-
     const program = localTodayPrograms.find(p => p.code === code)
     const newCompleted = !program?.completed
+
+    // Optimistic update
+    const newPrograms = localTodayPrograms.map(p =>
+      p.code === code ? { ...p, completed: newCompleted } : p
+    )
+    setLocalTodayPrograms(newPrograms)
 
     try {
       const today = new Date()
@@ -337,16 +360,145 @@ export default function DashboardPage() {
         })
       })
 
-      if (!res.ok) {
-        // Revert on error
+      if (res.ok) {
+        toast.success(newCompleted ? `${program?.name} complété ✓` : `${program?.name} retiré`)
+      } else {
         setLocalTodayPrograms(localTodayPrograms)
+        toast.error('Erreur lors de la sauvegarde')
       }
     } catch (error) {
       console.error('Error toggling program:', error)
-      // Revert on error
       setLocalTodayPrograms(localTodayPrograms)
+      toast.error('Erreur de connexion')
     } finally {
       setTogglingProgram(null)
+    }
+  }
+
+  async function toggleWeekGridCell(code: string, dayIndex: number) {
+    const programId = programsMap[code]
+    if (!programId || togglingWeekCell) return
+
+    const cellKey = `${code}-${dayIndex}`
+    setTogglingWeekCell(cellKey)
+
+    const currentCompleted = localWeekGrid[code]?.[dayIndex] || false
+    const newCompleted = !currentCompleted
+
+    // Optimistic update
+    setLocalWeekGrid(prev => ({
+      ...prev,
+      [code]: prev[code]?.map((v, i) => i === dayIndex ? newCompleted : v) || []
+    }))
+
+    // Also update today programs if it's today
+    if (dayIndex === new Date().getDay()) {
+      setLocalTodayPrograms(prev =>
+        prev.map(p => p.code === code ? { ...p, completed: newCompleted } : p)
+      )
+    }
+
+    try {
+      // Calculate the date for this day index
+      const weekStart = stats?.weekStartDate ? new Date(stats.weekStartDate) : new Date()
+      const targetDate = new Date(weekStart)
+      targetDate.setDate(weekStart.getDate() + dayIndex)
+      targetDate.setHours(0, 0, 0, 0)
+
+      const res = await fetch('/api/attendance/programs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          completions: {
+            [programId]: {
+              [dayIndex]: {
+                date: targetDate.toISOString(),
+                completed: newCompleted
+              }
+            }
+          }
+        })
+      })
+
+      if (res.ok) {
+        const programName = stats?.weekProgramStats?.find(p => p.code === code)?.name || code
+        toast.success(newCompleted ? `${programName} (${DAY_NAMES[dayIndex]}) ✓` : `${programName} (${DAY_NAMES[dayIndex]}) retiré`)
+      } else {
+        // Revert
+        setLocalWeekGrid(prev => ({
+          ...prev,
+          [code]: prev[code]?.map((v, i) => i === dayIndex ? currentCompleted : v) || []
+        }))
+        if (dayIndex === new Date().getDay()) {
+          setLocalTodayPrograms(prev =>
+            prev.map(p => p.code === code ? { ...p, completed: currentCompleted } : p)
+          )
+        }
+        toast.error('Erreur lors de la sauvegarde')
+      }
+    } catch (error) {
+      console.error('Error toggling week cell:', error)
+      setLocalWeekGrid(prev => ({
+        ...prev,
+        [code]: prev[code]?.map((v, i) => i === dayIndex ? currentCompleted : v) || []
+      }))
+      if (dayIndex === new Date().getDay()) {
+        setLocalTodayPrograms(prev =>
+          prev.map(p => p.code === code ? { ...p, completed: currentCompleted } : p)
+        )
+      }
+      toast.error('Erreur de connexion')
+    } finally {
+      setTogglingWeekCell(null)
+    }
+  }
+
+  async function toggleWeeklyObjective(objectiveId: string) {
+    if (togglingObjective) return
+
+    setTogglingObjective(objectiveId)
+
+    const objective = localWeeklyObjectives.find(o => o.id === objectiveId)
+    const newCompleted = !objective?.completed
+
+    // Optimistic update
+    setLocalWeeklyObjectives(prev =>
+      prev.map(o => o.id === objectiveId ? { ...o, completed: newCompleted } : o)
+    )
+
+    try {
+      // Get current week start (Sunday)
+      const now = new Date()
+      const weekStart = new Date(now)
+      weekStart.setDate(now.getDate() - now.getDay())
+      weekStart.setHours(0, 0, 0, 0)
+
+      const res = await fetch('/api/attendance/weekly-objectives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          objectiveId,
+          weekStart: weekStart.toISOString(),
+          completed: newCompleted
+        })
+      })
+
+      if (res.ok) {
+        toast.success(newCompleted ? `${objective?.name} complété ✓` : `${objective?.name} retiré`)
+      } else {
+        setLocalWeeklyObjectives(prev =>
+          prev.map(o => o.id === objectiveId ? { ...o, completed: !newCompleted } : o)
+        )
+        toast.error('Erreur lors de la sauvegarde')
+      }
+    } catch (error) {
+      console.error('Error toggling objective:', error)
+      setLocalWeeklyObjectives(prev =>
+        prev.map(o => o.id === objectiveId ? { ...o, completed: !newCompleted } : o)
+      )
+      toast.error('Erreur de connexion')
+    } finally {
+      setTogglingObjective(null)
     }
   }
 
@@ -681,18 +833,22 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {stats?.weeklyObjectivesStatus && stats.weeklyObjectivesStatus.length > 0 ? (
+            {localWeeklyObjectives.length > 0 ? (
               <div className="space-y-2">
-                {stats.weeklyObjectivesStatus.map((obj) => (
-                  <div
+                {localWeeklyObjectives.map((obj) => (
+                  <button
                     key={obj.id}
-                    className={`flex items-center gap-2 p-3 rounded-lg border ${
+                    onClick={() => toggleWeeklyObjective(obj.id)}
+                    disabled={togglingObjective === obj.id}
+                    className={`w-full flex items-center gap-2 p-3 rounded-lg border transition-all duration-200 text-left ${
                       obj.completed
-                        ? 'bg-purple-50 border-purple-200 dark:bg-purple-950/30 dark:border-purple-800'
-                        : 'bg-muted/30 border-muted'
-                    }`}
+                        ? 'bg-purple-50 border-purple-200 dark:bg-purple-950/30 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-950/50'
+                        : 'bg-muted/30 border-muted hover:bg-muted/50 hover:border-purple-300'
+                    } ${togglingObjective === obj.id ? 'opacity-50' : ''} cursor-pointer`}
                   >
-                    {obj.completed ? (
+                    {togglingObjective === obj.id ? (
+                      <Loader2 className="h-5 w-5 text-purple-600 shrink-0 animate-spin" />
+                    ) : obj.completed ? (
                       <CheckCircle className="h-5 w-5 text-purple-600 shrink-0" />
                     ) : (
                       <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -703,7 +859,7 @@ export default function DashboardPage() {
                     {obj.isCustom && (
                       <Badge variant="secondary" className="ml-auto text-xs">Perso</Badge>
                     )}
-                  </div>
+                  </button>
                 ))}
               </div>
             ) : (
@@ -748,29 +904,47 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {stats?.weekProgramStats?.map((prog) => (
-                  <tr key={prog.code} className="border-b last:border-0">
-                    <td className="py-2 px-2">
-                      <Badge className={getProgramColor(prog.code)}>{prog.name}</Badge>
-                    </td>
-                    {stats.weekGrid?.[prog.code]?.map((completed, dayIndex) => (
-                      <td key={dayIndex} className={`text-center py-2 px-1 ${
-                        dayIndex === new Date().getDay() ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''
-                      }`}>
-                        {completed ? (
-                          <CheckCircle className="h-5 w-5 text-emerald-600 mx-auto" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-muted-foreground/30 mx-auto" />
-                        )}
+                {stats?.weekProgramStats?.map((prog) => {
+                  const gridRow = localWeekGrid[prog.code] || []
+                  const completedCount = gridRow.filter(Boolean).length
+                  return (
+                    <tr key={prog.code} className="border-b last:border-0">
+                      <td className="py-2 px-2">
+                        <Badge className={getProgramColor(prog.code)}>{prog.name}</Badge>
                       </td>
-                    ))}
-                    <td className="text-center py-2 px-2">
-                      <span className={`font-bold ${prog.rate >= 70 ? 'text-emerald-600' : prog.rate >= 40 ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                        {prog.daysCompleted}/7
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                      {gridRow.map((completed, dayIndex) => {
+                        const cellKey = `${prog.code}-${dayIndex}`
+                        const isToggling = togglingWeekCell === cellKey
+                        return (
+                          <td key={dayIndex} className={`text-center py-2 px-1 ${
+                            dayIndex === new Date().getDay() ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''
+                          }`}>
+                            <button
+                              onClick={() => toggleWeekGridCell(prog.code, dayIndex)}
+                              disabled={isToggling || !programsMap[prog.code]}
+                              className={`p-1 rounded transition-all duration-200 hover:bg-muted/50 ${
+                                isToggling ? 'opacity-50' : ''
+                              } ${!programsMap[prog.code] ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                            >
+                              {isToggling ? (
+                                <Loader2 className="h-5 w-5 text-emerald-600 mx-auto animate-spin" />
+                              ) : completed ? (
+                                <CheckCircle className="h-5 w-5 text-emerald-600 mx-auto" />
+                              ) : (
+                                <Circle className="h-5 w-5 text-muted-foreground/30 mx-auto hover:text-muted-foreground" />
+                              )}
+                            </button>
+                          </td>
+                        )
+                      })}
+                      <td className="text-center py-2 px-2">
+                        <span className={`font-bold ${completedCount >= 5 ? 'text-emerald-600' : completedCount >= 3 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                          {completedCount}/7
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
