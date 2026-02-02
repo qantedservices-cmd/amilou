@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -115,6 +116,7 @@ interface AdminStats {
 export default function AdminPage() {
   const t = useTranslations()
   const { data: session } = useSession()
+  const router = useRouter()
   const [users, setUsers] = useState<User[]>([])
   const [progress, setProgress] = useState<ProgressEntry[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
@@ -754,10 +756,10 @@ export default function AdminPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setSelectedUser(user.id)}
+                      onClick={() => router.push(`/users/${user.id}`)}
                     >
                       <Eye className="h-4 w-4 mr-1" />
-                      {t('admin.viewProgress')}
+                      Voir profil
                     </Button>
                   </TableCell>
                 </TableRow>

@@ -7,6 +7,25 @@ const QURAN_TOTAL_VERSES = 6236
 const QURAN_TOTAL_PAGES = 604
 const QURAN_TOTAL_SURAHS = 114
 
+// Daily programs order
+const DAILY_PROGRAMS = ['MEMORIZATION', 'CONSOLIDATION', 'REVISION', 'READING']
+
+// Helper: Get start of week (Sunday)
+function getWeekStartDate(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const day = d.getDay()
+  d.setDate(d.getDate() - day)
+  return d
+}
+
+// Helper: Get start of day
+function getDayStart(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
 export async function GET(request: Request) {
   try {
     const session = await auth()
@@ -327,6 +346,271 @@ export async function GET(request: Request) {
       availableYears.unshift(now.getFullYear())
     }
 
+    // =============================================
+    // NEW: DailyProgramCompletion stats
+    // =============================================
+    const todayStart = getDayStart(now)
+    const tomorrowStart = new Date(todayStart)
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1)
+
+    const weekStart = getWeekStartDate(now)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekEnd.getDate() + 7)
+
+    // Get all programs
+    const programs = await prisma.program.findMany({
+      where: { code: { in: DAILY_PROGRAMS } }
+    })
+    const programMap = new Map(programs.map(p => [p.code, p]))
+
+    // Today's completions
+    const todayCompletions = await prisma.dailyProgramCompletion.findMany({
+      where: {
+        userId,
+        date: { gte: todayStart, lt: tomorrowStart },
+        completed: true
+      },
+      include: { program: true }
+    })
+
+    const todayPrograms = DAILY_PROGRAMS.map(code => ({
+      code,
+      name: programMap.get(code)?.nameFr || code,
+      completed: todayCompletions.some(c => c.program.code === code)
+    }))
+
+    // This week's completions (by day and program)
+    const weekCompletions = await prisma.dailyProgramCompletion.findMany({
+      where: {
+        userId,
+        date: { gte: weekStart, lt: weekEnd },
+        completed: true
+      },
+      include: { program: true }
+    })
+
+    // Build week grid: 7 days x 4 programs
+    const weekGrid: Record<string, boolean[]> = {}
+    for (const code of DAILY_PROGRAMS) {
+      weekGrid[code] = [false, false, false, false, false, false, false]
+    }
+
+    for (const completion of weekCompletions) {
+      const dayIndex = Math.floor((completion.date.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000))
+      if (dayIndex >= 0 && dayIndex < 7 && weekGrid[completion.program.code]) {
+        weekGrid[completion.program.code][dayIndex] = true
+      }
+    }
+
+    // Calculate program stats for the week
+    const weekProgramStats = DAILY_PROGRAMS.map(code => {
+      const daysCompleted = weekGrid[code].filter(Boolean).length
+      return {
+        code,
+        name: programMap.get(code)?.nameFr || code,
+        daysCompleted,
+        totalDays: 7,
+        rate: Math.round((daysCompleted / 7) * 100)
+      }
+    })
+
+    // Calculate for the period (month/year)
+    let periodProgramStats: typeof weekProgramStats = []
+    if (period !== 'global') {
+      const periodCompletions = await prisma.dailyProgramCompletion.findMany({
+        where: {
+          userId,
+          date: { gte: periodStart, lt: periodEnd },
+          completed: true
+        },
+        include: { program: true }
+      })
+
+      // Count unique days per program
+      const programDays: Record<string, Set<string>> = {}
+      for (const code of DAILY_PROGRAMS) {
+        programDays[code] = new Set()
+      }
+
+      for (const c of periodCompletions) {
+        const dateKey = c.date.toISOString().split('T')[0]
+        if (programDays[c.program.code]) {
+          programDays[c.program.code].add(dateKey)
+        }
+      }
+
+      const totalDaysInPeriod = Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (24 * 60 * 60 * 1000))
+
+      periodProgramStats = DAILY_PROGRAMS.map(code => ({
+        code,
+        name: programMap.get(code)?.nameFr || code,
+        daysCompleted: programDays[code].size,
+        totalDays: totalDaysInPeriod,
+        rate: Math.round((programDays[code].size / totalDaysInPeriod) * 100)
+      }))
+    }
+
+    // =============================================
+    // NEW: Weekly Objectives stats
+    // =============================================
+    const weeklyObjectives = await prisma.weeklyObjective.findMany({
+      where: { userId, isActive: true },
+      include: {
+        completions: {
+          where: {
+            weekStartDate: { gte: periodStart, lt: periodEnd }
+          }
+        }
+      }
+    })
+
+    // Current week objective status
+    const currentWeekObjectives = await prisma.weeklyObjective.findMany({
+      where: { userId, isActive: true },
+      include: {
+        completions: {
+          where: { weekStartDate: weekStart },
+          take: 1
+        }
+      }
+    })
+
+    const weeklyObjectivesStatus = currentWeekObjectives.map(obj => ({
+      id: obj.id,
+      name: obj.name,
+      isCustom: obj.isCustom,
+      completed: obj.completions[0]?.completed || false
+    }))
+
+    // Calculate weekly objectives rate for the period
+    const weeksInPeriod = Math.max(1, Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (7 * 24 * 60 * 60 * 1000)))
+
+    const weeklyObjectivesStats = weeklyObjectives.map(obj => {
+      const completedWeeks = obj.completions.filter(c => c.completed).length
+      return {
+        id: obj.id,
+        name: obj.name,
+        isCustom: obj.isCustom,
+        completedWeeks,
+        totalWeeks: weeksInPeriod,
+        rate: Math.round((completedWeeks / weeksInPeriod) * 100)
+      }
+    })
+
+    // =============================================
+    // NEW: Streak calculation
+    // =============================================
+    // Daily streak: consecutive days with at least 1 program completed
+    const allCompletions = await prisma.dailyProgramCompletion.findMany({
+      where: { userId, completed: true },
+      orderBy: { date: 'desc' },
+      select: { date: true }
+    })
+
+    // Get unique dates
+    const completionDates = [...new Set(allCompletions.map(c =>
+      getDayStart(c.date).getTime()
+    ))].sort((a, b) => b - a)
+
+    let dailyStreak = 0
+    let checkDate = getDayStart(now).getTime()
+
+    // Check if today has activity, if not start from yesterday
+    if (!completionDates.includes(checkDate)) {
+      checkDate -= 24 * 60 * 60 * 1000
+    }
+
+    for (const dateTime of completionDates) {
+      if (dateTime === checkDate) {
+        dailyStreak++
+        checkDate -= 24 * 60 * 60 * 1000
+      } else if (dateTime < checkDate) {
+        break
+      }
+    }
+
+    // Weekly streak: consecutive weeks with all weekly objectives completed
+    const allWeeklyCompletions = await prisma.weeklyObjectiveCompletion.findMany({
+      where: {
+        weeklyObjective: { userId, isActive: true },
+        completed: true
+      },
+      include: { weeklyObjective: true },
+      orderBy: { weekStartDate: 'desc' }
+    })
+
+    // Group by week
+    const weeklyCompletionsByWeek: Record<string, Set<string>> = {}
+    for (const c of allWeeklyCompletions) {
+      const weekKey = c.weekStartDate.toISOString().split('T')[0]
+      if (!weeklyCompletionsByWeek[weekKey]) {
+        weeklyCompletionsByWeek[weekKey] = new Set()
+      }
+      weeklyCompletionsByWeek[weekKey].add(c.weeklyObjective.id)
+    }
+
+    const activeObjectiveCount = currentWeekObjectives.length
+    let weeklyStreak = 0
+    let checkWeek = getWeekStartDate(now)
+
+    // Check current week
+    const currentWeekKey = checkWeek.toISOString().split('T')[0]
+    const currentWeekCompleted = weeklyCompletionsByWeek[currentWeekKey]?.size === activeObjectiveCount
+
+    if (!currentWeekCompleted) {
+      checkWeek.setDate(checkWeek.getDate() - 7)
+    }
+
+    while (true) {
+      const weekKey = checkWeek.toISOString().split('T')[0]
+      if (weeklyCompletionsByWeek[weekKey]?.size === activeObjectiveCount) {
+        weeklyStreak++
+        checkWeek.setDate(checkWeek.getDate() - 7)
+      } else {
+        break
+      }
+    }
+
+    // =============================================
+    // NEW: Comparison with previous period
+    // =============================================
+    let previousPeriodStart: Date
+    let previousPeriodEnd: Date
+
+    if (period === 'month') {
+      previousPeriodStart = new Date(paramYear, paramMonth - 2, 1)
+      previousPeriodEnd = new Date(paramYear, paramMonth - 1, 1)
+    } else if (period === 'year') {
+      previousPeriodStart = new Date(paramYear - 1, 0, 1)
+      previousPeriodEnd = new Date(paramYear, 0, 1)
+    } else {
+      previousPeriodStart = periodStart
+      previousPeriodEnd = periodEnd
+    }
+
+    const previousCompletions = await prisma.dailyProgramCompletion.count({
+      where: {
+        userId,
+        date: { gte: previousPeriodStart, lt: previousPeriodEnd },
+        completed: true
+      }
+    })
+
+    const currentCompletions = await prisma.dailyProgramCompletion.count({
+      where: {
+        userId,
+        date: { gte: periodStart, lt: periodEnd },
+        completed: true
+      }
+    })
+
+    const trend = currentCompletions > previousCompletions ? 'up' :
+                  currentCompletions < previousCompletions ? 'down' : 'stable'
+
+    const trendPercentage = previousCompletions > 0
+      ? Math.round(((currentCompletions - previousCompletions) / previousCompletions) * 100)
+      : 0
+
     return NextResponse.json({
       // Period info
       period,
@@ -373,6 +657,21 @@ export async function GET(request: Request) {
       evolutionData,
       // Weekly attendance details data (filtered by period)
       weeklyAttendanceDetails,
+      // NEW: Program completion stats
+      todayPrograms,
+      weekGrid,
+      weekProgramStats,
+      periodProgramStats,
+      weekStartDate: weekStart.toISOString().split('T')[0],
+      // NEW: Weekly objectives stats
+      weeklyObjectivesStatus,
+      weeklyObjectivesStats,
+      // NEW: Streaks
+      dailyStreak,
+      weeklyStreak,
+      // NEW: Trend
+      trend,
+      trendPercentage,
     })
   } catch (error) {
     console.error('Error fetching stats:', error)

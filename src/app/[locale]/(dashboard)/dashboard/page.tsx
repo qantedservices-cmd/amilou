@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText } from 'lucide-react'
+import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
 interface Program {
@@ -104,6 +104,36 @@ interface AttendanceStats {
   totalWeeks: number
 }
 
+interface ProgramStat {
+  code: string
+  name: string
+  daysCompleted: number
+  totalDays: number
+  rate: number
+}
+
+interface WeeklyObjectiveStatus {
+  id: string
+  name: string
+  isCustom: boolean
+  completed: boolean
+}
+
+interface WeeklyObjectiveStat {
+  id: string
+  name: string
+  isCustom: boolean
+  completedWeeks: number
+  totalWeeks: number
+  rate: number
+}
+
+interface TodayProgram {
+  code: string
+  name: string
+  completed: boolean
+}
+
 interface Stats {
   period: string
   selectedYear: number
@@ -127,6 +157,21 @@ interface Stats {
   objectivesVsRealized: ObjectiveVsRealized[]
   evolutionData: EvolutionData[]
   weeklyAttendanceDetails: WeeklyAttendanceEntry[]
+  // NEW: Program completion stats
+  todayPrograms: TodayProgram[]
+  weekGrid: Record<string, boolean[]>
+  weekProgramStats: ProgramStat[]
+  periodProgramStats: ProgramStat[]
+  weekStartDate: string
+  // NEW: Weekly objectives
+  weeklyObjectivesStatus: WeeklyObjectiveStatus[]
+  weeklyObjectivesStats: WeeklyObjectiveStat[]
+  // NEW: Streaks
+  dailyStreak: number
+  weeklyStreak: number
+  // NEW: Trend
+  trend: 'up' | 'down' | 'stable'
+  trendPercentage: number
 }
 
 type PeriodType = 'year' | 'month' | 'global'
@@ -135,6 +180,18 @@ const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ]
+
+function getWeekNumber(date: Date): { week: number; year: number } {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const year = d.getFullYear()
+  const jan1 = new Date(year, 0, 1)
+  const jan1Day = jan1.getDay()
+  const firstSunday = new Date(year, 0, 1 - jan1Day)
+  const diffDays = Math.floor((d.getTime() - firstSunday.getTime()) / (24 * 60 * 60 * 1000))
+  const week = Math.floor(diffDays / 7) + 1
+  return { week, year }
+}
 
 export default function DashboardPage() {
   const t = useTranslations()
@@ -255,22 +312,31 @@ export default function DashboardPage() {
       bgColor: 'bg-blue-100 dark:bg-blue-900',
     },
     {
-      title: 'Sourates',
-      value: stats?.globalProgress?.memorizedSurahs || 0,
-      description: `sur ${stats?.globalProgress?.totalSurahs || 114} sourates`,
+      title: 'Série quotidienne',
+      value: stats?.dailyStreak || 0,
+      description: 'jours consécutifs',
+      icon: Flame,
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-100 dark:bg-orange-900',
+    },
+    {
+      title: 'Série hebdo',
+      value: stats?.weeklyStreak || 0,
+      description: 'semaines consécutives',
       icon: Award,
       color: 'text-amber-600',
       bgColor: 'bg-amber-100 dark:bg-amber-900',
     },
-    {
-      title: 'Assiduité Hebdo',
-      value: `${stats?.weeklyAttendance?.weeksWithSubmission || 0}/${stats?.weeklyAttendance?.totalWeeks || stats?.totalWeeksInPeriod || 0}`,
-      description: `soumissions (${stats?.weeklyAttendance?.rate || 0}%)`,
-      icon: Calendar,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100 dark:bg-purple-900',
-    },
   ]
+
+  const DAY_NAMES = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+
+  const PROGRAM_BG_COLORS: Record<string, string> = {
+    MEMORIZATION: 'bg-emerald-500',
+    CONSOLIDATION: 'bg-blue-500',
+    REVISION: 'bg-amber-500',
+    READING: 'bg-purple-500',
+  }
 
   if (loading) {
     return (
@@ -393,6 +459,258 @@ export default function DashboardPage() {
           )
         })}
       </div>
+
+      {/* TODAY + THIS WEEK Section */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Aujourd'hui */}
+        <Card className="border-2 border-emerald-200 dark:border-emerald-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Sun className="h-5 w-5 text-amber-500" />
+              Aujourd'hui
+              {stats?.trend && stats.trend !== 'stable' && (
+                <Badge variant="outline" className={`ml-auto ${
+                  stats.trend === 'up' ? 'text-emerald-600 border-emerald-300' : 'text-red-600 border-red-300'
+                }`}>
+                  {stats.trend === 'up' ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
+                  {stats.trendPercentage > 0 ? '+' : ''}{stats.trendPercentage}%
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              {stats?.todayPrograms?.map((prog) => (
+                <div
+                  key={prog.code}
+                  className={`flex items-center gap-2 p-3 rounded-lg border ${
+                    prog.completed
+                      ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800'
+                      : 'bg-muted/30 border-muted'
+                  }`}
+                >
+                  {prog.completed ? (
+                    <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
+                  ) : (
+                    <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
+                  )}
+                  <span className={`text-sm font-medium ${prog.completed ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground'}`}>
+                    {prog.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {stats?.todayPrograms && (
+              <div className="mt-3 pt-3 border-t flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Progression du jour</span>
+                <span className="font-bold text-lg">
+                  {stats.todayPrograms.filter(p => p.completed).length}/{stats.todayPrograms.length}
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Objectifs Hebdomadaires */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Target className="h-5 w-5 text-purple-600" />
+              Objectifs Hebdo
+              <Badge variant="outline" className="ml-auto">S{getWeekNumber(new Date()).week}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats?.weeklyObjectivesStatus && stats.weeklyObjectivesStatus.length > 0 ? (
+              <div className="space-y-2">
+                {stats.weeklyObjectivesStatus.map((obj) => (
+                  <div
+                    key={obj.id}
+                    className={`flex items-center gap-2 p-3 rounded-lg border ${
+                      obj.completed
+                        ? 'bg-purple-50 border-purple-200 dark:bg-purple-950/30 dark:border-purple-800'
+                        : 'bg-muted/30 border-muted'
+                    }`}
+                  >
+                    {obj.completed ? (
+                      <CheckCircle className="h-5 w-5 text-purple-600 shrink-0" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
+                    )}
+                    <span className={`text-sm font-medium ${obj.completed ? 'text-purple-700 dark:text-purple-300' : 'text-muted-foreground'}`}>
+                      {obj.name}
+                    </span>
+                    {obj.isCustom && (
+                      <Badge variant="secondary" className="ml-auto text-xs">Perso</Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">
+                <p>Aucun objectif hebdomadaire</p>
+                <p className="text-xs mt-1">Configurez-les dans Assiduité</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Cette Semaine - Grille Programmes */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-blue-600" />
+            Cette Semaine
+            <Badge variant="outline" className="ml-2">
+              {stats?.weekStartDate ? new Date(stats.weekStartDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
+            </Badge>
+          </CardTitle>
+          <CardDescription>
+            Programmes journaliers complétés
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Week Grid */}
+          <div className="overflow-x-auto -mx-2 sm:mx-0">
+            <table className="w-full min-w-[400px]">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 px-2 font-medium text-muted-foreground text-sm w-32">Programme</th>
+                  {DAY_NAMES.map((day, i) => (
+                    <th key={day} className={`text-center py-2 px-1 font-medium text-sm w-10 ${
+                      i === new Date().getDay() ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 rounded' : 'text-muted-foreground'
+                    }`}>
+                      {day}
+                    </th>
+                  ))}
+                  <th className="text-center py-2 px-2 font-medium text-muted-foreground text-sm w-16">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats?.weekProgramStats?.map((prog) => (
+                  <tr key={prog.code} className="border-b last:border-0">
+                    <td className="py-2 px-2">
+                      <Badge className={getProgramColor(prog.code)}>{prog.name}</Badge>
+                    </td>
+                    {stats.weekGrid?.[prog.code]?.map((completed, dayIndex) => (
+                      <td key={dayIndex} className={`text-center py-2 px-1 ${
+                        dayIndex === new Date().getDay() ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''
+                      }`}>
+                        {completed ? (
+                          <CheckCircle className="h-5 w-5 text-emerald-600 mx-auto" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-muted-foreground/30 mx-auto" />
+                        )}
+                      </td>
+                    ))}
+                    <td className="text-center py-2 px-2">
+                      <span className={`font-bold ${prog.rate >= 70 ? 'text-emerald-600' : prog.rate >= 40 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                        {prog.daysCompleted}/7
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Summary */}
+          <div className="mt-4 pt-4 border-t grid grid-cols-4 gap-2">
+            {stats?.weekProgramStats?.map((prog) => (
+              <div key={prog.code} className="text-center">
+                <div className="text-2xl font-bold" style={{ color: CHART_COLORS[prog.code as keyof typeof CHART_COLORS] }}>
+                  {prog.rate}%
+                </div>
+                <div className="text-xs text-muted-foreground">{prog.name}</div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Objectifs Hebdo Stats (pour la période) */}
+      {stats?.weeklyObjectivesStats && stats.weeklyObjectivesStats.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-purple-600" />
+              Bilan Objectifs Hebdomadaires - {getPeriodLabel()}
+            </CardTitle>
+            <CardDescription>
+              Taux de complétion des objectifs sur la période
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {stats.weeklyObjectivesStats.map((obj) => (
+                <div key={obj.id} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{obj.name}</span>
+                      {obj.isCustom && <Badge variant="secondary" className="text-xs">Perso</Badge>}
+                    </div>
+                    <span className="text-sm">
+                      <span className="font-bold">{obj.completedWeeks}</span>
+                      <span className="text-muted-foreground">/{obj.totalWeeks} sem.</span>
+                      <span className={`ml-2 font-bold ${obj.rate >= 70 ? 'text-emerald-600' : obj.rate >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                        ({obj.rate}%)
+                      </span>
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        obj.rate >= 70 ? 'bg-purple-500' : obj.rate >= 40 ? 'bg-amber-500' : 'bg-red-400'
+                      }`}
+                      style={{ width: `${obj.rate}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Programmes Journaliers - Stats Période */}
+      {stats?.periodProgramStats && stats.periodProgramStats.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-blue-600" />
+              Programmes Journaliers - {getPeriodLabel()}
+            </CardTitle>
+            <CardDescription>
+              Taux de complétion par programme sur la période
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {stats.periodProgramStats.map((prog) => (
+                <div key={prog.code} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Badge className={getProgramColor(prog.code)}>{prog.name}</Badge>
+                    <span className="text-sm">
+                      <span className="font-bold">{prog.daysCompleted}</span>
+                      <span className="text-muted-foreground">/{prog.totalDays} jours</span>
+                      <span className={`ml-2 font-bold ${prog.rate >= 70 ? 'text-emerald-600' : prog.rate >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                        ({prog.rate}%)
+                      </span>
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${PROGRAM_BG_COLORS[prog.code] || 'bg-gray-500'}`}
+                      style={{ width: `${prog.rate}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Assiduité Comparison Card */}
       <Card>
