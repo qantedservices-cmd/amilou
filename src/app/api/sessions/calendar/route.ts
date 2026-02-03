@@ -270,14 +270,20 @@ export async function GET(request: Request) {
 
     // ============================================
     // Merge and sort all sessions
-    // Filter out Progress-based sessions when a real GroupSession exists for the same date/group
+    // Filter out Progress-based sessions when a real GroupSession exists for the same WEEK/group
     // ============================================
-    const groupSessionDates = new Set(
-      sessionsFromGroup.map(s => `${s.date}-${s.groupId}`)
+    const groupSessionWeeks = new Set(
+      sessionsFromGroup.map(s => {
+        const weekNum = s.weekNumber || getWeekNumber(new Date(s.date))
+        const sessionYear = new Date(s.date).getFullYear()
+        return `${sessionYear}-W${weekNum}-${s.groupId}`
+      })
     )
-    const filteredProgressSessions = sessionsFromProgress.filter(s =>
-      !groupSessionDates.has(`${s.date}-${s.groupId}`)
-    )
+    const filteredProgressSessions = sessionsFromProgress.filter(s => {
+      const weekNum = getWeekNumber(new Date(s.date))
+      const progressYear = new Date(s.date).getFullYear()
+      return !groupSessionWeeks.has(`${progressYear}-W${weekNum}-${s.groupId}`)
+    })
     const allSessions = [...sessionsFromGroup, ...filteredProgressSessions]
     allSessions.sort((a, b) => b.date.localeCompare(a.date))
 
