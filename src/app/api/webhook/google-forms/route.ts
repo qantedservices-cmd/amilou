@@ -127,11 +127,11 @@ async function handleMemorisation(data: {
 
     // Create session if it doesn't exist
     if (!session) {
-      // Get all student members (exclude REFERENT/ADMIN)
-      const studentMembers = await prisma.groupMember.findMany({
+      // Get all participating members (MEMBER + REFERENT, exclude ADMIN)
+      const participatingMembers = await prisma.groupMember.findMany({
         where: {
           groupId: group.id,
-          role: 'MEMBER'
+          role: { in: ['MEMBER', 'REFERENT'] }
         },
         select: { userId: true }
       });
@@ -143,7 +143,7 @@ async function handleMemorisation(data: {
           weekNumber: weekNumber,
           notes: null,
           attendance: {
-            create: studentMembers.map(m => ({
+            create: participatingMembers.map(m => ({
               userId: m.userId,
               present: false,
               excused: false
