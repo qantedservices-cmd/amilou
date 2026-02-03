@@ -16,7 +16,19 @@ export async function GET(
     const { id: studentId } = await params
     const { searchParams } = new URL(request.url)
     const surahNumber = searchParams.get('surahNumber')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limitParam = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(Math.max(limitParam, 1), 500) // Bounds: 1-500
+
+    // Authorization check: user can only view their own data unless ADMIN/MANAGER/REFERENT
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true }
+    })
+
+    const canViewOthers = ['ADMIN', 'MANAGER', 'REFERENT'].includes(currentUser?.role || '')
+    if (studentId !== session.user.id && !canViewOthers) {
+      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
+    }
 
     // Get student info
     const student = await prisma.user.findUnique({

@@ -15,6 +15,17 @@ export async function GET(
 
     const { id: studentId } = await params
 
+    // Authorization check: user can only view their own data unless ADMIN/MANAGER/REFERENT
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true }
+    })
+
+    const canViewOthers = ['ADMIN', 'MANAGER', 'REFERENT'].includes(currentUser?.role || '')
+    if (studentId !== session.user.id && !canViewOthers) {
+      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
+    }
+
     // Get student info
     const student = await prisma.user.findUnique({
       where: { id: studentId },
@@ -77,6 +88,18 @@ export async function PUT(
     }
 
     const { id: studentId } = await params
+
+    // Authorization check: user can only update their own data unless ADMIN/MANAGER/REFERENT
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true }
+    })
+
+    const canUpdateOthers = ['ADMIN', 'MANAGER', 'REFERENT'].includes(currentUser?.role || '')
+    if (studentId !== session.user.id && !canUpdateOthers) {
+      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
+    }
+
     const { surahNumber, status, validatedWeek, verseStart, verseEnd } = await request.json()
 
     if (!surahNumber || !status) {

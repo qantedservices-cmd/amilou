@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import prisma from '@/lib/db';
 import { getSundayOfWeek } from '@/lib/week-utils';
 
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'amilou_webhook_2026';
+// WEBHOOK_SECRET must be set - no fallback for security
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
 // Groupe Amilou name (must match exactly in DB)
 const GROUPE_AMILOU_NAME = 'Groupe Amilou';
@@ -18,14 +20,46 @@ const USER_MAP: Record<string, string> = {
   'Mohamed Koucha': 'mohamed.koucha@amilou.local',
 };
 
+// Timing-safe string comparison
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('x-webhook-secret');
-    if (authHeader !== WEBHOOK_SECRET) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!WEBHOOK_SECRET) {
+      console.error('WEBHOOK_SECRET not configured');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
-    const body = await request.json();
+    // Get raw body for signature verification
+    const rawBody = await request.text();
+
+    // Check for HMAC signature (preferred method)
+    const signature = request.headers.get('x-webhook-signature');
+    const simpleSecret = request.headers.get('x-webhook-secret');
+
+    if (signature) {
+      // HMAC-SHA256 signature verification
+      const expectedSignature = crypto
+        .createHmac('sha256', WEBHOOK_SECRET)
+        .update(rawBody)
+        .digest('hex');
+
+      if (!timingSafeEqual(signature, expectedSignature)) {
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      }
+    } else if (simpleSecret) {
+      // Fallback to simple secret (for backward compatibility with existing Apps Script)
+      if (!timingSafeEqual(simpleSecret, WEBHOOK_SECRET)) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    } else {
+      return NextResponse.json({ error: 'Missing authentication' }, { status: 401 });
+    }
+
+    const body = JSON.parse(rawBody);
     const { type, data } = body;
 
     if (type === 'memorisation') {
