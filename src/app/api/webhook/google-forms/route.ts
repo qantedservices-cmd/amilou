@@ -3,6 +3,9 @@ import prisma from '@/lib/db';
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'amilou_webhook_2026';
 
+// Groupe Amilou name (must match exactly in DB)
+const GROUPE_AMILOU_NAME = 'Groupe Amilou';
+
 // User name to email mapping
 const USER_MAP: Record<string, string> = {
   'Mohamed B.': 'mohamed.b.@amilou.local',
@@ -88,7 +91,9 @@ async function handleMemorisation(data: {
   }
 
   const date = getSundayOfWeek(data.annee, data.semaine);
+  const weekNumber = data.semaine;
 
+  // Create Progress entry
   const progress = await prisma.progress.create({
     data: {
       userId: user.id,
@@ -103,7 +108,74 @@ async function handleMemorisation(data: {
     }
   });
 
-  return NextResponse.json({ success: true, id: progress.id });
+  // === Create/Update GroupSession for Amilou ===
+  const group = await prisma.group.findFirst({
+    where: { name: GROUPE_AMILOU_NAME }
+  });
+
+  if (group) {
+    // Check if session exists for this date
+    let session = await prisma.groupSession.findFirst({
+      where: {
+        groupId: group.id,
+        date: {
+          gte: date,
+          lt: new Date(date.getTime() + 24 * 60 * 60 * 1000)
+        }
+      }
+    });
+
+    // Create session if it doesn't exist
+    if (!session) {
+      // Get all student members (exclude REFERENT/ADMIN)
+      const studentMembers = await prisma.groupMember.findMany({
+        where: {
+          groupId: group.id,
+          role: 'MEMBER'
+        },
+        select: { userId: true }
+      });
+
+      session = await prisma.groupSession.create({
+        data: {
+          groupId: group.id,
+          date: date,
+          weekNumber: weekNumber,
+          notes: null,
+          attendance: {
+            create: studentMembers.map(m => ({
+              userId: m.userId,
+              present: false,
+              excused: false
+            }))
+          }
+        }
+      });
+    }
+
+    // Update attendance: mark user as present with comment
+    await prisma.sessionAttendance.upsert({
+      where: {
+        sessionId_userId: {
+          sessionId: session.id,
+          userId: user.id
+        }
+      },
+      update: {
+        present: true,
+        note: data.commentaire || null
+      },
+      create: {
+        sessionId: session.id,
+        userId: user.id,
+        present: true,
+        excused: false,
+        note: data.commentaire || null
+      }
+    });
+  }
+
+  return NextResponse.json({ success: true, id: progress.id, sessionCreated: !!group });
 }
 
 // Daily programs in order (score 1-4)
