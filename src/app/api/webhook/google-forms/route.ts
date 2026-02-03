@@ -114,18 +114,23 @@ async function handleMemorisation(data: {
   });
 
   if (group) {
-    // Check if session exists for this date
+    // Check if session exists for this WEEK (not specific date)
+    // Look for session with same weekNumber in the same year
+    const yearStart = new Date(data.annee, 0, 1);
+    const yearEnd = new Date(data.annee, 11, 31, 23, 59, 59);
+
     let session = await prisma.groupSession.findFirst({
       where: {
         groupId: group.id,
+        weekNumber: weekNumber,
         date: {
-          gte: date,
-          lt: new Date(date.getTime() + 24 * 60 * 60 * 1000)
+          gte: yearStart,
+          lte: yearEnd
         }
       }
     });
 
-    // Create session if it doesn't exist
+    // Create session if it doesn't exist for this week
     if (!session) {
       // Get all participating members (MEMBER + REFERENT, exclude ADMIN)
       const participatingMembers = await prisma.groupMember.findMany({
@@ -139,7 +144,7 @@ async function handleMemorisation(data: {
       session = await prisma.groupSession.create({
         data: {
           groupId: group.id,
-          date: date,
+          date: date, // Sunday of the week
           weekNumber: weekNumber,
           notes: null,
           attendance: {
@@ -153,7 +158,20 @@ async function handleMemorisation(data: {
       });
     }
 
-    // Update attendance: mark user as present with comment
+    // Build note with submission timestamp and comment
+    const submissionTime = new Date().toLocaleString('fr-FR', {
+      timeZone: 'America/Toronto',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const noteContent = data.commentaire
+      ? `[${submissionTime}] ${data.commentaire}`
+      : `[${submissionTime}]`;
+
+    // Update attendance: mark user as present with timestamp + comment
     await prisma.sessionAttendance.upsert({
       where: {
         sessionId_userId: {
@@ -163,14 +181,14 @@ async function handleMemorisation(data: {
       },
       update: {
         present: true,
-        note: data.commentaire || null
+        note: noteContent
       },
       create: {
         sessionId: session.id,
         userId: user.id,
         present: true,
         excused: false,
-        note: data.commentaire || null
+        note: noteContent
       }
     });
   }
