@@ -4,7 +4,9 @@
  * IMPORTANT: This app uses a Sunday-Saturday week system, NOT ISO weeks (Mon-Sun).
  * - Week starts on Sunday
  * - Week ends on Saturday
- * - Week 1 is the first week containing January 1st
+ * - Week 1 is the week containing January 1st (starting from the Sunday on or before Jan 1)
+ *
+ * All calculations use UTC to avoid timezone issues.
  */
 
 /**
@@ -13,25 +15,30 @@
  * @returns Week number (1-53)
  */
 export function getWeekNumber(date: Date): number {
-  // Create a copy to avoid mutating the original
-  const d = new Date(date.getTime());
-  d.setHours(0, 0, 0, 0);
+  // Use UTC to avoid timezone issues
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
 
-  // Get the Sunday that starts this week (Sun-Sat system)
-  const dayOfWeek = d.getDay(); // 0 = Sunday, 6 = Saturday
+  const d = new Date(Date.UTC(year, month, day));
+
+  // Get the day of week (0 = Sunday)
+  const dayOfWeek = d.getUTCDay();
+
+  // Get the Sunday that starts this week
   const sunday = new Date(d);
-  sunday.setDate(d.getDate() - dayOfWeek);
+  sunday.setUTCDate(d.getUTCDate() - dayOfWeek);
 
-  // Get January 1st of the year
-  const jan1 = new Date(sunday.getFullYear(), 0, 1);
+  // Get January 1st of the year of that Sunday
+  const jan1 = new Date(Date.UTC(sunday.getUTCFullYear(), 0, 1));
 
-  // Get the Sunday of the week containing January 1st
-  const jan1DayOfWeek = jan1.getDay();
-  const jan1Sunday = new Date(jan1);
-  jan1Sunday.setDate(jan1.getDate() - jan1DayOfWeek);
+  // Get the Sunday of week 1 (Sunday on or before Jan 1)
+  const jan1DayOfWeek = jan1.getUTCDay();
+  const week1Sunday = new Date(jan1);
+  week1Sunday.setUTCDate(jan1.getUTCDate() - jan1DayOfWeek);
 
-  // Calculate the number of weeks between
-  const diffTime = sunday.getTime() - jan1Sunday.getTime();
+  // Calculate weeks between
+  const diffTime = sunday.getTime() - week1Sunday.getTime();
   const diffWeeks = Math.round(diffTime / (7 * 24 * 60 * 60 * 1000));
 
   return diffWeeks + 1;
