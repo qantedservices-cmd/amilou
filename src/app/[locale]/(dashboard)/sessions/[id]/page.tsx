@@ -530,7 +530,7 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
 
                         return (
                           <div key={rec.odId || `new-${idx}`} className="grid gap-3 p-3 bg-muted/30 rounded-lg">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                               {/* Surah */}
                               <div>
                                 <Label className="text-xs">Sourate</Label>
@@ -571,8 +571,8 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
                               </div>
 
                               {/* Verses */}
-                              <div className="flex gap-2">
-                                <div className="flex-1">
+                              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                                <div className="flex-1 min-w-[70px]">
                                   <Label className="text-xs">Début</Label>
                                   <Input
                                     type="number"
@@ -583,7 +583,7 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
                                     disabled={!canEdit}
                                   />
                                 </div>
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-[70px]">
                                   <Label className="text-xs">Fin</Label>
                                   <Input
                                     type="number"

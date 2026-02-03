@@ -793,13 +793,13 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
               {localTodayPrograms.map((prog) => (
                 <button
                   key={prog.code}
                   onClick={() => toggleTodayProgram(prog.code)}
                   disabled={togglingProgram === prog.code || !programsMap[prog.code]}
-                  className={`flex items-center gap-2 p-3 rounded-lg border transition-all duration-200 text-left ${
+                  className={`flex items-center gap-2 p-3 rounded-lg border transition-all duration-200 text-left min-h-[52px] ${
                     prog.completed
                       ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/50'
                       : 'bg-muted/30 border-muted hover:bg-muted/50 hover:border-emerald-300'
@@ -956,7 +956,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Summary */}
-          <div className="mt-4 pt-4 border-t grid grid-cols-4 gap-2">
+          <div className="mt-4 pt-4 border-t grid grid-cols-2 sm:grid-cols-4 gap-2">
             {stats?.weekProgramStats?.map((prog) => (
               <div key={prog.code} className="text-center">
                 <div className="text-2xl font-bold" style={{ color: CHART_COLORS[prog.code as keyof typeof CHART_COLORS] }}>

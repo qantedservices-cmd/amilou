@@ -407,14 +407,14 @@ export default function AttendancePage() {
             )}
 
             {/* Week Navigation */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button variant="outline" size="icon" onClick={prevWeek}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
 
               <Button
                 variant="outline"
-                className="min-w-[180px] font-semibold"
+                className="min-w-[140px] sm:min-w-[180px] font-semibold text-sm sm:text-base"
                 onClick={goToCurrentWeek}
               >
                 Semaine {weekInfo.week} - {weekInfo.year}
@@ -450,7 +450,7 @@ export default function AttendancePage() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto -mx-2 sm:mx-0">
-            <table className="w-full min-w-[500px]">
+            <table className="w-full min-w-[400px] sm:min-w-[500px]">
               <thead>
                 <tr className="border-b">
                   <th className="text-left py-3 px-2 font-medium text-muted-foreground w-32">Programme</th>
