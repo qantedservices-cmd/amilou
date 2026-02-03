@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { getSundayOfWeek } from '@/lib/week-utils';
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'amilou_webhook_2026';
 
@@ -16,31 +17,6 @@ const USER_MAP: Record<string, string> = {
   'Abdelmoughite': 'abdelmoughite@amilou.local',
   'Mohamed Koucha': 'mohamed.koucha@amilou.local',
 };
-
-// Get Sunday (week start for Sun-Sat weeks) from ISO week number
-function getSundayOfWeek(year: number, week: number): Date {
-  // ISO week 1 is the week containing January 4th
-  // Find January 4th of the given year
-  const jan4 = new Date(Date.UTC(year, 0, 4));
-
-  // Find the Monday of week 1 (ISO week starts on Monday)
-  const dayOfWeek = jan4.getUTCDay(); // 0=Sun, 1=Mon, ...
-  const mondayWeek1 = new Date(jan4);
-  // Move back to Monday (if Jan 4 is Sunday, go back 6 days; if Monday, 0 days; etc.)
-  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  mondayWeek1.setUTCDate(jan4.getUTCDate() - daysToMonday);
-
-  // Now find the Monday of the requested week
-  const targetMonday = new Date(mondayWeek1);
-  targetMonday.setUTCDate(mondayWeek1.getUTCDate() + (week - 1) * 7);
-
-  // Subtract 1 day to get Sunday (week start for Sun-Sat calendar)
-  const sunday = new Date(targetMonday);
-  sunday.setUTCDate(targetMonday.getUTCDate() - 1);
-
-  // Return at midnight UTC
-  return new Date(Date.UTC(sunday.getUTCFullYear(), sunday.getUTCMonth(), sunday.getUTCDate()));
-}
 
 export async function POST(request: NextRequest) {
   try {

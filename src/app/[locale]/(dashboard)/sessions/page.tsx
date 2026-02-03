@@ -171,14 +171,27 @@ export default function SessionsPage() {
     }
   }
 
-  // Get week number for any day (for display)
+  // Get week number for any day (Sun-Sat week system)
   function getWeekNumberForDay(day: number): number {
     const date = new Date(currentYear, currentMonth - 1, day)
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-    const dayNum = d.getUTCDay() || 7
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum)
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+    date.setHours(0, 0, 0, 0)
+
+    // Get the Sunday that starts this week
+    const dayOfWeek = date.getDay() // 0 = Sunday
+    const sunday = new Date(date)
+    sunday.setDate(date.getDate() - dayOfWeek)
+
+    // Get January 1st of the year
+    const jan1 = new Date(sunday.getFullYear(), 0, 1)
+    const jan1DayOfWeek = jan1.getDay()
+    const jan1Sunday = new Date(jan1)
+    jan1Sunday.setDate(jan1.getDate() - jan1DayOfWeek)
+
+    // Calculate weeks between
+    const diffTime = sunday.getTime() - jan1Sunday.getTime()
+    const diffWeeks = Math.round(diffTime / (7 * 24 * 60 * 60 * 1000))
+
+    return diffWeeks + 1
   }
 
   function openDayDetail(day: number) {

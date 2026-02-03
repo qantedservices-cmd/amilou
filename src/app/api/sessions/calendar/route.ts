@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { getWeekNumber } from '@/lib/week-utils'
 
 // Couleurs par groupe
 const GROUP_COLORS: Record<string, string> = {
@@ -11,15 +12,6 @@ const GROUP_COLORS: Record<string, string> = {
 
 function getGroupColor(groupName: string): string {
   return GROUP_COLORS[groupName] || '#6B7280' // Gris par défaut
-}
-
-// Get ISO week number from date
-function getWeekNumber(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  const dayNum = d.getUTCDay() || 7
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
 }
 
 export async function GET(request: Request) {
