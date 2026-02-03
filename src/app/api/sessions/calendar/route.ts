@@ -278,8 +278,15 @@ export async function GET(request: Request) {
 
     // ============================================
     // Merge and sort all sessions
+    // Filter out Progress-based sessions when a real GroupSession exists for the same date/group
     // ============================================
-    const allSessions = [...sessionsFromGroup, ...sessionsFromProgress]
+    const groupSessionDates = new Set(
+      sessionsFromGroup.map(s => `${s.date}-${s.groupId}`)
+    )
+    const filteredProgressSessions = sessionsFromProgress.filter(s =>
+      !groupSessionDates.has(`${s.date}-${s.groupId}`)
+    )
+    const allSessions = [...sessionsFromGroup, ...filteredProgressSessions]
     allSessions.sort((a, b) => b.date.localeCompare(a.date))
 
     // Group sessions by date for calendar (multiple sessions per day)
