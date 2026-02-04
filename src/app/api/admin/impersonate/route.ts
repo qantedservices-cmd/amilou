@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     cookieStore.set(IMPERSONATE_COOKIE, cookieValue, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // HTTP support - set to true only if using HTTPS
       sameSite: 'lax',
       maxAge: 60 * 60 * 2, // 2 hours
       path: '/'
