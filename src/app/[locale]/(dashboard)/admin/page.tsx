@@ -768,7 +768,10 @@ export default function AdminPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => startImpersonation(user.id)}
+                        onClick={() => {
+                          console.log('Button clicked for user:', user.id, user.name)
+                          startImpersonation(user.id)
+                        }}
                         className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                       >
                         <UserCog className="h-4 w-4 mr-1" />
