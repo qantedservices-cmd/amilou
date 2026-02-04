@@ -42,8 +42,8 @@ export async function POST(request: NextRequest) {
     // Set impersonation cookie
     const cookieStore = await cookies()
     cookieStore.set(IMPERSONATE_COOKIE, JSON.stringify({
-      odminId: session.user.id,
-      odminName: session.user.name,
+      adminId: session.user.id,
+      adminName: session.user.name,
       targetId: targetUser.id,
       targetName: targetUser.name,
       targetEmail: targetUser.email,
