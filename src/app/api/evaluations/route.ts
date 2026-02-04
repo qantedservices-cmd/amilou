@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { getEffectiveUserId } from '@/lib/impersonation'
 
 export async function GET(request: Request) {
   try {
@@ -13,6 +14,9 @@ export async function GET(request: Request) {
     const progressId = searchParams.get('progressId')
     const userId = searchParams.get('userId')
 
+    // Support impersonation
+    const { userId: effectiveUserId } = await getEffectiveUserId()
+
     const where: Record<string, unknown> = {}
 
     if (progressId) {
@@ -22,10 +26,10 @@ export async function GET(request: Request) {
     if (userId) {
       where.evaluatedId = userId
     } else {
-      // By default, show evaluations where user is evaluated or evaluator
+      // By default, show evaluations where effective user is evaluated or evaluator
       where.OR = [
-        { evaluatedId: session.user.id },
-        { evaluatorId: session.user.id },
+        { evaluatedId: effectiveUserId },
+        { evaluatorId: effectiveUserId },
       ]
     }
 

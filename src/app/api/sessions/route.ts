@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { getEffectiveUserId } from '@/lib/impersonation'
 
 export async function GET(request: Request) {
   try {
@@ -12,16 +13,24 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const groupId = searchParams.get('groupId')
 
-    // Check if user is ADMIN
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true }
-    })
-    const isAdmin = currentUser?.role === 'ADMIN'
+    // Support impersonation
+    const { userId: effectiveUserId, isImpersonating, impersonationData } = await getEffectiveUserId()
 
-    // Get groups where user is a member
+    // Get the effective user's role
+    let isAdmin = false
+    if (!isImpersonating) {
+      const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true }
+      })
+      isAdmin = currentUser?.role === 'ADMIN'
+    } else {
+      isAdmin = impersonationData?.targetRole === 'ADMIN'
+    }
+
+    // Get groups where effective user is a member
     const memberships = await prisma.groupMember.findMany({
-      where: { userId: session.user.id },
+      where: { userId: effectiveUserId! },
       select: { groupId: true, role: true },
     })
 
