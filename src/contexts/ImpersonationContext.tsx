@@ -33,10 +33,13 @@ export function ImpersonationProvider({
   const [isLoading, setIsLoading] = useState(true)
 
   const refresh = useCallback(async () => {
+    console.log('Checking impersonation status...')
     try {
       const res = await fetch('/api/admin/impersonate')
+      console.log('Impersonation check status:', res.status)
       if (res.ok) {
         const data = await res.json()
+        console.log('Impersonation data:', data)
         setImpersonationData(data.impersonating || null)
       }
     } catch (error) {
@@ -51,6 +54,7 @@ export function ImpersonationProvider({
   }, [refresh])
 
   const startImpersonation = async (userId: string): Promise<boolean> => {
+    console.log('startImpersonation called with userId:', userId)
     try {
       const res = await fetch('/api/admin/impersonate', {
         method: 'POST',
@@ -58,12 +62,18 @@ export function ImpersonationProvider({
         body: JSON.stringify({ userId })
       })
 
+      console.log('Impersonate response status:', res.status)
+      const data = await res.json()
+      console.log('Impersonate response data:', data)
+
       if (res.ok) {
+        console.log('Impersonation successful, reloading...')
         await refresh()
         // Reload to apply impersonation across the app
         window.location.reload()
         return true
       }
+      console.error('Impersonation failed:', data)
       return false
     } catch (error) {
       console.error('Failed to start impersonation:', error)
