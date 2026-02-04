@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { getEffectiveUserId } from '@/lib/impersonation'
 
 export async function GET(request: Request) {
   try {
@@ -14,8 +15,9 @@ export async function GET(request: Request) {
     const date = searchParams.get('date') // Format: YYYY-MM-DD (for specific day)
     const userId = searchParams.get('userId')
 
-    // Check permissions for viewing another user
-    const targetUserId = userId || session.user.id
+    // Support impersonation - use effective user ID when no explicit userId provided
+    const { userId: effectiveUserId } = await getEffectiveUserId()
+    const targetUserId = userId || effectiveUserId!
     if (targetUserId !== session.user.id) {
       const currentUser = await prisma.user.findUnique({
         where: { id: session.user.id },

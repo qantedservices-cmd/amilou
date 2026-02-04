@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { getEffectiveUserId } from '@/lib/impersonation'
 
 // Constantes du Coran
 const QURAN_TOTAL_VERSES = 6236
@@ -33,7 +34,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const userId = session.user.id
+    // Support impersonation
+    const { userId: effectiveUserId } = await getEffectiveUserId()
+    const userId = effectiveUserId!
     const now = new Date()
 
     // Parse period params

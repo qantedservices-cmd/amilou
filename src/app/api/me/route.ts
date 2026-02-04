@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { getEffectiveUserId } from '@/lib/impersonation'
 
 export async function GET() {
   try {
@@ -9,8 +10,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
+    // Support impersonation - return impersonated user's data if active
+    const { userId, isImpersonating } = await getEffectiveUserId()
+
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId! },
       select: {
         id: true,
         name: true,
@@ -24,7 +28,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 })
     }
 
-    return NextResponse.json(user)
+    return NextResponse.json({ ...user, isImpersonating })
   } catch (error) {
     console.error('Error fetching current user:', error)
     return NextResponse.json(

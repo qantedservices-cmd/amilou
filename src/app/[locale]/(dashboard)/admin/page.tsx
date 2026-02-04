@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { useImpersonation } from '@/contexts/ImpersonationContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -118,6 +119,7 @@ export default function AdminPage() {
   const locale = useLocale()
   const { data: session } = useSession()
   const router = useRouter()
+  const { startImpersonation } = useImpersonation()
   const [users, setUsers] = useState<User[]>([])
   const [progress, setProgress] = useState<ProgressEntry[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
@@ -762,6 +764,17 @@ export default function AdminPage() {
                       <Eye className="h-4 w-4 mr-1" />
                       Voir profil
                     </Button>
+                    {user.id !== session?.user?.id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => startImpersonation(user.id)}
+                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                      >
+                        <UserCog className="h-4 w-4 mr-1" />
+                        Voir en tant que
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

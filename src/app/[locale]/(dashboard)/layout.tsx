@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { SessionProvider } from '@/components/layout/session-provider'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Navbar } from '@/components/layout/navbar'
+import { ImpersonationWrapper } from '@/components/layout/impersonation-wrapper'
 
 export default async function DashboardLayout({
   children,
@@ -17,13 +18,15 @@ export default async function DashboardLayout({
 
   return (
     <SessionProvider>
-      <div className="min-h-screen bg-muted/30">
-        <Sidebar />
-        <div className="md:ms-64">
-          <Navbar />
-          <main className="p-6">{children}</main>
+      <ImpersonationWrapper currentUserId={session.user.id}>
+        <div className="min-h-screen bg-muted/30">
+          <Sidebar />
+          <div className="md:ms-64">
+            <Navbar />
+            <main className="p-6">{children}</main>
+          </div>
         </div>
-      </div>
+      </ImpersonationWrapper>
     </SessionProvider>
   )
 }

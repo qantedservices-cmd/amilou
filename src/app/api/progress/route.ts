@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { getEffectiveUserId } from '@/lib/impersonation'
 
 export async function GET(request: Request) {
   try {
@@ -12,7 +13,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const programId = searchParams.get('programId')
     const userId = searchParams.get('userId')
-    const limit = parseInt(searchParams.get('limit') || '100')
+    const limitParam = parseInt(searchParams.get('limit') || '100')
+    const limit = Math.min(Math.max(limitParam, 1), 1000) // Bounds: 1-1000
+
+    // Support impersonation
+    const { userId: effectiveUserId, isImpersonating } = await getEffectiveUserId()
 
     // Get current user to check if admin
     const currentUser = await prisma.user.findUnique({
@@ -25,7 +30,10 @@ export async function GET(request: Request) {
     // Build where clause
     const where: Record<string, unknown> = {}
 
-    if (isAdmin) {
+    if (isImpersonating) {
+      // When impersonating, show the impersonated user's data
+      where.userId = effectiveUserId
+    } else if (isAdmin) {
       // Admin can see all or filter by user
       if (userId && userId !== 'all') {
         where.userId = userId
