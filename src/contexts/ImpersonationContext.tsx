@@ -17,6 +17,7 @@ interface ImpersonationContextType {
   startImpersonation: (userId: string) => Promise<boolean>
   stopImpersonation: () => Promise<void>
   effectiveUserId: string | null
+  effectiveRole: string | null
   refresh: () => Promise<void>
 }
 
@@ -24,10 +25,12 @@ const ImpersonationContext = createContext<ImpersonationContextType | undefined>
 
 export function ImpersonationProvider({
   children,
-  currentUserId
+  currentUserId,
+  currentUserRole
 }: {
   children: React.ReactNode
   currentUserId: string | null
+  currentUserRole: string | null
 }) {
   const [impersonationData, setImpersonationData] = useState<ImpersonationData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -67,10 +70,10 @@ export function ImpersonationProvider({
       console.log('Impersonate response data:', data)
 
       if (res.ok) {
-        console.log('Impersonation successful, reloading...')
+        console.log('Impersonation successful, redirecting to dashboard...')
         await refresh()
-        // Reload to apply impersonation across the app
-        window.location.reload()
+        // Redirect to dashboard to see the impersonated user's view
+        window.location.href = '/fr/dashboard'
         return true
       }
       console.error('Impersonation failed:', data)
@@ -93,6 +96,7 @@ export function ImpersonationProvider({
   }
 
   const effectiveUserId = impersonationData?.targetId || currentUserId
+  const effectiveRole = impersonationData?.targetRole || currentUserRole
 
   return (
     <ImpersonationContext.Provider value={{
@@ -101,6 +105,7 @@ export function ImpersonationProvider({
       startImpersonation,
       stopImpersonation,
       effectiveUserId,
+      effectiveRole,
       refresh
     }}>
       {children}

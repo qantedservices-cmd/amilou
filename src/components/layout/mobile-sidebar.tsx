@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link } from '@/i18n/routing'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useSession } from 'next-auth/react'
+import { useImpersonation } from '@/contexts/ImpersonationContext'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,25 +44,7 @@ export function MobileSidebar() {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
   const t = useTranslations()
-  const { data: session } = useSession()
-  const [userRole, setUserRole] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function fetchUserRole() {
-      if (session?.user?.id) {
-        try {
-          const res = await fetch('/api/me')
-          if (res.ok) {
-            const data = await res.json()
-            setUserRole(data.role)
-          }
-        } catch (error) {
-          console.error('Error fetching user role:', error)
-        }
-      }
-    }
-    fetchUserRole()
-  }, [session?.user?.id])
+  const { effectiveRole } = useImpersonation()
 
   const isActive = (href: string) => {
     const pathWithoutLocale = pathname.replace(/^\/(fr|ar|en)/, '')
@@ -121,7 +103,7 @@ export function MobileSidebar() {
 
         <div className="border-t p-4 space-y-1">
           {bottomItems
-            .filter((item) => !item.adminOnly || userRole === 'ADMIN')
+            .filter((item) => !item.adminOnly || effectiveRole === 'ADMIN')
             .map((item) => {
               const Icon = item.icon
               const active = isActive(item.href)

@@ -15,13 +15,15 @@ function ImpersonationContent({ children }: { children: React.ReactNode }) {
 
 export function ImpersonationWrapper({
   children,
-  currentUserId
+  currentUserId,
+  currentUserRole
 }: {
   children: React.ReactNode
   currentUserId: string | null
+  currentUserRole: string | null
 }) {
   return (
-    <ImpersonationProvider currentUserId={currentUserId}>
+    <ImpersonationProvider currentUserId={currentUserId} currentUserRole={currentUserRole}>
       <ImpersonationBanner />
       <ImpersonationContent>
         {children}
