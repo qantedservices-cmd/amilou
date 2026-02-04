@@ -7,9 +7,12 @@ const IMPERSONATE_COOKIE = 'amilou_impersonate'
 
 // POST - Start impersonation
 export async function POST(request: NextRequest) {
+  console.log('[Impersonate API] POST request received')
   try {
     const session = await auth()
+    console.log('[Impersonate API] Session:', session?.user?.id, session?.user?.role)
     if (!session?.user?.id) {
+      console.log('[Impersonate API] No session')
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
@@ -18,12 +21,15 @@ export async function POST(request: NextRequest) {
       where: { id: session.user.id },
       select: { role: true }
     })
+    console.log('[Impersonate API] Current user role:', currentUser?.role)
 
     if (currentUser?.role !== 'ADMIN') {
+      console.log('[Impersonate API] Not admin')
       return NextResponse.json({ error: 'Réservé aux administrateurs' }, { status: 403 })
     }
 
     const { userId } = await request.json()
+    console.log('[Impersonate API] Target userId:', userId)
 
     if (!userId) {
       return NextResponse.json({ error: 'userId requis' }, { status: 400 })
@@ -40,21 +46,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Set impersonation cookie
+    console.log('[Impersonate API] Setting cookie for target:', targetUser.name)
     const cookieStore = await cookies()
-    cookieStore.set(IMPERSONATE_COOKIE, JSON.stringify({
+    const cookieValue = JSON.stringify({
       adminId: session.user.id,
       adminName: session.user.name,
       targetId: targetUser.id,
       targetName: targetUser.name,
       targetEmail: targetUser.email,
       targetRole: targetUser.role
-    }), {
+    })
+    console.log('[Impersonate API] Cookie value:', cookieValue)
+
+    cookieStore.set(IMPERSONATE_COOKIE, cookieValue, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 2, // 2 hours
       path: '/'
     })
+    console.log('[Impersonate API] Cookie set successfully')
 
     return NextResponse.json({
       success: true,
