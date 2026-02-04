@@ -768,7 +768,10 @@ export default function AdminPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          alert('Clic sur ' + user.name)
                           console.log('Button clicked for user:', user.id, user.name)
                           startImpersonation(user.id)
                         }}
