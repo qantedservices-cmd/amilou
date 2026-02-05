@@ -33,7 +33,8 @@ import {
   User,
   Plus,
   Trash2,
-  Loader2
+  Loader2,
+  Lock
 } from 'lucide-react'
 import { format, addDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -43,6 +44,9 @@ interface ManageableUser {
   name: string | null
   email: string
   isSelf: boolean
+  isPrivate: boolean
+  canEdit: boolean
+  canView: boolean
 }
 
 interface Program {
@@ -155,6 +159,11 @@ export default function AttendancePage() {
 
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const weekInfo = getWeekNumber(weekStart)
+
+  // Check if current user can edit the selected user's data
+  const selectedUser = manageableUsers.find(u => u.id === selectedUserId)
+  const canEdit = selectedUser?.canEdit ?? false
+  const isReadOnly = !canEdit
 
   const fetchData = useCallback(async () => {
     if (!selectedUserId) return
@@ -397,8 +406,21 @@ export default function AttendancePage() {
                   </SelectTrigger>
                   <SelectContent>
                     {manageableUsers.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.isSelf ? `Moi-même (${user.name || user.email})` : (user.name || user.email)}
+                      <SelectItem
+                        key={user.id}
+                        value={user.id}
+                        disabled={user.isPrivate}
+                        className={user.isPrivate ? 'text-muted-foreground' : ''}
+                      >
+                        <span className="flex items-center gap-2">
+                          {user.isPrivate && <Lock className="h-3 w-3" />}
+                          {user.isSelf
+                            ? `Moi-même (${user.name || user.email})`
+                            : user.isPrivate
+                              ? `${user.name || user.email} - Privé`
+                              : (user.name || user.email)
+                          }
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -442,6 +464,9 @@ export default function AttendancePage() {
             Programmes Journaliers
             {manageableUsers.length > 1 && !manageableUsers.find(u => u.id === selectedUserId)?.isSelf && (
               <Badge variant="outline" className="ml-2">{selectedUserName}</Badge>
+            )}
+            {isReadOnly && (
+              <Badge variant="secondary" className="ml-2">Lecture seule</Badge>
             )}
           </CardTitle>
           <CardDescription>
@@ -502,6 +527,7 @@ export default function AttendancePage() {
                           <Checkbox
                             checked={isCompleted}
                             onCheckedChange={() => toggleCompletion(program.id, dayIndex)}
+                            disabled={isReadOnly}
                             className={`h-6 w-6 ${isCompleted ? 'data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600' : ''}`}
                           />
                         </td>
@@ -523,7 +549,7 @@ export default function AttendancePage() {
             </div>
             <Button
               onClick={saveAllCompletions}
-              disabled={saving}
+              disabled={saving || isReadOnly}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
               {saving ? (
@@ -573,6 +599,7 @@ export default function AttendancePage() {
                   <Checkbox
                     checked={objective.completed}
                     onCheckedChange={() => toggleObjective(objective)}
+                    disabled={isReadOnly}
                     className={`h-5 w-5 ${objective.completed ? 'data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600' : ''}`}
                   />
                   <span className={`font-medium ${objective.completed ? 'text-emerald-700 dark:text-emerald-300' : ''}`}>

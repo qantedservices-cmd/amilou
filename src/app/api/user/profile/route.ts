@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { getEffectiveUserId } from '@/lib/impersonation'
 
 export async function GET() {
   try {
@@ -9,8 +10,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
+    // Support impersonation - show impersonated user's profile
+    const { userId: effectiveUserId, isImpersonating } = await getEffectiveUserId()
+
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: effectiveUserId! },
       select: {
         id: true,
         name: true,
@@ -18,6 +22,10 @@ export async function GET() {
         image: true,
         role: true,
         createdAt: true,
+        privateAttendance: true,
+        privateProgress: true,
+        privateStats: true,
+        privateEvaluations: true,
       },
     })
 
@@ -25,7 +33,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 })
     }
 
-    return NextResponse.json(user)
+    return NextResponse.json({ ...user, isImpersonating })
   } catch (error) {
     console.error('Error fetching profile:', error)
     return NextResponse.json(
@@ -42,21 +50,41 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const { name } = await request.json()
+    // Support impersonation
+    const { userId: effectiveUserId } = await getEffectiveUserId()
 
-    if (!name || name.trim().length === 0) {
-      return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 })
+    const body = await request.json()
+    const { name, privateAttendance, privateProgress, privateStats, privateEvaluations } = body
+
+    // Build update data
+    const updateData: Record<string, unknown> = {}
+
+    if (name !== undefined) {
+      if (!name || name.trim().length === 0) {
+        return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 })
+      }
+      updateData.name = name.trim()
     }
 
+    // Privacy settings
+    if (privateAttendance !== undefined) updateData.privateAttendance = privateAttendance
+    if (privateProgress !== undefined) updateData.privateProgress = privateProgress
+    if (privateStats !== undefined) updateData.privateStats = privateStats
+    if (privateEvaluations !== undefined) updateData.privateEvaluations = privateEvaluations
+
     const user = await prisma.user.update({
-      where: { id: session.user.id },
-      data: { name: name.trim() },
+      where: { id: effectiveUserId! },
+      data: updateData,
       select: {
         id: true,
         name: true,
         email: true,
         image: true,
         role: true,
+        privateAttendance: true,
+        privateProgress: true,
+        privateStats: true,
+        privateEvaluations: true,
       },
     })
 

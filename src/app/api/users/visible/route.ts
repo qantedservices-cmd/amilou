@@ -3,7 +3,6 @@ import { auth } from '@/lib/auth'
 import { getEffectiveUserId } from '@/lib/impersonation'
 import { getVisibleUsers } from '@/lib/permissions'
 
-// GET - Get users that the current user can manage/view
 export async function GET(request: Request) {
   try {
     const session = await auth()
@@ -12,7 +11,11 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const dataType = (searchParams.get('dataType') as 'attendance' | 'progress' | 'stats' | 'evaluations') || 'attendance'
+    const dataType = searchParams.get('dataType') as 'attendance' | 'progress' | 'stats' | 'evaluations'
+
+    if (!dataType || !['attendance', 'progress', 'stats', 'evaluations'].includes(dataType)) {
+      return NextResponse.json({ error: 'dataType invalide' }, { status: 400 })
+    }
 
     // Support impersonation
     const { userId: effectiveUserId } = await getEffectiveUserId()
@@ -21,7 +24,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(users)
   } catch (error) {
-    console.error('Error fetching manageable users:', error)
+    console.error('Error fetching visible users:', error)
     return NextResponse.json(
       { error: 'Erreur lors de la récupération des utilisateurs' },
       { status: 500 }

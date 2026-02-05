@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { User, Lock, Mail, Calendar, Shield, Check, X, Target, Save, History } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { User, Lock, Mail, Calendar, Shield, Check, X, Target, Save, History, Eye, EyeOff } from 'lucide-react'
 
 interface UserProfile {
   id: string
@@ -25,6 +26,10 @@ interface UserProfile {
   image: string | null
   role: string
   createdAt: string
+  privateAttendance: boolean
+  privateProgress: boolean
+  privateStats: boolean
+  privateEvaluations: boolean
 }
 
 interface Program {
@@ -91,6 +96,14 @@ export default function SettingsPage() {
   const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [savingPassword, setSavingPassword] = useState(false)
 
+  // Privacy settings
+  const [privateAttendance, setPrivateAttendance] = useState(false)
+  const [privateProgress, setPrivateProgress] = useState(false)
+  const [privateStats, setPrivateStats] = useState(false)
+  const [privateEvaluations, setPrivateEvaluations] = useState(false)
+  const [savingPrivacy, setSavingPrivacy] = useState(false)
+  const [privacyMessage, setPrivacyMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   // Program settings
   const [programs, setPrograms] = useState<Program[]>([])
   const [programSettings, setProgramSettings] = useState<ProgramSetting[]>([])
@@ -112,6 +125,11 @@ export default function SettingsPage() {
         const data = await res.json()
         setProfile(data)
         setName(data.name || '')
+        // Set privacy settings
+        setPrivateAttendance(data.privateAttendance || false)
+        setPrivateProgress(data.privateProgress || false)
+        setPrivateStats(data.privateStats || false)
+        setPrivateEvaluations(data.privateEvaluations || false)
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
@@ -304,6 +322,36 @@ export default function SettingsPage() {
     }
   }
 
+  async function handlePrivacySubmit() {
+    setSavingPrivacy(true)
+    setPrivacyMessage(null)
+
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          privateAttendance,
+          privateProgress,
+          privateStats,
+          privateEvaluations,
+        }),
+      })
+
+      if (res.ok) {
+        setPrivacyMessage({ type: 'success', text: 'Paramètres de confidentialité enregistrés' })
+        setTimeout(() => setPrivacyMessage(null), 3000)
+      } else {
+        const data = await res.json()
+        setPrivacyMessage({ type: 'error', text: data.error || 'Erreur' })
+      }
+    } catch (error) {
+      setPrivacyMessage({ type: 'error', text: 'Erreur lors de la sauvegarde' })
+    } finally {
+      setSavingPrivacy(false)
+    }
+  }
+
   function getRoleBadge(role: string) {
     const roleConfig: Record<string, { label: string; className: string }> = {
       ADMIN: { label: t('roles.admin'), className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100' },
@@ -476,6 +524,99 @@ export default function SettingsPage() {
               {savingPassword ? t('common.loading') : 'Changer le mot de passe'}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Privacy Settings Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <EyeOff className="h-5 w-5" />
+            Confidentialité
+          </CardTitle>
+          <CardDescription>
+            Choisissez quelles données masquer aux autres membres de votre groupe
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {privacyMessage && (
+            <div className={`flex items-center gap-2 rounded-md p-3 text-sm ${
+              privacyMessage.type === 'success'
+                ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+            }`}>
+              {privacyMessage.type === 'success' ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+              {privacyMessage.text}
+            </div>
+          )}
+
+          <p className="text-sm text-muted-foreground">
+            Les données privées restent visibles pour vous, les administrateurs et les référents de votre groupe.
+          </p>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label className="text-base">Assiduité quotidienne</Label>
+                <p className="text-sm text-muted-foreground">
+                  Masquer votre assiduité aux autres membres
+                </p>
+              </div>
+              <Switch
+                checked={privateAttendance}
+                onCheckedChange={setPrivateAttendance}
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label className="text-base">Avancement</Label>
+                <p className="text-sm text-muted-foreground">
+                  Masquer votre progression aux autres membres
+                </p>
+              </div>
+              <Switch
+                checked={privateProgress}
+                onCheckedChange={setPrivateProgress}
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label className="text-base">Statistiques</Label>
+                <p className="text-sm text-muted-foreground">
+                  Masquer vos statistiques aux autres membres
+                </p>
+              </div>
+              <Switch
+                checked={privateStats}
+                onCheckedChange={setPrivateStats}
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label className="text-base">Évaluations</Label>
+                <p className="text-sm text-muted-foreground">
+                  Masquer vos évaluations aux autres membres
+                </p>
+              </div>
+              <Switch
+                checked={privateEvaluations}
+                onCheckedChange={setPrivateEvaluations}
+              />
+            </div>
+          </div>
+
+          <Button
+            onClick={handlePrivacySubmit}
+            className="bg-emerald-600 hover:bg-emerald-700"
+            disabled={savingPrivacy}
+          >
+            {savingPrivacy ? t('common.loading') : 'Enregistrer'}
+          </Button>
         </CardContent>
       </Card>
 

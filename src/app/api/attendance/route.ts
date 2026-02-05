@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
+import { checkDataVisibility } from '@/lib/permissions'
 
 export async function GET(request: Request) {
   try {
@@ -18,14 +19,15 @@ export async function GET(request: Request) {
     // Support impersonation - use effective user ID when no explicit userId provided
     const { userId: effectiveUserId } = await getEffectiveUserId()
     const targetUserId = userId || effectiveUserId!
-    if (targetUserId !== session.user.id) {
-      const currentUser = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { role: true }
-      })
-      if (!['ADMIN', 'MANAGER', 'REFERENT'].includes(currentUser?.role || '')) {
-        return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
+
+    // Check visibility permissions
+    const visibility = await checkDataVisibility(effectiveUserId!, targetUserId, 'attendance')
+
+    if (!visibility.canView) {
+      if (visibility.isPrivate) {
+        return NextResponse.json({ error: 'Données privées', isPrivate: true }, { status: 403 })
       }
+      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
     }
 
     // If specific date requested, return that week's data with today's score
@@ -109,16 +111,16 @@ export async function POST(request: Request) {
     // Validate score (0-5)
     const validScore = Math.min(Math.max(Math.round(score ?? 0), 0), 5)
 
+    // Support impersonation
+    const { userId: effectiveUserId } = await getEffectiveUserId()
+
     // Check permissions for modifying another user
-    const targetUserId = userId || session.user.id
-    if (targetUserId !== session.user.id) {
-      const currentUser = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { role: true }
-      })
-      if (!['ADMIN', 'MANAGER', 'REFERENT'].includes(currentUser?.role || '')) {
-        return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
-      }
+    const targetUserId = userId || effectiveUserId!
+
+    const visibility = await checkDataVisibility(effectiveUserId!, targetUserId, 'attendance')
+
+    if (!visibility.canEdit) {
+      return NextResponse.json({ error: 'Modification non autorisée' }, { status: 403 })
     }
 
     // Get start of the week (Sunday) for the given date
