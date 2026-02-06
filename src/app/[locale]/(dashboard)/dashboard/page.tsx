@@ -685,11 +685,11 @@ export default function DashboardPage() {
   }
 
   const UNITS_COMPACT: Record<string, string> = {
-    PAGE: 'pg',
-    QUART: 'qt',
-    DEMI_HIZB: '½hz',
-    HIZB: 'hz',
-    JUZ: 'jz',
+    PAGE: 'page',
+    QUART: 'quart',
+    DEMI_HIZB: '½ hizb',
+    HIZB: 'hizb',
+    JUZ: 'juz',
   }
 
   const PERIODS: Record<string, string> = {
@@ -700,10 +700,10 @@ export default function DashboardPage() {
   }
 
   const PERIODS_COMPACT: Record<string, string> = {
-    DAY: '/j',
-    WEEK: '/sem',
-    MONTH: '/mois',
-    YEAR: '/an',
+    DAY: ' / jour',
+    WEEK: ' / sem',
+    MONTH: ' / mois',
+    YEAR: ' / an',
   }
 
   function getObjectiveForProgram(programCode: string) {
@@ -713,7 +713,11 @@ export default function DashboardPage() {
 
   function formatObjectiveCompact(obj: { quantity: number; unit: string; period: string } | null) {
     if (!obj) return null
-    return `${obj.quantity} ${UNITS_COMPACT[obj.unit] || obj.unit}${PERIODS_COMPACT[obj.period] || ''}`
+    const unitLabel = UNITS_COMPACT[obj.unit] || obj.unit
+    const periodLabel = PERIODS_COMPACT[obj.period] || ''
+    // Pluralize if needed
+    const unitText = obj.quantity > 1 && unitLabel === 'page' ? 'pages' : unitLabel
+    return `${obj.quantity} ${unitText}${periodLabel}`
   }
 
   function formatQuantityUnit(quantity: number, unit: string) {
@@ -1154,12 +1158,13 @@ export default function DashboardPage() {
                   const objectiveText = formatObjectiveCompact(objective)
                   return (
                     <tr key={prog.code} className="border-b last:border-0">
-                      <td className="py-2 px-2">
-                        <div className="space-y-0.5">
+                      <td className="py-3 px-2">
+                        <div className="space-y-1">
                           <Badge className={getProgramColor(prog.code)}>{prog.name}</Badge>
-                          <p className={`text-xs ${objective ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400'}`}>
-                            {objectiveText || 'À définir'}
-                          </p>
+                          <div className={`text-xs flex items-center gap-1 ${objective ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400'}`}>
+                            <Target className="h-3 w-3" />
+                            <span className="font-medium">{objectiveText || 'À définir'}</span>
+                          </div>
                         </div>
                       </td>
                       {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
