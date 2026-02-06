@@ -372,10 +372,6 @@ export default function DashboardPage() {
         setWeekYear(data.weekYear)
         setWeekStartDate(data.weekStartDate)
         setLocalWeekGrid(data.weekGrid || {})
-        // Update weekProgramStats in stats
-        if (stats) {
-          setStats({ ...stats, weekGrid: data.weekGrid, weekProgramStats: data.weekProgramStats, weekStartDate: data.weekStartDate })
-        }
       }
     } catch (error) {
       console.error('Error fetching week data:', error)
@@ -386,7 +382,26 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchStats()
-  }, [period, selectedYear, selectedMonth, weekOffset])
+  }, [period, selectedYear, selectedMonth])
+
+  // Fetch week data when weekOffset changes (without full page reload)
+  // Skip on initial mount - stats already has current week data
+  const [weekOffsetChanged, setWeekOffsetChanged] = useState(false)
+  useEffect(() => {
+    if (weekOffsetChanged && stats) {
+      fetchWeekData(weekOffset)
+    }
+  }, [weekOffset, weekOffsetChanged])
+
+  function changeWeekOffset(delta: number) {
+    setWeekOffsetChanged(true)
+    setWeekOffset(prev => prev + delta)
+  }
+
+  function resetToCurrentWeek() {
+    setWeekOffsetChanged(true)
+    setWeekOffset(0)
+  }
 
   useEffect(() => {
     fetchSurahStats()
@@ -1075,7 +1090,7 @@ export default function DashboardPage() {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => setWeekOffset(prev => prev - 1)}
+                onClick={() => changeWeekOffset(-1)}
                 disabled={loadingWeek}
               >
                 <span className="text-lg">&lt;</span>
@@ -1093,7 +1108,7 @@ export default function DashboardPage() {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => setWeekOffset(prev => prev + 1)}
+                onClick={() => changeWeekOffset(1)}
                 disabled={loadingWeek || weekOffset >= 0}
               >
                 <span className="text-lg">&gt;</span>
@@ -1103,7 +1118,7 @@ export default function DashboardPage() {
                   variant="ghost"
                   size="sm"
                   className="text-xs"
-                  onClick={() => setWeekOffset(0)}
+                  onClick={resetToCurrentWeek}
                 >
                   Aujourd'hui
                 </Button>
@@ -1133,7 +1148,7 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {stats?.weekProgramStats?.map((prog) => {
-                  const gridRow = localWeekGrid[prog.code] || []
+                  const gridRow = localWeekGrid[prog.code] || [false, false, false, false, false, false, false]
                   const completedCount = gridRow.filter(Boolean).length
                   const objective = getObjectiveForProgram(prog.code)
                   const objectiveText = formatObjectiveCompact(objective)
@@ -1147,7 +1162,8 @@ export default function DashboardPage() {
                           </p>
                         </div>
                       </td>
-                      {gridRow.map((completed, dayIndex) => {
+                      {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
+                        const completed = gridRow[dayIndex] || false
                         const cellKey = `${prog.code}-${dayIndex}`
                         const isToggling = togglingWeekCell === cellKey
                         return (
