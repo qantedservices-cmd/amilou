@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -233,6 +233,7 @@ interface ProgramInfo {
 
 export default function DashboardPage() {
   const t = useTranslations()
+  const locale = useLocale()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<PeriodType>('year')
@@ -259,6 +260,66 @@ export default function DashboardPage() {
   const [localWeeklyObjectives, setLocalWeeklyObjectives] = useState<WeeklyObjectiveStatus[]>([])
   const [togglingObjective, setTogglingObjective] = useState<string | null>(null)
 
+  // Surah progress
+  const [surahStats, setSurahStats] = useState<{
+    surahs: Array<{
+      number: number
+      nameFr: string
+      nameAr: string
+      totalVerses: number
+      programs: Record<string, { covered: number; percentage: number }>
+      overallPercentage: number
+    }>
+    totals: Record<string, { covered: number; percentage: number }>
+    programs: string[]
+  } | null>(null)
+  const [selectedSurahProgram, setSelectedSurahProgram] = useState<string>('MEMORIZATION')
+  const [surahsExpanded, setSurahsExpanded] = useState(false)
+
+  // Group ranking
+  const [groupRanking, setGroupRanking] = useState<{
+    groups: Array<{
+      groupId: string
+      groupName: string
+      members: Array<{
+        userId: string
+        name: string
+        image: string | null
+        memorizedVerses: number
+        memorizedPages: number
+        memorizedJuz: number
+        percentage: number
+        rank: number
+      }>
+      currentUserRank: number | null
+      totalMembers: number
+    }>
+  } | null>(null)
+
+  async function fetchSurahStats() {
+    try {
+      const res = await fetch('/api/stats/surahs')
+      if (res.ok) {
+        const data = await res.json()
+        setSurahStats(data)
+      }
+    } catch (error) {
+      console.error('Error fetching surah stats:', error)
+    }
+  }
+
+  async function fetchGroupRanking() {
+    try {
+      const res = await fetch('/api/stats/group-ranking')
+      if (res.ok) {
+        const data = await res.json()
+        setGroupRanking(data)
+      }
+    } catch (error) {
+      console.error('Error fetching group ranking:', error)
+    }
+  }
+
   async function fetchStats() {
     setLoading(true)
     try {
@@ -283,6 +344,11 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchStats()
   }, [period, selectedYear, selectedMonth])
+
+  useEffect(() => {
+    fetchSurahStats()
+    fetchGroupRanking()
+  }, [])
 
   // Fetch program IDs for today's toggle
   useEffect(() => {
@@ -720,6 +786,54 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Mes Objectifs - Résumé compact */}
+      <Card className="border-2 border-purple-200 dark:border-purple-800">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Target className="h-5 w-5 text-purple-600" />
+              Mes Objectifs
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-purple-600 hover:text-purple-700"
+              onClick={() => window.location.href = `/${locale}/settings`}
+            >
+              Configurer
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {stats?.objectivesVsRealized?.map((item) => (
+              <div
+                key={item.programId}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                  item.objective
+                    ? 'bg-muted/50'
+                    : 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800'
+                }`}
+              >
+                <span className={`font-medium ${PROGRAM_TEXT_COLORS[item.programCode] || ''}`}>
+                  {item.programName}:
+                </span>
+                {item.objective ? (
+                  <span className="text-muted-foreground">
+                    {item.objective.quantity} {UNITS[item.objective.unit] || item.objective.unit}{PERIODS[item.objective.period] || ''}
+                  </span>
+                ) : (
+                  <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    À définir
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Global Progress Bar */}
       <Card className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-950/30 dark:to-blue-950/30 border-emerald-200 dark:border-emerald-800">
@@ -1213,62 +1327,301 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Assiduité Comparison Card */}
+      {/* Avancement par Sourate */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-purple-600" />
-            Assiduité - {getPeriodLabel()}
-          </CardTitle>
-          <CardDescription>
-            Comparaison assiduité quotidienne et hebdomadaire
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-emerald-600" />
+                Avancement par Sourate
+              </CardTitle>
+              <CardDescription>
+                Progression détaillée des 114 sourates
+              </CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSurahsExpanded(!surahsExpanded)}
+            >
+              {surahsExpanded ? 'Réduire' : 'Voir tout'}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* Assiduité Quotidienne */}
-            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Assiduité Quotidienne</span>
-                <Badge variant="outline" className="text-blue-600 border-blue-300">
-                  {stats?.dailyAttendance?.rate || stats?.attendanceRate || 0}%
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mb-2">
-                Semaines avec activité journalière (ancien système 0-5)
-              </p>
-              <div className="h-2 bg-blue-100 dark:bg-blue-900 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 transition-all duration-300"
-                  style={{ width: `${stats?.dailyAttendance?.rate || stats?.attendanceRate || 0}%` }}
-                />
-              </div>
-              <p className="text-sm mt-2 text-right font-medium">
-                {stats?.dailyAttendance?.activeWeeks || stats?.activeWeeksCount || 0} / {stats?.dailyAttendance?.totalWeeks || stats?.totalWeeksInPeriod || 0} semaines
-              </p>
-            </div>
+          {/* Program tabs */}
+          <div className="flex gap-2 mb-4 flex-wrap">
+            {['MEMORIZATION', 'CONSOLIDATION', 'TAFSIR'].map(code => (
+              <Button
+                key={code}
+                variant={selectedSurahProgram === code ? 'default' : 'outline'}
+                size="sm"
+                className={selectedSurahProgram === code ? getProgramColor(code).replace('bg-', 'bg-').replace('text-', '') : ''}
+                onClick={() => setSelectedSurahProgram(code)}
+              >
+                {code === 'MEMORIZATION' && 'Mémorisation'}
+                {code === 'CONSOLIDATION' && 'Consolidation'}
+                {code === 'TAFSIR' && 'Tafsir'}
+              </Button>
+            ))}
+          </div>
 
-            {/* Assiduité Hebdo */}
-            <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
+          {/* Total for selected program */}
+          {surahStats?.totals && (
+            <div className="mb-4 p-3 rounded-lg bg-muted/30">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-purple-800 dark:text-purple-200">Assiduité Hebdomadaire</span>
-                <Badge variant="outline" className="text-purple-600 border-purple-300">
-                  {stats?.weeklyAttendance?.rate || 0}%
-                </Badge>
+                <span className="text-sm font-medium">Total {selectedSurahProgram === 'MEMORIZATION' ? 'Mémorisation' : selectedSurahProgram === 'CONSOLIDATION' ? 'Consolidation' : 'Tafsir'}</span>
+                <span className="font-bold text-lg" style={{ color: CHART_COLORS[selectedSurahProgram as keyof typeof CHART_COLORS] }}>
+                  {surahStats.totals[selectedSurahProgram]?.percentage || 0}%
+                </span>
               </div>
-              <p className="text-xs text-muted-foreground mb-2">
-                Semaines avec soumission d'avancement (Mémorisation)
-              </p>
-              <div className="h-2 bg-purple-100 dark:bg-purple-900 rounded-full overflow-hidden">
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-purple-500 transition-all duration-300"
-                  style={{ width: `${stats?.weeklyAttendance?.rate || 0}%` }}
+                  className="h-full transition-all duration-300"
+                  style={{
+                    width: `${surahStats.totals[selectedSurahProgram]?.percentage || 0}%`,
+                    backgroundColor: CHART_COLORS[selectedSurahProgram as keyof typeof CHART_COLORS]
+                  }}
                 />
               </div>
-              <p className="text-sm mt-2 text-right font-medium">
-                {stats?.weeklyAttendance?.weeksWithSubmission || 0} / {stats?.weeklyAttendance?.totalWeeks || stats?.totalWeeksInPeriod || 0} semaines
+              <p className="text-xs text-muted-foreground mt-1">
+                {surahStats.totals[selectedSurahProgram]?.covered || 0} / 6236 versets
               </p>
             </div>
+          )}
+
+          {/* Surah list */}
+          {surahStats?.surahs && (
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {(surahsExpanded ? surahStats.surahs : surahStats.surahs.slice(0, 10)).map(surah => {
+                const progress = surah.programs[selectedSurahProgram]
+                return (
+                  <div key={surah.number} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
+                    <span className="w-8 text-center text-sm font-medium text-muted-foreground">
+                      {surah.number}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium truncate">
+                          <span className="text-muted-foreground">{surah.nameAr}</span>
+                          <span className="mx-1">-</span>
+                          {surah.nameFr}
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
+                          {progress?.covered || 0}/{surah.totalVerses}
+                        </span>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full transition-all duration-300"
+                          style={{
+                            width: `${progress?.percentage || 0}%`,
+                            backgroundColor: CHART_COLORS[selectedSurahProgram as keyof typeof CHART_COLORS]
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <span className="w-12 text-right text-sm font-bold" style={{ color: CHART_COLORS[selectedSurahProgram as keyof typeof CHART_COLORS] }}>
+                      {progress?.percentage || 0}%
+                    </span>
+                  </div>
+                )
+              })}
+              {!surahsExpanded && surahStats.surahs.length > 10 && (
+                <Button
+                  variant="ghost"
+                  className="w-full text-sm text-muted-foreground"
+                  onClick={() => setSurahsExpanded(true)}
+                >
+                  Voir les {surahStats.surahs.length - 10} autres sourates...
+                </Button>
+              )}
+            </div>
+          )}
+
+          {!surahStats && (
+            <div className="flex h-[100px] items-center justify-center text-muted-foreground">
+              Chargement...
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Classement Groupe */}
+      {groupRanking?.groups && groupRanking.groups.length > 0 && (
+        <Card className="border-2 border-amber-200 dark:border-amber-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-amber-600" />
+              Classement Groupe - Mémorisation
+            </CardTitle>
+            <CardDescription>
+              Challenge entre membres du groupe
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {groupRanking.groups.map(group => (
+              <div key={group.groupId} className="mb-6 last:mb-0">
+                {groupRanking.groups.length > 1 && (
+                  <h4 className="font-medium text-sm text-muted-foreground mb-3">{group.groupName}</h4>
+                )}
+                <div className="space-y-2">
+                  {group.members.slice(0, 10).map((member, index) => {
+                    const isCurrentUser = groupRanking.groups[0]?.members.find(m => m.rank === group.currentUserRank)?.userId === member.userId
+                    return (
+                      <div
+                        key={member.userId}
+                        className={`flex items-center gap-3 p-3 rounded-lg ${
+                          isCurrentUser
+                            ? 'bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-200 dark:border-emerald-800'
+                            : 'bg-muted/30'
+                        }`}
+                      >
+                        {/* Rank medal */}
+                        <div className="w-8 text-center">
+                          {member.rank === 1 && <span className="text-2xl">🥇</span>}
+                          {member.rank === 2 && <span className="text-2xl">🥈</span>}
+                          {member.rank === 3 && <span className="text-2xl">🥉</span>}
+                          {member.rank > 3 && (
+                            <span className="text-lg font-bold text-muted-foreground">#{member.rank}</span>
+                          )}
+                        </div>
+
+                        {/* Avatar or initial */}
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+                          member.rank === 1 ? 'bg-amber-500' :
+                          member.rank === 2 ? 'bg-gray-400' :
+                          member.rank === 3 ? 'bg-amber-700' :
+                          'bg-emerald-500'
+                        }`}>
+                          {member.image ? (
+                            <img src={member.image} alt={member.name} className="w-full h-full rounded-full object-cover" />
+                          ) : (
+                            member.name.charAt(0).toUpperCase()
+                          )}
+                        </div>
+
+                        {/* Name and stats */}
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-medium truncate ${isCurrentUser ? 'text-emerald-700 dark:text-emerald-300' : ''}`}>
+                            {member.name}
+                            {isCurrentUser && <span className="ml-2 text-xs text-emerald-600">(Vous)</span>}
+                          </p>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span>{member.memorizedJuz} juz</span>
+                            <span>{member.memorizedPages} pages</span>
+                            <span>{member.memorizedVerses} versets</span>
+                          </div>
+                        </div>
+
+                        {/* Percentage */}
+                        <div className="text-right">
+                          <span className={`text-lg font-bold ${
+                            member.rank === 1 ? 'text-amber-600' :
+                            member.rank === 2 ? 'text-gray-500' :
+                            member.rank === 3 ? 'text-amber-700' :
+                            'text-emerald-600'
+                          }`}>
+                            {member.percentage}%
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                {group.totalMembers > 10 && (
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Et {group.totalMembers - 10} autres membres...
+                  </p>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Assiduité Programmes - Résumé */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-blue-600" />
+                Assiduité Programmes
+              </CardTitle>
+              <CardDescription>
+                Taux de réalisation par programme
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.href = `/${locale}/attendance`}
+            >
+              Voir détails
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Période summary */}
+          <div className="grid grid-cols-3 gap-4 mb-4 p-3 rounded-lg bg-muted/30">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-blue-600">
+                {stats?.weekProgramStats?.reduce((sum, p) => sum + p.rate, 0)
+                  ? Math.round((stats.weekProgramStats.reduce((sum, p) => sum + p.rate, 0) / stats.weekProgramStats.length))
+                  : 0}%
+              </p>
+              <p className="text-xs text-muted-foreground">Cette semaine</p>
+            </div>
+            <div className="text-center border-x">
+              <p className="text-2xl font-bold text-purple-600">
+                {stats?.periodProgramStats?.length && period === 'month'
+                  ? Math.round(stats.periodProgramStats.reduce((sum, p) => sum + p.rate, 0) / stats.periodProgramStats.length)
+                  : '-'}%
+              </p>
+              <p className="text-xs text-muted-foreground">Ce mois</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-emerald-600">
+                {stats?.periodProgramStats?.length && period === 'year'
+                  ? Math.round(stats.periodProgramStats.reduce((sum, p) => sum + p.rate, 0) / stats.periodProgramStats.length)
+                  : '-'}%
+              </p>
+              <p className="text-xs text-muted-foreground">Cette année</p>
+            </div>
+          </div>
+
+          {/* Programme breakdown */}
+          <div className="space-y-3">
+            {stats?.weekProgramStats?.map((prog) => {
+              const periodProg = stats?.periodProgramStats?.find(p => p.code === prog.code)
+              return (
+                <div key={prog.code} className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <Badge className={getProgramColor(prog.code)}>{prog.name}</Badge>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span title="Cette semaine">
+                        <span className="font-bold text-blue-600">{prog.rate}%</span>
+                        <span className="text-muted-foreground ml-1">sem</span>
+                      </span>
+                      {periodProg && (
+                        <span title={period === 'month' ? 'Ce mois' : 'Cette année'}>
+                          <span className="font-bold text-purple-600">{periodProg.rate}%</span>
+                          <span className="text-muted-foreground ml-1">{period === 'month' ? 'mois' : 'an'}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${PROGRAM_BG_COLORS[prog.code] || 'bg-gray-500'}`}
+                      style={{ width: `${prog.rate}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </CardContent>
       </Card>
