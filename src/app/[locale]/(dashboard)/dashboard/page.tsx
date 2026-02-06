@@ -1350,9 +1350,9 @@ export default function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Program tabs */}
+          {/* Program tabs - only MEMORIZATION and TAFSIR (CONSOLIDATION is tracked by attendance only) */}
           <div className="flex gap-2 mb-4 flex-wrap">
-            {['MEMORIZATION', 'CONSOLIDATION', 'TAFSIR'].map(code => (
+            {['MEMORIZATION', 'TAFSIR'].map(code => (
               <Button
                 key={code}
                 variant={selectedSurahProgram === code ? 'default' : 'outline'}
@@ -1361,7 +1361,6 @@ export default function DashboardPage() {
                 onClick={() => setSelectedSurahProgram(code)}
               >
                 {code === 'MEMORIZATION' && 'Mémorisation'}
-                {code === 'CONSOLIDATION' && 'Consolidation'}
                 {code === 'TAFSIR' && 'Tafsir'}
               </Button>
             ))}
@@ -1814,65 +1813,6 @@ export default function DashboardPage() {
           ) : (
             <div className="flex h-[100px] items-center justify-center text-muted-foreground">
               Aucune donnée d'assiduité pour cette période
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Objectifs vs Réalisé - Today */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-emerald-600" />
-            Objectifs vs Réalisé - Aujourd'hui
-          </CardTitle>
-          <CardDescription>
-            Votre progression quotidienne par programme
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {stats?.objectivesVsRealized && stats.objectivesVsRealized.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              {stats.objectivesVsRealized.map((item) => {
-                const status = getCompletionStatus(item)
-                return (
-                  <div
-                    key={item.programId}
-                    className={`rounded-lg border p-3 ${
-                      status === 'complete'
-                        ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800'
-                        : status === 'partial'
-                        ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800'
-                        : ''
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <Badge className={getProgramColor(item.programCode)}>
-                        {item.programName}
-                      </Badge>
-                      {status === 'complete' && <CheckCircle className="h-4 w-4 text-emerald-600" />}
-                      {status === 'partial' && <AlertCircle className="h-4 w-4 text-amber-600" />}
-                      {status === 'pending' && <Circle className="h-4 w-4 text-muted-foreground" />}
-                    </div>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Objectif:</span>
-                        <span className="font-medium">{formatObjective(item.objective)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Réalisé:</span>
-                        <span className={`font-medium ${item.realized ? 'text-emerald-600' : 'text-muted-foreground'}`}>
-                          {item.realized ? formatQuantityUnit(item.realized.quantity, item.realized.unit) : '-'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="flex h-[100px] items-center justify-center text-muted-foreground">
-              Configurez vos objectifs dans les paramètres
             </div>
           )}
         </CardContent>
