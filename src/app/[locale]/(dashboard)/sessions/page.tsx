@@ -74,11 +74,18 @@ interface CalendarData {
   members: { id: string; name: string }[]
 }
 
-// Couleurs des groupes
-const GROUP_COLORS: Record<string, string> = {
+// Couleurs par défaut pour les groupes
+const DEFAULT_GROUP_COLORS: Record<string, string> = {
   'Cours Montmagny': '#3B82F6',
   'Famille': '#8B5CF6',
   'Groupe Amilou': '#10B981',
+}
+
+// Couleurs de fallback pour les groupes non définis
+const FALLBACK_COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1']
+
+function getGroupColor(groupName: string, index: number): string {
+  return DEFAULT_GROUP_COLORS[groupName] || FALLBACK_COLORS[index % FALLBACK_COLORS.length]
 }
 
 const MONTHS = [
@@ -448,37 +455,51 @@ export default function SessionsPage() {
                 })()}
               </div>
 
-              {/* Legend - Clickable filters */}
-              <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-3 text-sm">
-                <span className="text-muted-foreground">Filtrer :</span>
-                {Object.entries(GROUP_COLORS).map(([name, color]) => (
-                  <button
-                    key={name}
-                    onClick={() => toggleFilter(name)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all hover:bg-muted`}
-                    style={{
-                      backgroundColor: filterGroup === name ? `${color}20` : undefined,
-                      boxShadow: filterGroup === name ? `0 0 0 2px white, 0 0 0 4px ${color}` : undefined
-                    }}
-                  >
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: color }}
-                    />
-                    <span className={filterGroup === name ? 'font-medium' : ''}>
-                      {name.replace('Cours ', '').replace('Groupe ', '')}
-                    </span>
-                  </button>
-                ))}
-                {filterGroup && (
-                  <button
-                    onClick={() => setFilterGroup(null)}
-                    className="text-muted-foreground hover:text-foreground ml-2"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
+              {/* Legend - Clickable filters (dynamic based on user's groups) */}
+              {(() => {
+                // Extract unique groups from the actual data
+                const userGroups = calendarData?.sessions
+                  ? [...new Set(calendarData.sessions.map(s => s.groupName))]
+                  : []
+
+                if (userGroups.length === 0) return null
+
+                return (
+                  <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-3 text-sm">
+                    <span className="text-muted-foreground">Filtrer :</span>
+                    {userGroups.map((name, index) => {
+                      const color = getGroupColor(name, index)
+                      return (
+                        <button
+                          key={name}
+                          onClick={() => toggleFilter(name)}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all hover:bg-muted`}
+                          style={{
+                            backgroundColor: filterGroup === name ? `${color}20` : undefined,
+                            boxShadow: filterGroup === name ? `0 0 0 2px white, 0 0 0 4px ${color}` : undefined
+                          }}
+                        >
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className={filterGroup === name ? 'font-medium' : ''}>
+                            {name.replace('Cours ', '').replace('Groupe ', '')}
+                          </span>
+                        </button>
+                      )
+                    })}
+                    {filterGroup && (
+                      <button
+                        onClick={() => setFilterGroup(null)}
+                        className="text-muted-foreground hover:text-foreground ml-2"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                )
+              })()}
             </>
           )}
         </CardContent>
