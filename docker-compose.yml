@@ -1,39 +1,13 @@
-version: '3.8'
-
 services:
-  # ============================================
-  # PostgreSQL Database
-  # ============================================
-  db:
-    image: postgres:16-alpine
-    container_name: amilou-db
-    restart: unless-stopped
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-amilou}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-amilou_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-amilou}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-amilou} -d ${POSTGRES_DB:-amilou}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # ============================================
   # Next.js Application
   # ============================================
-  # NOTE: Production utilise Supabase (voir docs/INFRASTRUCTURE.md)
-  # Le service 'db' local n'est pas nécessaire si DATABASE_URL pointe vers Supabase
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: amilou-app
     restart: unless-stopped
-    # depends_on: db (désactivé - utilise Supabase en prod)
     environment:
       - NODE_ENV=production
       - DATABASE_URL=${DATABASE_URL}
@@ -59,14 +33,10 @@ services:
       dockerfile: Dockerfile
       target: builder
     container_name: amilou-migrate
-    # depends_on: db (désactivé - utilise Supabase en prod)
     environment:
       - DATABASE_URL=${DATABASE_URL}
     command: npx prisma migrate deploy
     restart: "no"
-
-volumes:
-  postgres_data:
 
 networks:
   default:

@@ -155,7 +155,7 @@ docker-compose down && docker-compose up -d --build
 ```
 
 - L'app écoute sur le port 3000
-- Le conteneur `amilou-db` local n'est pas utilisé (Supabase)
+- Base de données : Supabase (pas de conteneur PostgreSQL local)
 - `secure: false` pour les cookies (HTTP, pas HTTPS)
 
 ## Conventions
