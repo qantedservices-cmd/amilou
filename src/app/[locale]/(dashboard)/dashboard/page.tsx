@@ -26,6 +26,9 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Calendar as CalendarPicker } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { fr } from 'date-fns/locale'
 
 interface Program {
   id: string
@@ -265,6 +268,8 @@ export default function DashboardPage() {
   const [weekStartDate, setWeekStartDate] = useState<string | null>(null)
   const [loadingWeek, setLoadingWeek] = useState(false)
   const [canGoForward, setCanGoForward] = useState(false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
   // Interactive weekly objectives
   const [localWeeklyObjectives, setLocalWeeklyObjectives] = useState<WeeklyObjectiveStatus[]>([])
@@ -350,6 +355,10 @@ export default function DashboardPage() {
         setWeekStartDate(data.weekStartDate)
         setLocalWeekGrid(data.weekGrid || {})
         setCanGoForward(data.canGoForward || false)
+        // Update selected date to match the week
+        if (data.weekStartDate) {
+          setSelectedDate(new Date(data.weekStartDate))
+        }
       }
     } catch (error) {
       console.error('Error fetching stats:', error)
@@ -376,6 +385,10 @@ export default function DashboardPage() {
         setWeekStartDate(data.weekStartDate)
         setLocalWeekGrid(data.weekGrid || {})
         setCanGoForward(data.canGoForward || false)
+        // Update selected date to match the week
+        if (data.weekStartDate) {
+          setSelectedDate(new Date(data.weekStartDate))
+        }
       }
     } catch (error) {
       console.error('Error fetching week data:', error)
@@ -411,6 +424,57 @@ export default function DashboardPage() {
   function resetToCurrentWeek() {
     setWeekOffsetChanged(true)
     setWeekOffset(0)
+    setSelectedDate(new Date())
+  }
+
+  // Get week start date (Sunday) for a given date
+  function getWeekStart(date: Date): Date {
+    const d = new Date(date)
+    d.setHours(0, 0, 0, 0)
+    const day = d.getDay()
+    d.setDate(d.getDate() - day)
+    return d
+  }
+
+  // Calculate base week for the current period
+  function getBaseWeekForPeriod(): Date {
+    const now = new Date()
+    const currentWeekStart = getWeekStart(now)
+
+    if (period === 'global') {
+      return currentWeekStart
+    } else if (period === 'month') {
+      const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === (now.getMonth() + 1)
+      if (isCurrentMonth) {
+        return currentWeekStart
+      } else {
+        const lastDayOfMonth = new Date(selectedYear, selectedMonth, 0)
+        return getWeekStart(lastDayOfMonth)
+      }
+    } else {
+      const isCurrentYear = selectedYear === now.getFullYear()
+      if (isCurrentYear) {
+        return currentWeekStart
+      } else {
+        const lastDayOfYear = new Date(selectedYear, 11, 31)
+        return getWeekStart(lastDayOfYear)
+      }
+    }
+  }
+
+  function handleDateSelect(date: Date | undefined) {
+    if (!date) return
+    setSelectedDate(date)
+    setCalendarOpen(false)
+
+    // Calculate the week offset from base week
+    const baseWeek = getBaseWeekForPeriod()
+    const selectedWeekStart = getWeekStart(date)
+    const diffMs = selectedWeekStart.getTime() - baseWeek.getTime()
+    const diffWeeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000))
+
+    setWeekOffsetChanged(true)
+    setWeekOffset(diffWeeks)
   }
 
   useEffect(() => {
@@ -1098,45 +1162,52 @@ export default function DashboardPage() {
               <CalendarDays className="h-5 w-5 text-blue-600" />
               Programmes Journaliers
             </CardTitle>
-            {/* Week Navigation */}
+            {/* Week Navigation with Calendar */}
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => changeWeekOffset(-1)}
-                disabled={loadingWeek}
-              >
-                <span className="text-lg">&lt;</span>
-              </Button>
-              <div className="text-center min-w-[80px]">
-                <span className="font-bold text-lg">S{weekNumber || stats?.weekNumber}</span>
-                {(weekYear || stats?.weekYear) !== new Date().getFullYear() && (
-                  <span className="text-xs text-muted-foreground ml-1">'{String(weekYear || stats?.weekYear).slice(2)}</span>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  {weekStartDate || stats?.weekStartDate ? new Date(weekStartDate || stats?.weekStartDate || '').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => changeWeekOffset(1)}
-                disabled={loadingWeek || !canGoForward}
-              >
-                <span className="text-lg">&gt;</span>
-              </Button>
-              {(weekOffset !== 0 || canGoForward) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs"
-                  onClick={resetToCurrentWeek}
-                >
-                  Aujourd'hui
-                </Button>
-              )}
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-auto py-1 px-3 flex flex-col items-center gap-0"
+                    disabled={loadingWeek}
+                  >
+                    <span className="font-bold text-lg">S{weekNumber || stats?.weekNumber}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {weekStartDate || stats?.weekStartDate
+                        ? new Date(weekStartDate || stats?.weekStartDate || '').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: (weekYear || stats?.weekYear) !== new Date().getFullYear() ? '2-digit' : undefined })
+                        : ''}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarPicker
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={handleDateSelect}
+                    showWeekNumber
+                    locale={fr}
+                    defaultMonth={selectedDate}
+                    disabled={(date) => date > new Date()}
+                    captionLayout="dropdown"
+                    fromYear={2020}
+                    toYear={new Date().getFullYear()}
+                  />
+                  <div className="border-t p-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={() => {
+                        resetToCurrentWeek()
+                        setCalendarOpen(false)
+                      }}
+                    >
+                      Aujourd'hui
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {loadingWeek && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
             </div>
           </div>
           <CardDescription>
