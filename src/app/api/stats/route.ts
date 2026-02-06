@@ -44,6 +44,7 @@ export async function GET(request: Request) {
     const period = searchParams.get('period') || 'year' // 'year' | 'month' | 'global'
     const paramYear = searchParams.get('year') ? parseInt(searchParams.get('year')!) : now.getFullYear()
     const paramMonth = searchParams.get('month') ? parseInt(searchParams.get('month')!) : now.getMonth() + 1
+    const weekOffset = searchParams.get('weekOffset') ? parseInt(searchParams.get('weekOffset')!) : 0
 
     // Helper: Calculate week number based on Sundays (matching Excel)
     function getWeekNumber(date: Date): { week: number; year: number } {
@@ -356,9 +357,13 @@ export async function GET(request: Request) {
     const tomorrowStart = new Date(todayStart)
     tomorrowStart.setDate(tomorrowStart.getDate() + 1)
 
-    const weekStart = getWeekStartDate(now)
+    // Apply week offset for navigation (0 = current week, -1 = previous week, etc.)
+    const baseWeekStart = getWeekStartDate(now)
+    const weekStart = new Date(baseWeekStart)
+    weekStart.setDate(baseWeekStart.getDate() + (weekOffset * 7))
     const weekEnd = new Date(weekStart)
     weekEnd.setDate(weekEnd.getDate() + 7)
+    const weekInfo = getWeekNumber(weekStart)
 
     // Get all programs
     const programs = await prisma.program.findMany({
@@ -743,6 +748,9 @@ export async function GET(request: Request) {
       weekProgramStats,
       periodProgramStats,
       weekStartDate: weekStart.toISOString().split('T')[0],
+      weekNumber: weekInfo.week,
+      weekYear: weekInfo.year,
+      weekOffset,
       // NEW: Weekly objectives stats
       weeklyObjectivesStatus,
       weeklyObjectivesStats,

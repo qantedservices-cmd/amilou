@@ -174,6 +174,9 @@ interface Stats {
   weekProgramStats: ProgramStat[]
   periodProgramStats: ProgramStat[]
   weekStartDate: string
+  weekNumber: number
+  weekYear: number
+  weekOffset: number
   // NEW: Weekly objectives
   weeklyObjectivesStatus: WeeklyObjectiveStatus[]
   weeklyObjectivesStats: WeeklyObjectiveStat[]
@@ -255,6 +258,11 @@ export default function DashboardPage() {
   // Interactive week grid
   const [localWeekGrid, setLocalWeekGrid] = useState<Record<string, boolean[]>>({})
   const [togglingWeekCell, setTogglingWeekCell] = useState<string | null>(null) // "CODE-dayIndex"
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [weekNumber, setWeekNumber] = useState<number | null>(null)
+  const [weekYear, setWeekYear] = useState<number | null>(null)
+  const [weekStartDate, setWeekStartDate] = useState<string | null>(null)
+  const [loadingWeek, setLoadingWeek] = useState(false)
 
   // Interactive weekly objectives
   const [localWeeklyObjectives, setLocalWeeklyObjectives] = useState<WeeklyObjectiveStatus[]>([])
@@ -329,10 +337,16 @@ export default function DashboardPage() {
       if (period === 'month') {
         params.set('month', selectedMonth.toString())
       }
+      params.set('weekOffset', weekOffset.toString())
       const res = await fetch(`/api/stats?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
         setStats(data)
+        // Update week-specific state
+        setWeekNumber(data.weekNumber)
+        setWeekYear(data.weekYear)
+        setWeekStartDate(data.weekStartDate)
+        setLocalWeekGrid(data.weekGrid || {})
       }
     } catch (error) {
       console.error('Error fetching stats:', error)
@@ -341,9 +355,38 @@ export default function DashboardPage() {
     }
   }
 
+  async function fetchWeekData(offset: number) {
+    setLoadingWeek(true)
+    try {
+      const params = new URLSearchParams()
+      params.set('period', period)
+      params.set('year', selectedYear.toString())
+      if (period === 'month') {
+        params.set('month', selectedMonth.toString())
+      }
+      params.set('weekOffset', offset.toString())
+      const res = await fetch(`/api/stats?${params.toString()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setWeekNumber(data.weekNumber)
+        setWeekYear(data.weekYear)
+        setWeekStartDate(data.weekStartDate)
+        setLocalWeekGrid(data.weekGrid || {})
+        // Update weekProgramStats in stats
+        if (stats) {
+          setStats({ ...stats, weekGrid: data.weekGrid, weekProgramStats: data.weekProgramStats, weekStartDate: data.weekStartDate })
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching week data:', error)
+    } finally {
+      setLoadingWeek(false)
+    }
+  }
+
   useEffect(() => {
     fetchStats()
-  }, [period, selectedYear, selectedMonth])
+  }, [period, selectedYear, selectedMonth, weekOffset])
 
   useEffect(() => {
     fetchSurahStats()
@@ -472,10 +515,11 @@ export default function DashboardPage() {
     }
 
     try {
-      // Calculate the date for this day index
-      const weekStart = stats?.weekStartDate ? new Date(stats.weekStartDate) : new Date()
-      const targetDate = new Date(weekStart)
-      targetDate.setDate(weekStart.getDate() + dayIndex)
+      // Calculate the date for this day index (use current weekStartDate from state or stats)
+      const currentWeekStart = weekStartDate || stats?.weekStartDate
+      const weekStartObj = currentWeekStart ? new Date(currentWeekStart) : new Date()
+      const targetDate = new Date(weekStartObj)
+      targetDate.setDate(weekStartObj.getDate() + dayIndex)
 
       const res = await fetch('/api/attendance/programs', {
         method: 'POST',
@@ -625,11 +669,36 @@ export default function DashboardPage() {
     JUZ: 'Juz',
   }
 
+  const UNITS_COMPACT: Record<string, string> = {
+    PAGE: 'pg',
+    QUART: 'qt',
+    DEMI_HIZB: '½hz',
+    HIZB: 'hz',
+    JUZ: 'jz',
+  }
+
   const PERIODS: Record<string, string> = {
     DAY: '/jour',
     WEEK: '/semaine',
     MONTH: '/mois',
     YEAR: '/an',
+  }
+
+  const PERIODS_COMPACT: Record<string, string> = {
+    DAY: '/j',
+    WEEK: '/sem',
+    MONTH: '/mois',
+    YEAR: '/an',
+  }
+
+  function getObjectiveForProgram(programCode: string) {
+    const item = stats?.objectivesVsRealized?.find(o => o.programCode === programCode)
+    return item?.objective || null
+  }
+
+  function formatObjectiveCompact(obj: { quantity: number; unit: string; period: string } | null) {
+    if (!obj) return null
+    return `${obj.quantity} ${UNITS_COMPACT[obj.unit] || obj.unit}${PERIODS_COMPACT[obj.period] || ''}`
   }
 
   function formatQuantityUnit(quantity: number, unit: string) {
@@ -995,15 +1064,54 @@ export default function DashboardPage() {
       {/* Cette Semaine - Grille Programmes */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5 text-blue-600" />
-            Cette Semaine
-            <Badge variant="outline" className="ml-2">
-              {stats?.weekStartDate ? new Date(stats.weekStartDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
-            </Badge>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-blue-600" />
+              Programmes Journaliers
+            </CardTitle>
+            {/* Week Navigation */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setWeekOffset(prev => prev - 1)}
+                disabled={loadingWeek}
+              >
+                <span className="text-lg">&lt;</span>
+              </Button>
+              <div className="text-center min-w-[80px]">
+                <span className="font-bold text-lg">S{weekNumber || stats?.weekNumber}</span>
+                {(weekYear || stats?.weekYear) !== new Date().getFullYear() && (
+                  <span className="text-xs text-muted-foreground ml-1">'{String(weekYear || stats?.weekYear).slice(2)}</span>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {weekStartDate || stats?.weekStartDate ? new Date(weekStartDate || stats?.weekStartDate || '').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setWeekOffset(prev => prev + 1)}
+                disabled={loadingWeek || weekOffset >= 0}
+              >
+                <span className="text-lg">&gt;</span>
+              </Button>
+              {weekOffset !== 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => setWeekOffset(0)}
+                >
+                  Aujourd'hui
+                </Button>
+              )}
+            </div>
+          </div>
           <CardDescription>
-            Programmes journaliers complétés
+            Cliquez pour marquer comme complété
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -1027,10 +1135,17 @@ export default function DashboardPage() {
                 {stats?.weekProgramStats?.map((prog) => {
                   const gridRow = localWeekGrid[prog.code] || []
                   const completedCount = gridRow.filter(Boolean).length
+                  const objective = getObjectiveForProgram(prog.code)
+                  const objectiveText = formatObjectiveCompact(objective)
                   return (
                     <tr key={prog.code} className="border-b last:border-0">
                       <td className="py-2 px-2">
-                        <Badge className={getProgramColor(prog.code)}>{prog.name}</Badge>
+                        <div className="space-y-0.5">
+                          <Badge className={getProgramColor(prog.code)}>{prog.name}</Badge>
+                          <p className={`text-xs ${objective ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400'}`}>
+                            {objectiveText || 'À définir'}
+                          </p>
+                        </div>
                       </td>
                       {gridRow.map((completed, dayIndex) => {
                         const cellKey = `${prog.code}-${dayIndex}`
