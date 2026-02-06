@@ -24,6 +24,7 @@ import {
   Calendar,
   Settings,
   Shield,
+  BookOpen,
 } from 'lucide-react'
 
 const navItems = [
@@ -36,6 +37,7 @@ const navItems = [
 ]
 
 const bottomItems = [
+  { href: '/presentation', icon: BookOpen, labelKey: 'nav.presentation' },
   { href: '/settings', icon: Settings, labelKey: 'nav.settings' },
   { href: '/admin', icon: Shield, labelKey: 'nav.admin', adminOnly: true },
 ]
