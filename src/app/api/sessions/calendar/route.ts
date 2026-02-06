@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getWeekNumber } from '@/lib/week-utils'
+import { getEffectiveUserId } from '@/lib/impersonation'
 
 // Couleurs par groupe
 const GROUP_COLORS: Record<string, string> = {
@@ -26,9 +27,12 @@ export async function GET(request: Request) {
     const month = searchParams.get('month') ? parseInt(searchParams.get('month')!) : null
     const groupId = searchParams.get('groupId')
 
+    // Support impersonation
+    const { userId: effectiveUserId } = await getEffectiveUserId()
+
     // Get user's groups
     const userGroups = await prisma.groupMember.findMany({
-      where: { userId: session.user.id },
+      where: { userId: effectiveUserId! },
       select: { groupId: true, group: { select: { name: true } } }
     })
     const groupIds = groupId ? [groupId] : userGroups.map(g => g.groupId)

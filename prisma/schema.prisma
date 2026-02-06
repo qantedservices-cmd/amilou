@@ -310,23 +310,26 @@ model Verse {
 // ============================================
 
 model UserProgramSettings {
-  id        String    @id @default(cuid())
-  userId    String
-  programId String
-  quantity  Float     @default(1) // 0.25, 0.33, 0.5, 0.75, 1, 2, etc.
-  unit      String    @default("PAGE") // PAGE, QUART, DEMI_HIZB, HIZB, JUZ
-  period    String    @default("DAY") // DAY, WEEK, MONTH, YEAR
-  isActive  Boolean   @default(true)
-  startDate DateTime  @default(now())
-  endDate   DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  userId       String
+  programId    String
+  quantity     Float     @default(1) // 0.25, 0.33, 0.5, 0.75, 1, 2, etc.
+  unit         String    @default("PAGE") // PAGE, QUART, DEMI_HIZB, HIZB, JUZ
+  period       String    @default("DAY") // DAY, WEEK, MONTH, YEAR
+  isActive     Boolean   @default(true)
+  startDate    DateTime  @default(now())
+  endDate      DateTime?
+  snapshotDate DateTime? // Groups settings saved together in a snapshot
+  wasModified  Boolean   @default(false) // True if this setting was modified in the snapshot
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, isActive])
+  @@index([userId, snapshotDate])
 }
 
 // ============================================

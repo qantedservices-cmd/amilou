@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { getEffectiveUserId } from '@/lib/impersonation'
 
 // GET - Récupérer les paramètres de programmes d'un utilisateur
 export async function GET(request: Request) {
@@ -14,14 +15,16 @@ export async function GET(request: Request) {
     const userId = searchParams.get('userId')
     const includeHistory = searchParams.get('history') === 'true'
 
-    // Vérifier les permissions
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true }
-    })
+    // Support impersonation
+    const { userId: effectiveUserId } = await getEffectiveUserId()
 
-    let targetUserId = session.user.id
-    if (userId && userId !== session.user.id) {
+    // Use effective user ID by default, or specified userId if admin
+    let targetUserId = effectiveUserId!
+    if (userId && userId !== effectiveUserId) {
+      const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true }
+      })
       if (!['ADMIN', 'MANAGER', 'REFERENT'].includes(currentUser?.role || '')) {
         return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
       }
@@ -62,8 +65,7 @@ export async function GET(request: Request) {
 }
 
 // POST - Enregistrer tous les objectifs (batch)
-// Accepte soit un objet unique {programId, quantity, unit, period}
-// soit un tableau [{programId, quantity, unit, period}, ...]
+// Crée un snapshot de TOUS les objectifs, avec mise en avant de ceux modifiés
 export async function POST(request: Request) {
   try {
     const session = await auth()
@@ -73,18 +75,23 @@ export async function POST(request: Request) {
 
     const body = await request.json()
 
-    // Vérifier les permissions
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true }
-    })
+    // Support impersonation
+    const { userId: effectiveUserId } = await getEffectiveUserId()
 
     // Support batch or single
     const items = Array.isArray(body.settings) ? body.settings : (body.programId ? [body] : [])
-    const targetUserId = body.userId && body.userId !== session.user.id
-      ? ((['ADMIN', 'MANAGER', 'REFERENT'].includes(currentUser?.role || ''))
-        ? body.userId : session.user.id)
-      : session.user.id
+
+    // Use effective user ID by default
+    let targetUserId = effectiveUserId!
+    if (body.userId && body.userId !== effectiveUserId) {
+      const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true }
+      })
+      if (['ADMIN', 'MANAGER', 'REFERENT'].includes(currentUser?.role || '')) {
+        targetUserId = body.userId
+      }
+    }
 
     if (items.length === 0) {
       return NextResponse.json({ error: 'Aucun objectif fourni' }, { status: 400 })
@@ -93,53 +100,86 @@ export async function POST(request: Request) {
     const validUnits = ['PAGE', 'QUART', 'DEMI_HIZB', 'HIZB', 'JUZ']
     const validPeriods = ['DAY', 'WEEK', 'MONTH', 'YEAR']
     const now = new Date()
-    const results = []
 
+    // Get all current active settings
+    const currentSettings = await prisma.userProgramSettings.findMany({
+      where: {
+        userId: targetUserId,
+        isActive: true
+      }
+    })
+
+    // Build map of incoming items by programId
+    const incomingMap = new Map<string, { quantity: number; unit: string; period: string }>()
     for (const item of items) {
       const { programId, quantity, unit, period } = item
-
       if (!programId) continue
       if (unit && !validUnits.includes(unit)) continue
       if (period && !validPeriods.includes(period)) continue
 
-      const qty = quantity ?? 1
-      const u = unit ?? 'PAGE'
-      const p = period ?? 'DAY'
+      incomingMap.set(programId, {
+        quantity: quantity ?? 1,
+        unit: unit ?? 'PAGE',
+        period: period ?? 'DAY'
+      })
+    }
 
-      // Find current active setting for this program
-      const existing = await prisma.userProgramSettings.findFirst({
+    // Determine which settings actually changed
+    const changedProgramIds: string[] = []
+    for (const [programId, incoming] of incomingMap) {
+      const existing = currentSettings.find(s => s.programId === programId)
+      if (!existing ||
+          existing.quantity !== incoming.quantity ||
+          existing.unit !== incoming.unit ||
+          existing.period !== incoming.period) {
+        changedProgramIds.push(programId)
+      }
+    }
+
+    // If nothing changed, return current settings
+    if (changedProgramIds.length === 0) {
+      return NextResponse.json(currentSettings)
+    }
+
+    // Archive ALL current active settings with snapshot info
+    const snapshotDate = now
+    if (currentSettings.length > 0) {
+      await prisma.userProgramSettings.updateMany({
         where: {
           userId: targetUserId,
-          programId,
           isActive: true
+        },
+        data: {
+          isActive: false,
+          endDate: now,
+          snapshotDate: snapshotDate,
+          wasModified: false // Will update specific ones below
         }
       })
 
-      // If same values, skip
-      if (existing && existing.quantity === qty && existing.unit === u && existing.period === p) {
-        results.push(existing)
-        continue
-      }
+      // Mark the ones that were actually modified
+      const idsToMarkAsModified = currentSettings
+        .filter(s => changedProgramIds.includes(s.programId))
+        .map(s => s.id)
 
-      // Archive old setting if exists
-      if (existing) {
-        await prisma.userProgramSettings.update({
-          where: { id: existing.id },
-          data: {
-            isActive: false,
-            endDate: now
-          }
+      if (idsToMarkAsModified.length > 0) {
+        await prisma.userProgramSettings.updateMany({
+          where: { id: { in: idsToMarkAsModified } },
+          data: { wasModified: true }
         })
       }
+    }
 
-      // Create new active setting
+    // Create new active settings for ALL programs
+    const results = []
+    for (const [programId, incoming] of incomingMap) {
       const newSetting = await prisma.userProgramSettings.create({
         data: {
           userId: targetUserId,
           programId,
-          quantity: qty,
-          unit: u,
-          period: p,
+          quantity: incoming.quantity,
+          unit: incoming.unit,
+          period: incoming.period,
           isActive: true,
           startDate: now
         },
@@ -149,7 +189,6 @@ export async function POST(request: Request) {
           }
         }
       })
-
       results.push(newSetting)
     }
 
@@ -178,6 +217,9 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'id requis' }, { status: 400 })
     }
 
+    // Support impersonation
+    const { userId: effectiveUserId } = await getEffectiveUserId()
+
     const setting = await prisma.userProgramSettings.findUnique({
       where: { id }
     })
@@ -191,7 +233,8 @@ export async function DELETE(request: Request) {
       select: { role: true }
     })
 
-    if (setting.userId !== session.user.id && currentUser?.role !== 'ADMIN') {
+    // Allow if it's the effective user's setting or if admin
+    if (setting.userId !== effectiveUserId && currentUser?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
     }
 

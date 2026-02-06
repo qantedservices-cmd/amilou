@@ -48,6 +48,8 @@ interface ProgramSetting {
   isActive: boolean
   startDate: string
   endDate: string | null
+  snapshotDate: string | null
+  wasModified: boolean
   program: Program
 }
 
@@ -729,32 +731,58 @@ export default function SettingsPage() {
                 <History className="h-4 w-4" />
                 Historique des objectifs
               </h4>
-              <div className="space-y-2">
-                {/* Group history by date range */}
+              <div className="space-y-3">
+                {/* Group history by snapshotDate */}
                 {(() => {
-                  const groups: Record<string, ProgramSetting[]> = {}
+                  const snapshots: Record<string, ProgramSetting[]> = {}
                   settingsHistory.forEach(s => {
-                    const key = `${s.startDate}_${s.endDate || ''}`
-                    if (!groups[key]) groups[key] = []
-                    groups[key].push(s)
+                    // Use snapshotDate if available, otherwise fall back to endDate
+                    const key = s.snapshotDate || s.endDate || s.startDate
+                    if (!snapshots[key]) snapshots[key] = []
+                    snapshots[key].push(s)
                   })
-                  return Object.entries(groups).map(([key, items]) => (
-                    <div key={key} className="rounded-lg bg-muted/50 p-3">
-                      <p className="text-xs text-muted-foreground mb-1">
-                        {new Date(items[0].startDate).toLocaleDateString('fr-FR')}
-                        {items[0].endDate && ` → ${new Date(items[0].endDate).toLocaleDateString('fr-FR')}`}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {items.map(s => (
-                          <span key={s.id} className="text-xs">
-                            <Badge variant="outline" className="text-xs">
+                  // Sort by date descending (most recent first)
+                  const sortedSnapshots = Object.entries(snapshots).sort(
+                    ([a], [b]) => new Date(b).getTime() - new Date(a).getTime()
+                  )
+                  return sortedSnapshots.map(([snapshotKey, items]) => {
+                    // Sort items by program name for consistent display
+                    const sortedItems = [...items].sort((a, b) =>
+                      a.program.nameFr.localeCompare(b.program.nameFr)
+                    )
+                    // Find how many were modified
+                    const modifiedCount = sortedItems.filter(s => s.wasModified).length
+                    return (
+                      <div key={snapshotKey} className="rounded-lg bg-muted/50 p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(items[0].startDate).toLocaleDateString('fr-FR')}
+                            {items[0].endDate && ` → ${new Date(items[0].endDate).toLocaleDateString('fr-FR')}`}
+                          </p>
+                          {modifiedCount > 0 && (
+                            <span className="text-xs text-amber-600 dark:text-amber-400">
+                              {modifiedCount} modification{modifiedCount > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {sortedItems.map(s => (
+                            <Badge
+                              key={s.id}
+                              variant={s.wasModified ? "default" : "outline"}
+                              className={`text-xs ${
+                                s.wasModified
+                                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 border-amber-300 dark:border-amber-700'
+                                  : ''
+                              }`}
+                            >
                               {s.program.nameFr}: {s.quantity} {UNITS.find(u => u.value === s.unit)?.label}/{PERIODS.find(p => p.value === s.period)?.label}
                             </Badge>
-                          </span>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    )
+                  })
                 })()}
               </div>
             </div>
