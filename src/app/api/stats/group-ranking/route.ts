@@ -14,7 +14,8 @@ export async function GET() {
     const { userId: effectiveUserId } = await getEffectiveUserId()
     const userId = effectiveUserId!
 
-    // Get user's groups (as MEMBER only, not as REFERENT/ADMIN)
+    // Get user's groups - include MEMBER and REFERENT (they can participate in memorization)
+    // Exclude ADMIN role only (admins are global, not group participants)
     const userMemberships = await prisma.groupMember.findMany({
       where: { userId },
       include: {
@@ -22,7 +23,7 @@ export async function GET() {
           include: {
             members: {
               where: {
-                role: 'MEMBER' // Only include members, not referents/admins
+                role: { in: ['MEMBER', 'REFERENT'] } // Include both members and referents
               },
               include: {
                 user: {

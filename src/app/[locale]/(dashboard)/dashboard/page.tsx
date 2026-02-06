@@ -1398,9 +1398,12 @@ export default function DashboardPage() {
                 const progress = surah.programs[selectedSurahProgram]
                 return (
                   <div key={surah.number} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
-                    <span className="w-8 text-center text-sm font-medium text-muted-foreground">
-                      {surah.number}
-                    </span>
+                    {/* Numéro de sourate - badge circulaire */}
+                    <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                      <span className="text-sm font-bold text-foreground">
+                        {surah.number}
+                      </span>
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium truncate">
@@ -1408,8 +1411,11 @@ export default function DashboardPage() {
                           <span className="mx-1">-</span>
                           {surah.nameFr}
                         </span>
-                        <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
-                          {progress?.covered || 0}/{surah.totalVerses}
+                        <span className="text-xs ml-2 whitespace-nowrap">
+                          <span className="font-medium" style={{ color: CHART_COLORS[selectedSurahProgram as keyof typeof CHART_COLORS] }}>
+                            {progress?.covered || 0}
+                          </span>
+                          <span className="text-muted-foreground">/{surah.totalVerses} v.</span>
                         </span>
                       </div>
                       <div className="h-1.5 bg-muted rounded-full overflow-hidden">
