@@ -357,13 +357,46 @@ export async function GET(request: Request) {
     const tomorrowStart = new Date(todayStart)
     tomorrowStart.setDate(tomorrowStart.getDate() + 1)
 
-    // Apply week offset for navigation (0 = current week, -1 = previous week, etc.)
-    const baseWeekStart = getWeekStartDate(now)
+    // Calculate base week based on period selection
+    // For current period: use current week
+    // For past period: use last week of that period
+    let baseWeekStart: Date
+    const currentWeekStart = getWeekStartDate(now)
+
+    if (period === 'global') {
+      // Global: always relative to current week
+      baseWeekStart = currentWeekStart
+    } else if (period === 'month') {
+      // Check if selected month is current month
+      const isCurrentMonth = paramYear === now.getFullYear() && paramMonth === (now.getMonth() + 1)
+      if (isCurrentMonth) {
+        baseWeekStart = currentWeekStart
+      } else {
+        // Use last day of selected month, then get its week start
+        const lastDayOfMonth = new Date(paramYear, paramMonth, 0)
+        baseWeekStart = getWeekStartDate(lastDayOfMonth)
+      }
+    } else {
+      // Year period
+      const isCurrentYear = paramYear === now.getFullYear()
+      if (isCurrentYear) {
+        baseWeekStart = currentWeekStart
+      } else {
+        // Use last day of selected year
+        const lastDayOfYear = new Date(paramYear, 11, 31)
+        baseWeekStart = getWeekStartDate(lastDayOfYear)
+      }
+    }
+
+    // Apply week offset for navigation
     const weekStart = new Date(baseWeekStart)
     weekStart.setDate(baseWeekStart.getDate() + (weekOffset * 7))
     const weekEnd = new Date(weekStart)
     weekEnd.setDate(weekEnd.getDate() + 7)
     const weekInfo = getWeekNumber(weekStart)
+
+    // Calculate if we can navigate forward (not beyond current week)
+    const canGoForward = weekStart < currentWeekStart
 
     // Get all programs
     const programs = await prisma.program.findMany({
@@ -751,6 +784,7 @@ export async function GET(request: Request) {
       weekNumber: weekInfo.week,
       weekYear: weekInfo.year,
       weekOffset,
+      canGoForward,
       // NEW: Weekly objectives stats
       weeklyObjectivesStatus,
       weeklyObjectivesStats,

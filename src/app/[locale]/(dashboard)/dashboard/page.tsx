@@ -177,6 +177,7 @@ interface Stats {
   weekNumber: number
   weekYear: number
   weekOffset: number
+  canGoForward: boolean
   // NEW: Weekly objectives
   weeklyObjectivesStatus: WeeklyObjectiveStatus[]
   weeklyObjectivesStats: WeeklyObjectiveStat[]
@@ -263,6 +264,7 @@ export default function DashboardPage() {
   const [weekYear, setWeekYear] = useState<number | null>(null)
   const [weekStartDate, setWeekStartDate] = useState<string | null>(null)
   const [loadingWeek, setLoadingWeek] = useState(false)
+  const [canGoForward, setCanGoForward] = useState(false)
 
   // Interactive weekly objectives
   const [localWeeklyObjectives, setLocalWeeklyObjectives] = useState<WeeklyObjectiveStatus[]>([])
@@ -347,6 +349,7 @@ export default function DashboardPage() {
         setWeekYear(data.weekYear)
         setWeekStartDate(data.weekStartDate)
         setLocalWeekGrid(data.weekGrid || {})
+        setCanGoForward(data.canGoForward || false)
       }
     } catch (error) {
       console.error('Error fetching stats:', error)
@@ -372,6 +375,7 @@ export default function DashboardPage() {
         setWeekYear(data.weekYear)
         setWeekStartDate(data.weekStartDate)
         setLocalWeekGrid(data.weekGrid || {})
+        setCanGoForward(data.canGoForward || false)
       }
     } catch (error) {
       console.error('Error fetching week data:', error)
@@ -379,6 +383,12 @@ export default function DashboardPage() {
       setLoadingWeek(false)
     }
   }
+
+  // Reset week offset when period changes
+  useEffect(() => {
+    setWeekOffset(0)
+    setWeekOffsetChanged(false)
+  }, [period, selectedYear, selectedMonth])
 
   useEffect(() => {
     fetchStats()
@@ -1113,11 +1123,11 @@ export default function DashboardPage() {
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => changeWeekOffset(1)}
-                disabled={loadingWeek || weekOffset >= 0}
+                disabled={loadingWeek || !canGoForward}
               >
                 <span className="text-lg">&gt;</span>
               </Button>
-              {weekOffset !== 0 && (
+              {(weekOffset !== 0 || canGoForward) && (
                 <Button
                   variant="ghost"
                   size="sm"
