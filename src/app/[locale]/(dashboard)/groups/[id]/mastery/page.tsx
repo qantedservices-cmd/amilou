@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Download, MessageSquare, Plus, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Download, FileText, MessageSquare, Plus, Trash2, Users } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import Link from 'next/link'
 
@@ -267,7 +267,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
       const dataUrl = await toPng(element, {
         backgroundColor: '#ffffff',
-        pixelRatio: 2,
+        pixelRatio: 4,
         style: {
           transform: 'none'
         }
@@ -291,6 +291,110 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     } catch (err) {
       console.error('Error exporting:', err)
       alert('Erreur lors de l\'export: ' + (err instanceof Error ? err.message : 'Erreur inconnue'))
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function handleExportPDF() {
+    if (!data) return
+    setExporting(true)
+    try {
+      const jsPDF = (await import('jspdf')).default
+      const autoTable = (await import('jspdf-autotable')).default
+
+      // Create PDF in landscape for wide tables
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+
+      // Title
+      doc.setFontSize(16)
+      doc.text(`Grille de suivi - ${data.group.name}`, 14, 15)
+      doc.setFontSize(10)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 22)
+
+      // Prepare table data
+      const headers = ['Sourate', ...data.members.map(m => {
+        const parts = m.name.split(' ')
+        return parts.slice(0, -1).join(' ') + '\n' + parts[parts.length - 1]
+      })]
+
+      const rows: string[][] = []
+      for (const group of data.surahGroups) {
+        if (group.type === 'surah' && group.number) {
+          const surahInfo = data.allSurahsMap[group.number]
+          const row = [`${group.number}. ${surahInfo?.nameAr || ''}\n${surahInfo?.nameFr || ''} (${surahInfo?.totalVerses}v)`]
+          for (const member of data.members) {
+            row.push(getCellDisplay(member.id, group.number))
+          }
+          rows.push(row)
+        }
+      }
+
+      // Add table
+      autoTable(doc, {
+        head: [headers],
+        body: rows,
+        startY: 28,
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        headStyles: { fillColor: [66, 66, 66], fontSize: 6 },
+        columnStyles: { 0: { cellWidth: 35 } },
+        didParseCell: (hookData) => {
+          const cell = hookData.cell
+          const text = cell.text.join('')
+          if (hookData.column.index > 0) {
+            if (text.startsWith('V')) cell.styles.fillColor = [34, 197, 94]
+            else if (text === 'C') cell.styles.fillColor = [59, 130, 246]
+            else if (text === '90%') cell.styles.fillColor = [134, 239, 172]
+            else if (text.includes('50') || text.includes('51')) cell.styles.fillColor = [250, 204, 21]
+            else if (text === 'AM') cell.styles.fillColor = [251, 146, 60]
+            else if (text.startsWith('S')) cell.styles.fillColor = [192, 132, 252]
+            if (text !== '-') cell.styles.textColor = [255, 255, 255]
+          }
+        }
+      })
+
+      // Add comments section
+      let yPos = (doc as any).lastAutoTable.finalY + 10
+      const commentsExist = Object.keys(data.commentsMap).length > 0
+
+      if (commentsExist) {
+        // Check if we need a new page
+        if (yPos > 180) {
+          doc.addPage()
+          yPos = 15
+        }
+
+        doc.setFontSize(12)
+        doc.text('Commentaires', 14, yPos)
+        yPos += 7
+
+        doc.setFontSize(8)
+        for (const member of data.members) {
+          const memberComments = data.commentsMap[member.id]
+          if (!memberComments) continue
+
+          for (const [surahNum, comments] of Object.entries(memberComments)) {
+            const surahInfo = data.allSurahsMap[parseInt(surahNum)]
+            for (const c of comments) {
+              if (yPos > 195) {
+                doc.addPage()
+                yPos = 15
+              }
+              const nameParts = member.name.split(' ')
+              const firstName = nameParts[nameParts.length - 1]
+              const weekLabel = c.weekNumber ? `S${c.weekNumber}` : ''
+              doc.text(`${firstName} - ${surahNum}. ${surahInfo?.nameFr || ''} ${weekLabel}: ${c.comment}`, 14, yPos)
+              yPos += 5
+            }
+          }
+        }
+      }
+
+      // Save
+      doc.save(`grille-suivi-${data.group.name.replace(/\s+/g, '-')}.pdf`)
+    } catch (err) {
+      console.error('Error exporting PDF:', err)
+      alert('Erreur lors de l\'export PDF: ' + (err instanceof Error ? err.message : 'Erreur inconnue'))
     } finally {
       setExporting(false)
     }
@@ -373,7 +477,16 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             disabled={exporting}
           >
             <Download className="h-4 w-4 mr-2" />
-            {exporting ? 'Export...' : 'Exporter PNG'}
+            PNG
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPDF}
+            disabled={exporting}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            PDF
           </Button>
           {data.referent && (
             <Badge variant="outline">Référent: {data.referent.name}</Badge>
