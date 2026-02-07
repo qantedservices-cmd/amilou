@@ -495,6 +495,28 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     if (!editingCell) return
     setSaving(true)
     try {
+      // Save pending comment if there is one
+      if (newComment.trim()) {
+        const commentRes = await fetch(`/api/groups/${groupId}/mastery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: editingCell.userId,
+            surahNumber: editingCell.surahNumber,
+            comment: newComment.trim(),
+            weekNumber: commentWeek ? parseInt(commentWeek) : null
+          })
+        })
+        if (!commentRes.ok) {
+          const errorData = await commentRes.json()
+          alert('Erreur: ' + (errorData.error || 'Impossible d\'ajouter le commentaire'))
+          setSaving(false)
+          return
+        }
+        setNewComment('')
+        setCommentWeek('')
+      }
+
       const statusToSend = editStatus === 'NONE' ? '' : editStatus
       const res = await fetch(`/api/groups/${groupId}/mastery`, {
         method: 'PUT',
