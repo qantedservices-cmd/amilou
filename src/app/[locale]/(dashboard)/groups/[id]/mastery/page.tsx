@@ -25,7 +25,6 @@ import { Label } from '@/components/ui/label'
 import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Download, MessageSquare, Plus, Trash2, Users } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import Link from 'next/link'
-import html2canvas from 'html2canvas'
 
 interface Member {
   id: string
@@ -236,11 +235,17 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     if (!exportRef.current || !data) return
     setExporting(true)
     try {
+      const html2canvas = (await import('html2canvas')).default
       const canvas = await html2canvas(exportRef.current, {
         backgroundColor: '#ffffff',
         scale: 2,
         logging: false,
-        useCORS: true
+        useCORS: true,
+        allowTaint: true,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: exportRef.current.scrollWidth,
+        windowHeight: exportRef.current.scrollHeight
       })
       const link = document.createElement('a')
       link.download = `grille-suivi-${data.group.name.replace(/\s+/g, '-')}.png`
@@ -248,6 +253,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       link.click()
     } catch (err) {
       console.error('Error exporting:', err)
+      alert('Erreur lors de l\'export. Veuillez réessayer.')
     } finally {
       setExporting(false)
     }
