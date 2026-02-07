@@ -235,65 +235,52 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     if (!exportRef.current || !data) return
     setExporting(true)
     try {
-      const html2canvas = (await import('html2canvas')).default
+      const { toPng } = await import('html-to-image')
 
-      // Clone the element to remove sticky positioning issues
-      const clone = exportRef.current.cloneNode(true) as HTMLElement
-      clone.style.position = 'absolute'
-      clone.style.left = '-9999px'
-      clone.style.top = '0'
-      clone.style.width = exportRef.current.scrollWidth + 'px'
-      clone.style.backgroundColor = '#ffffff'
+      // Get the element to capture
+      const element = exportRef.current
 
-      // Remove sticky and overflow styles from clone
-      clone.querySelectorAll('[class*="sticky"]').forEach((el) => {
+      // Temporarily remove overflow constraints for full capture
+      const scrollContainer = element.querySelector('[class*="overflow-auto"]') as HTMLElement
+      const originalMaxHeight = scrollContainer?.style.maxHeight
+      const originalOverflow = scrollContainer?.style.overflow
+      if (scrollContainer) {
+        scrollContainer.style.maxHeight = 'none'
+        scrollContainer.style.overflow = 'visible'
+      }
+
+      // Remove sticky positioning temporarily
+      const stickyElements = element.querySelectorAll('[class*="sticky"]')
+      const originalPositions: string[] = []
+      stickyElements.forEach((el, i) => {
         const htmlEl = el as HTMLElement
+        originalPositions[i] = htmlEl.style.position
         htmlEl.style.position = 'relative'
       })
-      clone.querySelectorAll('[class*="overflow"]').forEach((el) => {
-        const htmlEl = el as HTMLElement
-        htmlEl.style.overflow = 'visible'
-        htmlEl.style.maxHeight = 'none'
-      })
 
-      // Fix CSS color functions not supported by html2canvas (lab, oklch, etc.)
-      clone.querySelectorAll('*').forEach((el) => {
-        const htmlEl = el as HTMLElement
-        const computed = window.getComputedStyle(htmlEl)
-        // Convert colors to RGB
-        if (computed.backgroundColor) {
-          htmlEl.style.backgroundColor = computed.backgroundColor
-        }
-        if (computed.color) {
-          htmlEl.style.color = computed.color
-        }
-        if (computed.borderColor) {
-          htmlEl.style.borderColor = computed.borderColor
-        }
-      })
-
-      document.body.appendChild(clone)
-
-      const canvas = await html2canvas(clone, {
+      const dataUrl = await toPng(element, {
         backgroundColor: '#ffffff',
-        scale: 2,
-        logging: false,
-        useCORS: true
+        pixelRatio: 2,
+        style: {
+          transform: 'none'
+        }
       })
 
-      document.body.removeChild(clone)
+      // Restore original styles
+      if (scrollContainer) {
+        scrollContainer.style.maxHeight = originalMaxHeight || ''
+        scrollContainer.style.overflow = originalOverflow || ''
+      }
+      stickyElements.forEach((el, i) => {
+        const htmlEl = el as HTMLElement
+        htmlEl.style.position = originalPositions[i] || ''
+      })
 
       // Download
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob)
-          const link = document.createElement('a')
-          link.download = `grille-suivi-${data.group.name.replace(/\s+/g, '-')}.png`
-          link.href = url
-          link.click()
-          URL.revokeObjectURL(url)
-        }
-      }, 'image/png')
+      const link = document.createElement('a')
+      link.download = `grille-suivi-${data.group.name.replace(/\s+/g, '-')}.png`
+      link.href = dataUrl
+      link.click()
     } catch (err) {
       console.error('Error exporting:', err)
       alert('Erreur lors de l\'export: ' + (err instanceof Error ? err.message : 'Erreur inconnue'))
