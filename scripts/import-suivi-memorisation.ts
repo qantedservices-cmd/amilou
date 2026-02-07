@@ -13,8 +13,12 @@
 import { PrismaClient } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import * as path from 'path';
+import { randomUUID } from 'crypto';
 
 const prisma = new PrismaClient();
+
+// Statuses that count as validated for Progress
+const VALIDATED_STATUSES = ['V', 'X', '50%', '51%', '90%'];
 
 const STUDENT_START_COL = 8;
 
@@ -107,16 +111,33 @@ async function main() {
   }
   console.log(`📅 ${sessions.length} séances trouvées\n`);
 
-  // 6. Clear existing SurahMastery for this group's users
+  // 5b. Get MEMORIZATION program for Progress entries
+  const memorizationProgram = await prisma.program.findFirst({
+    where: { code: 'MEMORIZATION' }
+  });
+  if (!memorizationProgram) {
+    console.error('❌ Programme MEMORIZATION non trouvé');
+    return;
+  }
+
+  // 6. Clear existing SurahMastery and Progress for this group's users
   const userIds = members.map(m => m.userId);
-  const deleted = await prisma.surahMastery.deleteMany({
+  const deletedMastery = await prisma.surahMastery.deleteMany({
     where: { userId: { in: userIds } }
   });
-  console.log(`🗑️  Supprimé ${deleted.count} enregistrements SurahMastery existants\n`);
+  const deletedProgress = await prisma.progress.deleteMany({
+    where: {
+      userId: { in: userIds },
+      programId: memorizationProgram.id,
+      comment: { startsWith: 'Import depuis' }
+    }
+  });
+  console.log(`🗑️  Supprimé ${deletedMastery.count} SurahMastery, ${deletedProgress.count} Progress existants\n`);
 
   // 7. Process each surah row
   let masteryCreated = 0;
   let recitationsCreated = 0;
+  let progressCreated = 0;
 
   for (let rowIdx = 1; rowIdx < data.length; rowIdx++) {
     const row = data[rowIdx];
@@ -160,6 +181,47 @@ async function main() {
       });
       masteryCreated++;
 
+      // Also create Progress entry for validated statuses (for dashboard)
+      if (VALIDATED_STATUSES.includes(status)) {
+        const surah = await prisma.surah.findUnique({ where: { number: surahNumber } });
+        if (surah) {
+          // Calculate verse range based on status
+          let verseEnd = surah.totalVerses;
+          if (status === '50%' || status === '51%') {
+            verseEnd = Math.ceil(surah.totalVerses * 0.5);
+          } else if (status === '90%') {
+            verseEnd = Math.ceil(surah.totalVerses * 0.9);
+          }
+
+          // Check if Progress already exists
+          const existingProgress = await prisma.progress.findFirst({
+            where: {
+              userId,
+              surahNumber,
+              programId: memorizationProgram.id
+            }
+          });
+
+          if (!existingProgress) {
+            await prisma.progress.create({
+              data: {
+                id: randomUUID(),
+                userId,
+                surahNumber,
+                programId: memorizationProgram.id,
+                verseStart: 1,
+                verseEnd,
+                date: new Date(),
+                comment: `Import depuis SurahMastery (${status})`,
+                createdBy: userId,
+                updatedAt: new Date()
+              }
+            });
+            progressCreated++;
+          }
+        }
+      }
+
       // If there's a week number, also create a recitation in that session
       if (weekNumber && weekToSession[weekNumber]) {
         const sessionId = weekToSession[weekNumber];
@@ -199,6 +261,7 @@ async function main() {
   console.log(`\n✨ Import terminé!`);
   console.log(`📊 Résumé:`);
   console.log(`   - ${masteryCreated} enregistrements SurahMastery créés`);
+  console.log(`   - ${progressCreated} enregistrements Progress créés (dashboard)`);
   console.log(`   - ${recitationsCreated} récitations créées`);
 
   // Summary by status
