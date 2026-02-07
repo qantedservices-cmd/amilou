@@ -37,6 +37,7 @@ interface SurahGroup {
   number?: number
   nameAr?: string
   nameFr?: string
+  totalVerses?: number
   start?: number
   end?: number
 }
@@ -365,23 +366,22 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             <table className="w-full border-collapse">
               <thead className="sticky top-0 z-20 bg-background">
                 <tr>
-                  <th className="sticky left-0 z-30 bg-background border-b border-r p-2 text-left min-w-[100px] max-w-[120px]">
-                    Sourate
+                  <th className="sticky left-0 z-30 bg-background border-b border-r p-1 text-left min-w-[140px] max-w-[160px]">
+                    <span className="text-xs">Sourate</span>
                   </th>
                   {data.members.map(member => {
                     const nameParts = member.name.split(' ')
-                    const firstName = nameParts[0]
-                    const lastName = nameParts.slice(1).join(' ')
+                    // Last name = all words except the last, First name = last word
+                    const lastName = nameParts.slice(0, -1).join(' ')
+                    const firstName = nameParts[nameParts.length - 1]
                     return (
                       <th
                         key={member.id}
-                        className="border-b p-2 text-center min-w-[60px] max-w-[80px] text-xs"
+                        className="border-b p-1 text-center min-w-[50px] max-w-[70px] text-xs"
                       >
                         <div className="flex flex-col items-center" title={member.name}>
-                          <span className="font-semibold truncate w-full">{firstName}</span>
-                          {lastName && (
-                            <span className="text-[10px] text-muted-foreground truncate w-full">{lastName}</span>
-                          )}
+                          <span className="font-semibold truncate w-full text-[10px]">{lastName}</span>
+                          <span className="text-[10px] text-muted-foreground truncate w-full">{firstName}</span>
                         </div>
                       </th>
                     )
@@ -468,9 +468,15 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                   return (
                     <tr key={group.number} className="hover:bg-muted/50">
                       <td className="sticky left-0 bg-background border-r p-1">
-                        <div className="flex items-center gap-1 text-xs">
-                          <span className="font-medium w-6 text-right">{group.number}</span>
-                          <span className="text-muted-foreground truncate">{group.nameAr}</span>
+                        <div className="flex flex-col text-[10px] leading-tight">
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium w-5 text-right">{group.number}</span>
+                            <span className="text-muted-foreground">{group.nameAr}</span>
+                          </div>
+                          <div className="flex items-center gap-1 pl-6">
+                            <span className="text-muted-foreground truncate">{group.nameFr}</span>
+                            <span className="text-muted-foreground/60">({group.totalVerses}v)</span>
+                          </div>
                         </div>
                       </td>
                       {data.members.map(member => (

@@ -73,7 +73,7 @@ export async function GET(
     // Get all surahs
     const surahs = await prisma.surah.findMany({
       orderBy: { number: 'asc' },
-      select: { number: true, nameAr: true, nameFr: true }
+      select: { number: true, nameAr: true, nameFr: true, totalVerses: true }
     })
 
     // Get all mastery data for members of this group
@@ -175,7 +175,8 @@ export async function GET(
           type: 'surah',
           number: surah.number,
           nameAr: surah.nameAr,
-          nameFr: surah.nameFr
+          nameFr: surah.nameFr,
+          totalVerses: surah.totalVerses
         })
       } else {
         // Start or continue collapsing
