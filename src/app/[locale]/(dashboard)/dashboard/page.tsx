@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -363,6 +363,10 @@ export default function DashboardPage() {
   }
 
   async function fetchStats(showLoader = true) {
+    // Save scroll position before fetching (for non-initial loads)
+    const scrollY = window.scrollY
+    const shouldRestoreScroll = !isInitialLoad
+
     // On initial load, show full loader; otherwise show subtle refresh indicator
     if (isInitialLoad) {
       setLoading(true)
@@ -390,6 +394,12 @@ export default function DashboardPage() {
         // Update selected date to match the week
         if (data.weekStartDate) {
           setSelectedDate(new Date(data.weekStartDate))
+        }
+        // Restore scroll position after state update
+        if (shouldRestoreScroll) {
+          requestAnimationFrame(() => {
+            window.scrollTo(0, scrollY)
+          })
         }
       }
     } catch (error) {
