@@ -340,7 +340,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           doc.text(`${group.number}. ${(surahInfo?.nameFr || '').substring(0, 20)}`, 14, y)
 
           data.members.forEach((member, i) => {
-            const status = getCellDisplay(member.id, group.number)
+            const status = getCellDisplay(member.id, group.number!)
             doc.text(status, 14 + firstColWidth + (i * colWidth), y)
           })
           y += 4
