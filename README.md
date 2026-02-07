@@ -122,7 +122,7 @@ Chaque utilisateur configure ses objectifs dans son profil :
 | **Frontend** | Next.js 16, React 19, TypeScript 5 |
 | **UI** | Tailwind CSS 4, shadcn/ui, Radix UI |
 | **Backend** | Next.js API Routes, Prisma ORM |
-| **Base de données** | SQLite (dev) / PostgreSQL (prod) |
+| **Base de données** | PostgreSQL (Supabase) |
 | **Authentification** | NextAuth v5 (Google, Credentials) |
 | **Internationalisation** | next-intl (FR, AR, EN) |
 | **Graphiques** | Recharts |

@@ -154,7 +154,25 @@ Les cycles représentent les tours complets du Coran (révision ou lecture).
 - **API** : `/api/completion-cycles` (GET, POST, PUT, DELETE)
 - **Dashboard** : Cartes cliquables pour voir l'historique
 - **Dialog** : Liste des cycles avec édition inline, suppression, ajout
-- **Données** : `type` (REVISION/LECTURE), `completedAt`, `notes`, `daysToComplete`
+- **Données** : `type` (REVISION/LECTURE), `completedAt`, `notes`, `daysToComplete`, `hizbCount`
+- **hizbCount** : Nombre de Hizbs couverts (calculé automatiquement depuis la progression mémorisation)
+- **daysToComplete** : Recalculé chronologiquement après chaque ajout/modification/suppression
+
+## Paramètres mémorisation utilisateur
+
+Chaque utilisateur peut configurer son point de départ de mémorisation :
+- `memorizationStartSurah` : Sourate de départ
+- `memorizationStartVerse` : Verset de départ
+- `memorizationDirection` : Sens (FORWARD vers Nas, BACKWARD vers Fatiha)
+
+Ces paramètres sont utilisés pour calculer automatiquement le `hizbCount` des cycles de révision.
+
+## Calcul du taux d'assiduité
+
+Le taux d'assiduité annuel est calculé depuis la **date d'adoption** de l'utilisateur :
+- Date d'adoption = première entrée (DailyAttendance ou DailyProgramCompletion)
+- Prend en compte les imports Google Forms (DailyAttendance)
+- Formule : jours avec complétion / jours depuis adoption
 
 ## Navigation par semaine (Dashboard)
 
@@ -174,6 +192,20 @@ docker-compose down && docker-compose up -d --build
 - L'app écoute sur le port 3000
 - Base de données : Supabase (pas de conteneur PostgreSQL local)
 - `secure: false` pour les cookies (HTTP, pas HTTPS)
+
+## Performance API
+
+L'API `/api/stats` est optimisée avec :
+- **Requêtes parallèles** : 14 requêtes initiales groupées dans `Promise.all`
+- **Évolution data** : 1 requête au lieu de 12 (N+1 éliminé)
+- **Élimination des doublons** : Réutilisation des données déjà chargées
+
+## Préservation du scroll (Dashboard)
+
+Quand on change de période, le scroll est préservé :
+- Sauvegarde de `window.scrollY` avant le fetch
+- Restauration avec `requestAnimationFrame` après mise à jour des données
+- Indicateur de chargement discret (spinner) dans la barre sticky
 
 ## Conventions
 

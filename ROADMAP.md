@@ -225,6 +225,17 @@ TOTAL:    ██████████████████░░  92%
 
 ## Changelog
 
+### v0.8.0 (Février 2026)
+- ✅ Cycles révision : ajout du nombre de Hizbs (hizbCount) calculé automatiquement
+- ✅ Paramètres mémorisation utilisateur (sourate/verset de départ, direction)
+- ✅ Taux d'assiduité basé sur date d'adoption (pas début de période)
+- ✅ Prise en compte des imports Google Forms pour date d'adoption
+- ✅ Objectifs non définis : affichage "-" avec bannière informative
+- ✅ Sélecteur de période sticky (visible au scroll)
+- ✅ Préservation du scroll lors des changements de période
+- ✅ Optimisation API stats : requêtes parallèles (14 queries en 1 batch)
+- ✅ Script backfill hizbCount pour cycles existants
+
 ### v0.7.0 (Janvier 2026)
 - ✅ Assiduité score 0-5 (nb programmes accomplis par jour)
 - ✅ Objectifs avec historique (archivage startDate/endDate)
