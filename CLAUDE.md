@@ -194,6 +194,12 @@ Page `/groups/[id]/mastery` - Vue matricielle du suivi par sourate pour un group
 - Point orange sur les cellules avec commentaires
 - CRUD complet pour le référent
 
+### Export PNG
+- Bouton "Exporter PNG" dans l'en-tête
+- Capture la légende + grille complète
+- Utilise html2canvas (scale 2x pour qualité)
+- Fichier nommé `grille-suivi-{nom-groupe}.png`
+
 ## Cycles de complétion (Révision/Lecture)
 
 Les cycles représentent les tours complets du Coran (révision ou lecture).

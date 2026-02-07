@@ -244,6 +244,8 @@ TOTAL:    ██████████████████░░  92%
 - ✅ Système de commentaires avec historique des séances
 - ✅ Indicateur visuel (point orange) sur cellules avec commentaires
 - ✅ CRUD commentaires pour le référent
+- ✅ Export PNG de la grille de suivi
+- ✅ Légende standardisée (badges taille fixe)
 
 ### v0.7.0 (Janvier 2026)
 - ✅ Assiduité score 0-5 (nb programmes accomplis par jour)
