@@ -300,8 +300,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     if (!data) return
     setExporting(true)
     try {
-      const jsPDF = (await import('jspdf')).default
-      const autoTable = (await import('jspdf-autotable')).default
+      const { jsPDF } = await import('jspdf')
+      await import('jspdf-autotable')
 
       // Create PDF in landscape for wide tables
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
@@ -310,19 +310,22 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.setFontSize(16)
       doc.text(`Grille de suivi - ${data.group.name}`, 14, 15)
       doc.setFontSize(10)
-      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 22)
+      doc.text(`${new Date().toLocaleDateString('fr-FR')}`, 14, 22)
 
       // Prepare table data
       const headers = ['Sourate', ...data.members.map(m => {
         const parts = m.name.split(' ')
-        return parts.slice(0, -1).join(' ') + '\n' + parts[parts.length - 1]
+        const lastName = parts.slice(0, -1).join(' ')
+        const firstName = parts[parts.length - 1]
+        return `${lastName}\n${firstName}`
       })]
 
       const rows: string[][] = []
       for (const group of data.surahGroups) {
         if (group.type === 'surah' && group.number) {
           const surahInfo = data.allSurahsMap[group.number]
-          const row = [`${group.number}. ${surahInfo?.nameAr || ''}\n${surahInfo?.nameFr || ''} (${surahInfo?.totalVerses}v)`]
+          const surahLabel = `${group.number}. ${surahInfo?.nameFr || ''}`
+          const row = [surahLabel]
           for (const member of data.members) {
             row.push(getCellDisplay(member.id, group.number))
           }
@@ -330,71 +333,86 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         }
       }
 
-      // Add table
-      autoTable(doc, {
+      // Add table using autoTable on doc
+      ;(doc as any).autoTable({
         head: [headers],
         body: rows,
         startY: 28,
-        styles: { fontSize: 7, cellPadding: 1.5 },
-        headStyles: { fillColor: [66, 66, 66], fontSize: 6 },
-        columnStyles: { 0: { cellWidth: 35 } },
-        didParseCell: (hookData) => {
-          const cell = hookData.cell
-          const text = cell.text.join('')
-          if (hookData.column.index > 0) {
-            if (text.startsWith('V')) cell.styles.fillColor = [34, 197, 94]
-            else if (text === 'C') cell.styles.fillColor = [59, 130, 246]
-            else if (text === '90%') cell.styles.fillColor = [134, 239, 172]
-            else if (text.includes('50') || text.includes('51')) cell.styles.fillColor = [250, 204, 21]
-            else if (text === 'AM') cell.styles.fillColor = [251, 146, 60]
-            else if (text.startsWith('S')) cell.styles.fillColor = [192, 132, 252]
-            if (text !== '-') cell.styles.textColor = [255, 255, 255]
+        styles: { fontSize: 7, cellPadding: 1.5, halign: 'center' },
+        headStyles: { fillColor: [80, 80, 80], fontSize: 6, halign: 'center' },
+        columnStyles: { 0: { cellWidth: 40, halign: 'left' } },
+        didParseCell: (hookData: any) => {
+          if (hookData.section === 'body' && hookData.column.index > 0) {
+            const text = hookData.cell.text.join('')
+            if (text.startsWith('V')) {
+              hookData.cell.styles.fillColor = [34, 197, 94]
+              hookData.cell.styles.textColor = [255, 255, 255]
+            } else if (text === 'C') {
+              hookData.cell.styles.fillColor = [59, 130, 246]
+              hookData.cell.styles.textColor = [255, 255, 255]
+            } else if (text === '90%') {
+              hookData.cell.styles.fillColor = [134, 239, 172]
+              hookData.cell.styles.textColor = [0, 0, 0]
+            } else if (text.includes('50') || text.includes('51')) {
+              hookData.cell.styles.fillColor = [250, 204, 21]
+              hookData.cell.styles.textColor = [0, 0, 0]
+            } else if (text === 'AM') {
+              hookData.cell.styles.fillColor = [251, 146, 60]
+              hookData.cell.styles.textColor = [255, 255, 255]
+            } else if (text.startsWith('S')) {
+              hookData.cell.styles.fillColor = [192, 132, 252]
+              hookData.cell.styles.textColor = [255, 255, 255]
+            }
           }
         }
       })
 
-      // Add comments section
-      let yPos = (doc as any).lastAutoTable.finalY + 10
-      const commentsExist = Object.keys(data.commentsMap).length > 0
+      // Add comments section on new page
+      const allComments: { member: string; surah: string; week: string; comment: string }[] = []
+      for (const member of data.members) {
+        const memberComments = data.commentsMap[member.id]
+        if (!memberComments) continue
+        const nameParts = member.name.split(' ')
+        const firstName = nameParts[nameParts.length - 1]
 
-      if (commentsExist) {
-        // Check if we need a new page
-        if (yPos > 180) {
-          doc.addPage()
-          yPos = 15
-        }
-
-        doc.setFontSize(12)
-        doc.text('Commentaires', 14, yPos)
-        yPos += 7
-
-        doc.setFontSize(8)
-        for (const member of data.members) {
-          const memberComments = data.commentsMap[member.id]
-          if (!memberComments) continue
-
-          for (const [surahNum, comments] of Object.entries(memberComments)) {
-            const surahInfo = data.allSurahsMap[parseInt(surahNum)]
-            for (const c of comments) {
-              if (yPos > 195) {
-                doc.addPage()
-                yPos = 15
-              }
-              const nameParts = member.name.split(' ')
-              const firstName = nameParts[nameParts.length - 1]
-              const weekLabel = c.weekNumber ? `S${c.weekNumber}` : ''
-              doc.text(`${firstName} - ${surahNum}. ${surahInfo?.nameFr || ''} ${weekLabel}: ${c.comment}`, 14, yPos)
-              yPos += 5
-            }
+        for (const [surahNum, comments] of Object.entries(memberComments)) {
+          const surahInfo = data.allSurahsMap[parseInt(surahNum)]
+          for (const c of comments) {
+            allComments.push({
+              member: firstName,
+              surah: `${surahNum}. ${surahInfo?.nameFr || ''}`,
+              week: c.weekNumber ? `S${c.weekNumber}` : '-',
+              comment: c.comment
+            })
           }
         }
+      }
+
+      if (allComments.length > 0) {
+        doc.addPage()
+        doc.setFontSize(14)
+        doc.text('Commentaires', 14, 15)
+
+        ;(doc as any).autoTable({
+          head: [['Élève', 'Sourate', 'Sem.', 'Commentaire']],
+          body: allComments.map(c => [c.member, c.surah, c.week, c.comment]),
+          startY: 22,
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [80, 80, 80] },
+          columnStyles: {
+            0: { cellWidth: 25 },
+            1: { cellWidth: 35 },
+            2: { cellWidth: 15 },
+            3: { cellWidth: 'auto' }
+          }
+        })
       }
 
       // Save
       doc.save(`grille-suivi-${data.group.name.replace(/\s+/g, '-')}.pdf`)
     } catch (err) {
       console.error('Error exporting PDF:', err)
-      alert('Erreur lors de l\'export PDF: ' + (err instanceof Error ? err.message : 'Erreur inconnue'))
+      alert('Erreur PDF: ' + (err instanceof Error ? err.message : 'Erreur'))
     } finally {
       setExporting(false)
     }
