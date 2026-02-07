@@ -24,7 +24,8 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Users, Plus, Settings, UserPlus, LogOut, Trash2, Crown } from 'lucide-react'
+import { Users, Plus, Settings, UserPlus, LogOut, Trash2, Crown, Grid3X3 } from 'lucide-react'
+import { useParams } from 'next/navigation'
 
 interface GroupMember {
   id: string
@@ -49,6 +50,8 @@ interface Group {
 
 export default function GroupsPage() {
   const t = useTranslations()
+  const params = useParams()
+  const locale = params.locale as string
   const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -423,29 +426,45 @@ export default function GroupsPage() {
                 </div>
               </div>
 
-              <DialogFooter className="flex justify-between sm:justify-between">
-                {selectedGroup.myRole === 'ADMIN' ? (
+              <DialogFooter className="flex justify-between sm:justify-between gap-2">
+                <div className="flex gap-2">
+                  {selectedGroup.myRole === 'ADMIN' ? (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteGroup(selectedGroup.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Supprimer
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRemoveMember(selectedGroup.members.find(m => m.role === selectedGroup.myRole)?.user.id || '')}
+                    >
+                      <LogOut className="h-4 w-4 mr-1" />
+                      Quitter
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-2">
                   <Button
-                    variant="destructive"
+                    variant="default"
                     size="sm"
-                    onClick={() => handleDeleteGroup(selectedGroup.id)}
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => {
+                      setDetailDialogOpen(false)
+                      window.location.href = `/${locale}/groups/${selectedGroup.id}/mastery`
+                    }}
                   >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Supprimer
+                    <Grid3X3 className="h-4 w-4 mr-1" />
+                    Suivi sourates
                   </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleRemoveMember(selectedGroup.members.find(m => m.role === selectedGroup.myRole)?.user.id || '')}
-                  >
-                    <LogOut className="h-4 w-4 mr-1" />
-                    Quitter
+                  <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
+                    Fermer
                   </Button>
-                )}
-                <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
-                  Fermer
-                </Button>
+                </div>
               </DialogFooter>
             </>
           )}

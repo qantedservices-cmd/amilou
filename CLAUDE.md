@@ -156,6 +156,35 @@ Base PostgreSQL hébergée sur Supabase. Schéma Prisma dans `prisma/schema.pris
 - `SurahRecitation` : Historique des récitations en séance
 - `CompletionCycle` : Cycles de révision/lecture complètes (CRUD complet via API)
 
+## Matrice de suivi sourates (Mastery)
+
+Page `/groups/[id]/mastery` - Vue matricielle du suivi par sourate pour un groupe.
+
+### Structure
+- **Lignes** : Sourates (1 → 114)
+- **Colonnes** : Élèves du groupe
+- **Cellules** : Statut (V7, X, 90%, 50%, AM, -)
+
+### Regroupement
+- Sourates sans données sont collapsées (ex: "Sourates 2-99 (aucune donnée)")
+- Clic pour développer et permettre la saisie
+
+### Permissions
+| Action | Qui peut |
+|--------|----------|
+| Voir | Tous les membres du groupe |
+| Modifier | REFERENT uniquement |
+
+### Statuts
+| Code | Signification | Couleur |
+|------|--------------|---------|
+| V{n} | Validé semaine n | Vert |
+| X | Déjà connu | Bleu |
+| 90% | 90% maîtrisé | Vert clair |
+| 50%/51% | Partiel | Jaune |
+| AM | À mémoriser | Orange |
+| S{n} | Récité à un élève sem. n | Violet |
+
 ## Cycles de complétion (Révision/Lecture)
 
 Les cycles représentent les tours complets du Coran (révision ou lecture).
