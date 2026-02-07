@@ -1362,6 +1362,13 @@ export default function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Banner if no objectives defined */}
+          {stats?.objectivesVsRealized && !stats.objectivesVsRealized.some(o => o.objective) && (
+            <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
+              <Target className="h-4 w-4 shrink-0" />
+              <span>Définissez vos objectifs dans <a href="/fr/settings" className="underline font-medium hover:text-amber-900">Paramètres</a> pour suivre votre progression</span>
+            </div>
+          )}
           {/* Week Grid */}
           <div className="overflow-x-auto -mx-2 sm:mx-0">
             <table className="w-full min-w-[400px]">
@@ -1389,9 +1396,9 @@ export default function DashboardPage() {
                       <td className="py-3 px-2">
                         <div className="space-y-1">
                           <Badge className={getProgramColor(prog.code)}>{prog.name}</Badge>
-                          <div className={`text-xs flex items-center gap-1 ${objective ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400'}`}>
+                          <div className={`text-xs flex items-center gap-1 ${objective ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>
                             <Target className="h-3 w-3" />
-                            <span className="font-medium">{objectiveText || 'À définir'}</span>
+                            <span className="font-medium">{objectiveText || '-'}</span>
                           </div>
                         </div>
                       </td>
