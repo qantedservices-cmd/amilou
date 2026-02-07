@@ -458,6 +458,30 @@ export async function GET(request: Request) {
     // Calculate for the period (month/year)
     let periodProgramStats: typeof weekProgramStats = []
     if (period !== 'global') {
+      // Find user's adoption date (earliest entry from DailyAttendance or DailyProgramCompletion)
+      const firstAttendance = await prisma.dailyAttendance.findFirst({
+        where: { userId },
+        orderBy: { date: 'asc' },
+        select: { date: true }
+      })
+
+      const firstCompletion = await prisma.dailyProgramCompletion.findFirst({
+        where: { userId },
+        orderBy: { date: 'asc' },
+        select: { date: true }
+      })
+
+      let adoptionDate: Date | null = null
+      if (firstAttendance) adoptionDate = firstAttendance.date
+      if (firstCompletion && (!adoptionDate || firstCompletion.date < adoptionDate)) {
+        adoptionDate = firstCompletion.date
+      }
+
+      // Effective start = max(periodStart, adoptionDate)
+      const effectiveStart = adoptionDate && adoptionDate > periodStart ? adoptionDate : periodStart
+      // Effective end = min(periodEnd, now)
+      const effectiveEnd = periodEnd > now ? now : periodEnd
+
       const periodCompletions = await prisma.dailyProgramCompletion.findMany({
         where: {
           userId,
@@ -480,7 +504,8 @@ export async function GET(request: Request) {
         }
       }
 
-      const totalDaysInPeriod = Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (24 * 60 * 60 * 1000))
+      // Use effective period for rate calculation
+      const totalDaysInPeriod = Math.max(1, Math.ceil((effectiveEnd.getTime() - effectiveStart.getTime()) / (24 * 60 * 60 * 1000)))
 
       periodProgramStats = DAILY_PROGRAMS.map(code => ({
         code,
