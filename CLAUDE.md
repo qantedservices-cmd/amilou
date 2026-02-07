@@ -50,6 +50,15 @@ src/
 | `REFERENT` | Référent de groupe - gère les membres de son groupe |
 | `USER` | Utilisateur standard |
 
+### Cas Samir
+
+Samir a un rôle particulier :
+- **Groupe Amilou** : REFERENT + MEMBER (il participe comme élève)
+- **Cours Montmagny** : REFERENT uniquement (superviseur, pas élève)
+- **Famille** : REFERENT uniquement (superviseur, pas élève)
+
+Les données de Samir (Progress, Attendance, etc.) sont liées au groupe Amilou uniquement.
+
 ## Règles de visibilité et permissions
 
 ### Qui voit quoi
@@ -179,6 +188,31 @@ Le taux d'assiduité annuel est calculé depuis la **date d'adoption** de l'util
 - Sélecteur de période (Année/Mois/Global) affecte toutes les données
 - Calendrier avec numéros de semaine pour navigation rapide
 - Navigation respecte la période sélectionnée (affiche la dernière semaine du mois si période passée)
+
+## Import de données
+
+### Google Forms (Groupe Amilou)
+
+Webhook automatique : les soumissions Google Forms créent des entrées dans `DailyAttendance` et `DailyProgramCompletion`.
+
+### Excel (Montmagny / Famille)
+
+Import manuel depuis le fichier `docs/Suivi_Cours_Montmagny.xlsx` :
+
+```bash
+cd C:/Users/USER/260108_Amilou
+
+# Réimporter Montmagny (feuille "Suivi Mémorisation")
+npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/import-suivi-memorisation.ts
+
+# Réimporter Famille (feuille "Suivi Famille")
+npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/import-suivi-famille.ts
+```
+
+Ces scripts :
+- Suppriment les anciennes données importées
+- Créent des entrées `SurahMastery` (pour les séances)
+- Créent des entrées `Progress` (pour le dashboard)
 
 ## Déploiement
 
