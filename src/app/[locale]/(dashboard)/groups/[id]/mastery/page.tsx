@@ -337,7 +337,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       for (const group of data.surahGroups) {
         if (group.type === 'surah' && group.number) {
           const surahInfo = data.allSurahsMap[group.number]
-          const row = [`${group.number}. ${surahInfo?.nameFr || ''}`]
+          const row = [`${group.number}. ${surahInfo?.nameAr || ''}\n${surahInfo?.nameFr || ''}`]
           for (const member of data.members) {
             row.push(getCellDisplay(member.id, group.number!))
           }
@@ -377,7 +377,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           halign: 'center'
         },
         columnStyles: {
-          0: { cellWidth: 35, halign: 'left', fontStyle: 'bold' }
+          0: { cellWidth: 45, halign: 'left', fontStyle: 'bold' }
         },
         alternateRowStyles: {
           fillColor: [248, 250, 252]
@@ -409,7 +409,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           for (const c of comments) {
             allComments.push({
               member: firstName,
-              surah: `${surahNum}. ${surahInfo?.nameFr || ''}`,
+              surah: `${surahNum}. ${surahInfo?.nameAr || ''} - ${surahInfo?.nameFr || ''}`,
               week: c.weekNumber ? `S${c.weekNumber}` : '-',
               comment: c.comment
             })
