@@ -56,6 +56,7 @@ interface MasteryData {
 const STATUS_COLORS: Record<string, string> = {
   'V': 'bg-green-500 text-white',
   'X': 'bg-blue-500 text-white',
+  'C': 'bg-blue-500 text-white',
   '90%': 'bg-green-300 text-green-900',
   '51%': 'bg-yellow-400 text-yellow-900',
   '50%': 'bg-yellow-300 text-yellow-900',
@@ -63,13 +64,18 @@ const STATUS_COLORS: Record<string, string> = {
   'S': 'bg-purple-400 text-purple-900',
 }
 
+// Display mapping (X stored in DB displays as C)
+const STATUS_DISPLAY: Record<string, string> = {
+  'X': 'C',
+}
+
 const STATUS_OPTIONS = [
   { value: 'NONE', label: '- Aucun' },
   { value: 'V', label: 'V - Validé' },
-  { value: 'X', label: 'X - Connu' },
-  { value: '90%', label: '90%' },
-  { value: '51%', label: '51%' },
-  { value: '50%', label: '50%' },
+  { value: 'X', label: 'C - Supposé connu, à valider' },
+  { value: '90%', label: '90% - Presque maîtrisé' },
+  { value: '51%', label: '51% - Moitié acquise' },
+  { value: '50%', label: '50% - Moitié acquise' },
   { value: 'AM', label: 'AM - À mémoriser' },
   { value: 'S', label: 'S - Récité à un élève' },
 ]
@@ -129,7 +135,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     if (entry.status === 'S' && entry.validatedWeek) {
       return `S${entry.validatedWeek}`
     }
-    return entry.status
+    // Display X as C
+    return STATUS_DISPLAY[entry.status] || entry.status
   }
 
   function getCellColor(userId: string, surahNumber: number): string {
@@ -232,7 +239,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             {STATUS_OPTIONS.filter(s => s.value !== 'NONE').map(s => (
               <div key={s.value} className="flex items-center gap-1">
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[s.value] || 'bg-gray-200'}`}>
-                  {s.value}
+                  {STATUS_DISPLAY[s.value] || s.value}
                 </span>
                 <span className="text-xs text-muted-foreground">{s.label.split(' - ')[1] || ''}</span>
               </div>
