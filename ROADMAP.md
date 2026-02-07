@@ -244,7 +244,8 @@ TOTAL:    ██████████████████░░  92%
 - ✅ Système de commentaires avec historique des séances
 - ✅ Indicateur visuel (point orange) sur cellules avec commentaires
 - ✅ CRUD commentaires pour le référent
-- ✅ Export PNG de la grille de suivi
+- ✅ Export PNG haute qualité (pixelRatio 4x)
+- ✅ Export PDF avec commentaires (jsPDF + autotable)
 - ✅ Légende standardisée (badges taille fixe)
 
 ### v0.7.0 (Janvier 2026)
