@@ -26,7 +26,8 @@ src/
 │   │   ├── progress/           # Avancement
 │   │   ├── sessions/           # Séances de groupe
 │   │   ├── settings/           # Paramètres utilisateur
-│   │   └── tafsir/             # Tafsir
+│   │   ├── tafsir/             # Tafsir
+│   │   └── presentation/       # Page de présentation spirituelle
 │   └── api/                    # API Routes
 ├── components/
 │   ├── layout/                 # Sidebar, Navbar, MobileSidebar
@@ -92,6 +93,7 @@ Les données privées restent visibles pour :
 | Évaluations | Tous | Ses évaluations (ADMIN/REFERENT voient celles du groupe) |
 | Séances | Tous | Séances de ses groupes uniquement (ADMIN voit toutes) |
 | Paramètres | Tous | Profil, mot de passe, confidentialité, objectifs par programme |
+| Présentation | Tous | Contenu spirituel sur le Coran et explication des programmes |
 | Admin | ADMIN seulement | Gestion utilisateurs, impersonation |
 
 ## Impersonation ("Voir en tant que")
@@ -143,7 +145,22 @@ Base PostgreSQL hébergée sur Supabase. Schéma Prisma dans `prisma/schema.pris
 - `Evaluation` : Évaluations par verset
 - `SurahMastery` : État de maîtrise par sourate
 - `SurahRecitation` : Historique des récitations en séance
-- `CompletionCycle` : Cycles de révision/lecture complètes
+- `CompletionCycle` : Cycles de révision/lecture complètes (CRUD complet via API)
+
+## Cycles de complétion (Révision/Lecture)
+
+Les cycles représentent les tours complets du Coran (révision ou lecture).
+
+- **API** : `/api/completion-cycles` (GET, POST, PUT, DELETE)
+- **Dashboard** : Cartes cliquables pour voir l'historique
+- **Dialog** : Liste des cycles avec édition inline, suppression, ajout
+- **Données** : `type` (REVISION/LECTURE), `completedAt`, `notes`, `daysToComplete`
+
+## Navigation par semaine (Dashboard)
+
+- Sélecteur de période (Année/Mois/Global) affecte toutes les données
+- Calendrier avec numéros de semaine pour navigation rapide
+- Navigation respecte la période sélectionnée (affiche la dernière semaine du mois si période passée)
 
 ## Déploiement
 
