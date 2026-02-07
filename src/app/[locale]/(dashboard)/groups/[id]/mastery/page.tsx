@@ -164,7 +164,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
   function hasComments(userId: string, surahNumber: number): boolean {
     const comments = data?.commentsMap?.[userId]?.[surahNumber]
-    return comments && comments.length > 0
+    return !!(comments && comments.length > 0)
   }
 
   function openEditDialog(userId: string, userName: string, surahNumber: number, surahName: string) {
