@@ -300,8 +300,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     if (!data) return
     setExporting(true)
     try {
-      const { jsPDF } = await import('jspdf')
-      await import('jspdf-autotable')
+      const jsPDFModule = await import('jspdf')
+      const jsPDF = jsPDFModule.default || jsPDFModule.jsPDF
+      const autoTableModule = await import('jspdf-autotable')
+      const autoTable = autoTableModule.default
 
       // Create PDF in landscape for wide tables
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
@@ -333,8 +335,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         }
       }
 
-      // Add table using autoTable on doc
-      ;(doc as any).autoTable({
+      // Add table using autoTable
+      autoTable(doc, {
         head: [headers],
         body: rows,
         startY: 28,
@@ -393,7 +395,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.setFontSize(14)
         doc.text('Commentaires', 14, 15)
 
-        ;(doc as any).autoTable({
+        autoTable(doc, {
           head: [['Élève', 'Sourate', 'Sem.', 'Commentaire']],
           body: allComments.map(c => [c.member, c.surah, c.week, c.comment]),
           startY: 22,
