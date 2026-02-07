@@ -236,24 +236,50 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     setExporting(true)
     try {
       const html2canvas = (await import('html2canvas')).default
-      const canvas = await html2canvas(exportRef.current, {
+
+      // Clone the element to remove sticky positioning issues
+      const clone = exportRef.current.cloneNode(true) as HTMLElement
+      clone.style.position = 'absolute'
+      clone.style.left = '-9999px'
+      clone.style.top = '0'
+      clone.style.width = exportRef.current.scrollWidth + 'px'
+
+      // Remove sticky and overflow styles from clone
+      const stickyElements = clone.querySelectorAll('[class*="sticky"]')
+      stickyElements.forEach(el => {
+        (el as HTMLElement).style.position = 'relative'
+      })
+      const overflowElements = clone.querySelectorAll('[class*="overflow"]')
+      overflowElements.forEach(el => {
+        (el as HTMLElement).style.overflow = 'visible'
+        (el as HTMLElement).style.maxHeight = 'none'
+      })
+
+      document.body.appendChild(clone)
+
+      const canvas = await html2canvas(clone, {
         backgroundColor: '#ffffff',
         scale: 2,
         logging: false,
-        useCORS: true,
-        allowTaint: true,
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: exportRef.current.scrollWidth,
-        windowHeight: exportRef.current.scrollHeight
+        useCORS: true
       })
-      const link = document.createElement('a')
-      link.download = `grille-suivi-${data.group.name.replace(/\s+/g, '-')}.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
+
+      document.body.removeChild(clone)
+
+      // Download
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.download = `grille-suivi-${data.group.name.replace(/\s+/g, '-')}.png`
+          link.href = url
+          link.click()
+          URL.revokeObjectURL(url)
+        }
+      }, 'image/png')
     } catch (err) {
       console.error('Error exporting:', err)
-      alert('Erreur lors de l\'export. Veuillez réessayer.')
+      alert('Erreur lors de l\'export: ' + (err instanceof Error ? err.message : 'Erreur inconnue'))
     } finally {
       setExporting(false)
     }
