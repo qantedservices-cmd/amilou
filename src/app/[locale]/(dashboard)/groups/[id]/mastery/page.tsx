@@ -380,8 +380,17 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         }
       }
 
-      // Save directly
-      doc.save(`grille-${data.group.name.replace(/\s+/g, '-')}.pdf`)
+      // Download using blob
+      const pdfOutput = doc.output('blob')
+      const blobUrl = window.URL.createObjectURL(pdfOutput)
+      const a = document.createElement('a')
+      a.style.display = 'none'
+      a.href = blobUrl
+      a.download = `grille-${data.group.name.replace(/\s+/g, '-')}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(blobUrl)
+      document.body.removeChild(a)
     } catch (err) {
       console.error('Error exporting PDF:', err)
       alert('Erreur PDF: ' + (err instanceof Error ? err.message : 'Erreur'))
