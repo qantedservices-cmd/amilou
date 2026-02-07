@@ -1037,13 +1037,15 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
           <p className="text-muted-foreground">{t('dashboard.overview')}</p>
         </div>
+      </div>
 
-        {/* Period Selector */}
+      {/* Sticky Period Selector */}
+      <div className="sticky top-0 z-40 -mx-4 px-4 py-3 mb-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
         <div className="flex flex-wrap items-center gap-2">
           {/* Period Type */}
           <div className="flex rounded-md border">
@@ -1093,6 +1095,11 @@ export default function DashboardPage() {
               </SelectContent>
             </Select>
           )}
+
+          {/* Period Label */}
+          <span className="text-sm text-muted-foreground ml-2">
+            {getPeriodLabel()}
+          </span>
         </div>
       </div>
 
