@@ -300,50 +300,54 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     if (!data) return
     setExporting(true)
     try {
-      const jsPDFModule = await import('jspdf')
-      const jsPDF = jsPDFModule.default || jsPDFModule.jsPDF
-      const autoTableModule = await import('jspdf-autotable')
-      const autoTable = autoTableModule.default
+      const { jsPDF } = await import('jspdf')
 
       // Create PDF in landscape
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
 
       // Title
-      doc.setFontSize(14)
-      doc.text(`Grille de suivi - ${data.group.name}`, 14, 12)
-      doc.setFontSize(9)
-      doc.text(new Date().toLocaleDateString('fr-FR'), 14, 18)
+      doc.setFontSize(16)
+      doc.text(`Grille de suivi - ${data.group.name}`, 14, 15)
+      doc.setFontSize(10)
+      doc.text(new Date().toLocaleDateString('fr-FR'), 14, 22)
 
-      // Prepare simple table data
-      const headers = ['Sourate']
-      for (const m of data.members) {
+      // Simple text-based grid
+      let y = 35
+      const colWidth = 12
+      const firstColWidth = 50
+
+      // Header row - member names
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Sourate', 14, y)
+      data.members.forEach((m, i) => {
         const parts = m.name.split(' ')
-        headers.push(parts[parts.length - 1]) // Just first name
-      }
+        const firstName = parts[parts.length - 1]
+        doc.text(firstName.substring(0, 8), 14 + firstColWidth + (i * colWidth), y)
+      })
+      y += 6
 
-      const rows: string[][] = []
+      // Data rows
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6)
       for (const group of data.surahGroups) {
         if (group.type === 'surah' && group.number) {
-          const surahInfo = data.allSurahsMap[group.number]
-          const row = [`${group.number}. ${surahInfo?.nameFr || ''}`]
-          for (const member of data.members) {
-            row.push(getCellDisplay(member.id, group.number))
+          if (y > 195) {
+            doc.addPage()
+            y = 15
           }
-          rows.push(row)
+          const surahInfo = data.allSurahsMap[group.number]
+          doc.text(`${group.number}. ${(surahInfo?.nameFr || '').substring(0, 20)}`, 14, y)
+
+          data.members.forEach((member, i) => {
+            const status = getCellDisplay(member.id, group.number)
+            doc.text(status, 14 + firstColWidth + (i * colWidth), y)
+          })
+          y += 4
         }
       }
 
-      // Add table
-      autoTable(doc, {
-        head: [headers],
-        body: rows,
-        startY: 22,
-        styles: { fontSize: 6, cellPadding: 1 },
-        headStyles: { fillColor: [60, 60, 60], fontSize: 6 },
-        columnStyles: { 0: { cellWidth: 30 } }
-      })
-
-      // Collect comments
+      // Comments section
       const allComments: string[] = []
       for (const member of data.members) {
         const memberComments = data.commentsMap[member.id]
@@ -360,33 +364,24 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         }
       }
 
-      // Add comments on new page if any
       if (allComments.length > 0) {
         doc.addPage()
-        doc.setFontSize(12)
-        doc.text('Commentaires', 14, 12)
-        doc.setFontSize(8)
-        let y = 20
+        doc.setFontSize(14)
+        doc.text('Commentaires', 14, 15)
+        doc.setFontSize(9)
+        let cy = 25
         for (const c of allComments) {
-          if (y > 190) {
+          if (cy > 195) {
             doc.addPage()
-            y = 15
+            cy = 15
           }
-          doc.text(c, 14, y)
-          y += 5
+          doc.text(c.substring(0, 100), 14, cy)
+          cy += 6
         }
       }
 
-      // Generate blob and download
-      const pdfBlob = doc.output('blob')
-      const url = URL.createObjectURL(pdfBlob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `grille-suivi-${data.group.name.replace(/\s+/g, '-')}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      // Save directly
+      doc.save(`grille-${data.group.name.replace(/\s+/g, '-')}.pdf`)
     } catch (err) {
       console.error('Error exporting PDF:', err)
       alert('Erreur PDF: ' + (err instanceof Error ? err.message : 'Erreur'))
