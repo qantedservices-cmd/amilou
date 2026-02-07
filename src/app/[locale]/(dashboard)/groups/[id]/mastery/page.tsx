@@ -214,9 +214,13 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         await fetchMastery()
         setNewComment('')
         setCommentWeek('')
+      } else {
+        const errorData = await res.json()
+        alert('Erreur: ' + (errorData.error || 'Impossible d\'ajouter le commentaire'))
       }
     } catch (err) {
       console.error('Error adding comment:', err)
+      alert('Erreur de connexion')
     } finally {
       setAddingComment(false)
     }
