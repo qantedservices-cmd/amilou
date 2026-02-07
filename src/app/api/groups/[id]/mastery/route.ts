@@ -14,8 +14,12 @@ export async function GET(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const effectiveUserId = await getEffectiveUserId()
+    const { userId: effectiveUserId } = await getEffectiveUserId()
     const { id: groupId } = await params
+
+    if (!effectiveUserId) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
 
     // Check if user is a member of this group
     const membership = await prisma.groupMember.findFirst({
@@ -173,8 +177,12 @@ export async function PUT(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const effectiveUserId = await getEffectiveUserId()
+    const { userId: effectiveUserId } = await getEffectiveUserId()
     const { id: groupId } = await params
+
+    if (!effectiveUserId) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
 
     // Check if user is REFERENT of this group or ADMIN
     const membership = await prisma.groupMember.findFirst({
