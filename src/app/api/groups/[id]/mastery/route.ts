@@ -157,7 +157,7 @@ export async function GET(
     }
 
     // Group consecutive surahs without data
-    const surahGroups: Array<{ type: 'surah'; number: number; nameAr: string; nameFr: string } | { type: 'collapsed'; start: number; end: number }> = []
+    const surahGroups: Array<{ type: 'surah'; number: number; nameAr: string; nameFr: string; totalVerses: number } | { type: 'collapsed'; start: number; end: number }> = []
     let collapsedStart: number | null = null
 
     for (const surah of surahs) {
