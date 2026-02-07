@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -22,9 +22,10 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, MessageSquare, Plus, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Download, MessageSquare, Plus, Trash2, Users } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import Link from 'next/link'
+import html2canvas from 'html2canvas'
 
 interface Member {
   id: string
@@ -110,6 +111,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [showAllComments, setShowAllComments] = useState(false)
   const [addingComment, setAddingComment] = useState(false)
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
+
+  // Export state
+  const exportRef = useRef<HTMLDivElement>(null)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     fetchMastery()
@@ -226,6 +231,27 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     }
   }
 
+  async function handleExportPNG() {
+    if (!exportRef.current || !data) return
+    setExporting(true)
+    try {
+      const canvas = await html2canvas(exportRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        logging: false,
+        useCORS: true
+      })
+      const link = document.createElement('a')
+      link.download = `grille-suivi-${data.group.name.replace(/\s+/g, '-')}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (err) {
+      console.error('Error exporting:', err)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   async function handleSave() {
     if (!editingCell) return
     setSaving(true)
@@ -295,32 +321,45 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             </p>
           </div>
         </div>
-        {data.referent && (
-          <Badge variant="outline">Référent: {data.referent.name}</Badge>
-        )}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPNG}
+            disabled={exporting}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {exporting ? 'Export...' : 'Exporter PNG'}
+          </Button>
+          {data.referent && (
+            <Badge variant="outline">Référent: {data.referent.name}</Badge>
+          )}
+        </div>
       </div>
 
-      {/* Legend */}
-      <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="text-sm">Légende</CardTitle>
-        </CardHeader>
-        <CardContent className="py-2">
-          <div className="flex flex-wrap gap-3">
-            {STATUS_OPTIONS.filter(s => s.value !== 'NONE').map(s => (
-              <div key={s.value} className="flex items-center gap-1">
-                <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[s.value] || 'bg-gray-200'}`}>
-                  {STATUS_DISPLAY[s.value] || s.value}
-                </span>
-                <span className="text-xs text-muted-foreground">{s.label.split(' - ')[1] || ''}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Exportable area */}
+      <div ref={exportRef} className="space-y-4 bg-background p-2">
+        {/* Legend */}
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm">Légende - {data.group.name}</CardTitle>
+          </CardHeader>
+          <CardContent className="py-2">
+            <div className="flex flex-wrap gap-3">
+              {STATUS_OPTIONS.filter(s => s.value !== 'NONE').map(s => (
+                <div key={s.value} className="flex items-center gap-2">
+                  <span className={`w-10 text-center py-0.5 rounded text-xs font-medium ${STATUS_COLORS[s.value] || 'bg-gray-200'}`}>
+                    {STATUS_DISPLAY[s.value] || s.value}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{s.label.split(' - ')[1] || ''}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Matrix */}
-      <Card>
+        {/* Matrix */}
+        <Card>
         <CardContent className="p-0">
           <div className="overflow-auto max-h-[70vh]">
             <table className="w-full border-collapse">
@@ -458,6 +497,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           </div>
         </CardContent>
       </Card>
+      </div>
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
