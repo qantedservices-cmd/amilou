@@ -245,6 +245,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [period, setPeriod] = useState<PeriodType>('year')
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1)
@@ -362,9 +363,11 @@ export default function DashboardPage() {
   }
 
   async function fetchStats(showLoader = true) {
-    // Only show loading spinner on initial load, not on period changes
-    if (showLoader && isInitialLoad) {
+    // On initial load, show full loader; otherwise show subtle refresh indicator
+    if (isInitialLoad) {
       setLoading(true)
+    } else {
+      setIsRefreshing(true)
     }
     try {
       const params = new URLSearchParams()
@@ -393,6 +396,7 @@ export default function DashboardPage() {
       console.error('Error fetching stats:', error)
     } finally {
       setLoading(false)
+      setIsRefreshing(false)
       setIsInitialLoad(false)
     }
   }
@@ -1105,6 +1109,11 @@ export default function DashboardPage() {
           <span className="text-sm text-muted-foreground ml-2">
             {getPeriodLabel()}
           </span>
+
+          {/* Refresh Indicator */}
+          {isRefreshing && (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground ml-2" />
+          )}
         </div>
       </div>
 

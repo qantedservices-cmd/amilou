@@ -88,11 +88,104 @@ export async function GET(request: Request) {
       totalWeeksInPeriod = Math.ceil((effectiveEnd.getTime() - periodStart.getTime()) / (7 * 24 * 60 * 60 * 1000))
     }
 
-    // Get all progress entries for the user
-    const progressEntries = await prisma.progress.findMany({
-      where: { userId },
-      include: { surah: true, program: true },
-    })
+    // =============================================
+    // OPTIMIZED: Parallel initial queries
+    // =============================================
+    const todayStart = getDayStart(now)
+    const tomorrowStart = new Date(todayStart)
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1)
+
+    // Evolution data date range
+    const evolutionStartDate = new Date(now)
+    evolutionStartDate.setDate(now.getDate() - now.getDay() - (11 * 7))
+    evolutionStartDate.setHours(0, 0, 0, 0)
+
+    // Parallel fetch of all independent data
+    const [
+      progressEntries,
+      groupsCount,
+      allAttendanceEntries,
+      objectives,
+      programSettings,
+      todayLogs,
+      allPrograms,
+      allEvolutionLogs,
+      weeklyObjectives,
+      allCompletions,
+      completionCycles,
+      tafsirProgram,
+      firstAttendance,
+      firstCompletion
+    ] = await Promise.all([
+      prisma.progress.findMany({
+        where: { userId },
+        include: { surah: true, program: true },
+      }),
+      prisma.groupMember.count({
+        where: { userId },
+      }),
+      prisma.dailyAttendance.findMany({
+        where: { userId },
+        orderBy: { date: 'desc' },
+      }),
+      prisma.userObjective.findMany({
+        where: { userId, isActive: true },
+        include: { program: true },
+      }),
+      prisma.userProgramSettings.findMany({
+        where: { userId, isActive: true },
+        include: { program: true },
+      }),
+      prisma.dailyLog.findMany({
+        where: {
+          userId,
+          date: { gte: todayStart, lt: tomorrowStart },
+        },
+        include: { program: true },
+      }),
+      prisma.program.findMany({
+        orderBy: { code: 'asc' },
+      }),
+      prisma.dailyLog.findMany({
+        where: {
+          userId,
+          date: { gte: evolutionStartDate }
+        },
+        include: { program: true }
+      }),
+      prisma.weeklyObjective.findMany({
+        where: { userId, isActive: true },
+        include: {
+          completions: {
+            where: {
+              weekStartDate: { gte: periodStart, lt: periodEnd }
+            }
+          }
+        }
+      }),
+      prisma.dailyProgramCompletion.findMany({
+        where: { userId, completed: true },
+        orderBy: { date: 'desc' },
+        select: { date: true }
+      }),
+      prisma.completionCycle.findMany({
+        where: { userId },
+        orderBy: { completedAt: 'desc' }
+      }),
+      prisma.program.findFirst({
+        where: { code: 'TAFSIR' }
+      }),
+      prisma.dailyAttendance.findFirst({
+        where: { userId },
+        orderBy: { date: 'asc' },
+        select: { date: true }
+      }),
+      prisma.dailyProgramCompletion.findFirst({
+        where: { userId },
+        orderBy: { date: 'asc' },
+        select: { date: true }
+      })
+    ])
 
     // Filter progress by period
     const periodProgress = period === 'global'
@@ -120,17 +213,20 @@ export async function GET(request: Request) {
       return { surahNumber: surah, verseNumber: verse }
     })
 
-    // Query pages in batches of 500
-    const allPages: number[] = []
+    // Query pages in parallel batches
     const batchSize = 500
+    const batchPromises = []
     for (let i = 0; i < memorizedVersesArray.length; i += batchSize) {
       const batch = memorizedVersesArray.slice(i, i + batchSize)
-      const batchPages = await prisma.verse.findMany({
-        where: { OR: batch },
-        select: { page: true }
-      })
-      allPages.push(...batchPages.map(v => v.page))
+      batchPromises.push(
+        prisma.verse.findMany({
+          where: { OR: batch },
+          select: { page: true }
+        })
+      )
     }
+    const batchResults = await Promise.all(batchPromises)
+    const allPages = batchResults.flatMap(r => r.map(v => v.page))
 
     const uniquePages = new Set(allPages)
     const totalMemorizedPages = uniquePages.size || Math.round(totalMemorizedVerses / 15)
@@ -138,17 +234,6 @@ export async function GET(request: Request) {
     // Get unique surahs memorized
     const memorizedSurahs = new Set(memorizationEntries.map(e => e.surahNumber))
     const totalMemorizedSurahs = memorizedSurahs.size
-
-    // Get group memberships count
-    const groupsCount = await prisma.groupMember.count({
-      where: { userId },
-    })
-
-    // Get attendance entries filtered by period
-    const allAttendanceEntries = await prisma.dailyAttendance.findMany({
-      where: { userId },
-      orderBy: { date: 'desc' },
-    })
 
     const attendanceEntries = period === 'global'
       ? allAttendanceEntries
@@ -232,38 +317,7 @@ export async function GET(request: Request) {
         surah: entry.surah,
       }))
 
-    // Get active objectives
-    const objectives = await prisma.userObjective.findMany({
-      where: { userId, isActive: true },
-      include: { program: true },
-    })
-
-    // Get program settings
-    const programSettings = await prisma.userProgramSettings.findMany({
-      where: { userId, isActive: true },
-      include: { program: true },
-    })
-
-    // Get daily logs for today
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-
-    const todayLogs = await prisma.dailyLog.findMany({
-      where: {
-        userId,
-        date: { gte: today, lt: tomorrow },
-      },
-      include: { program: true },
-    })
-
-    // Get all programs
-    const allPrograms = await prisma.program.findMany({
-      orderBy: { code: 'asc' },
-    })
-
-    // Build objectives vs realized
+    // Build objectives vs realized (using data from parallel queries)
     const objectivesVsRealized = allPrograms.map(program => {
       const setting = programSettings.find(s => s.programId === program.id)
       const todayLog = todayLogs.find(l => l.programId === program.id)
@@ -296,22 +350,20 @@ export async function GET(request: Request) {
 
     const progressByProgram = aggregateByProgram(periodProgress)
 
-    // Get evolution data for last 12 weeks
+    // Build evolution data for last 12 weeks (using data from parallel queries)
     const evolutionData = []
     for (let i = 11; i >= 0; i--) {
-      const weekStart = new Date(now)
-      weekStart.setDate(now.getDate() - now.getDay() - (i * 7))
-      weekStart.setHours(0, 0, 0, 0)
+      const weekStartDate = new Date(now)
+      weekStartDate.setDate(now.getDate() - now.getDay() - (i * 7))
+      weekStartDate.setHours(0, 0, 0, 0)
 
-      const weekEnd = new Date(weekStart)
-      weekEnd.setDate(weekStart.getDate() + 7)
+      const weekEndDate = new Date(weekStartDate)
+      weekEndDate.setDate(weekStartDate.getDate() + 7)
 
-      const weekLogs = await prisma.dailyLog.findMany({
-        where: {
-          userId,
-          date: { gte: weekStart, lt: weekEnd }
-        },
-        include: { program: true }
+      // Filter logs for this week in memory
+      const weekLogs = allEvolutionLogs.filter(log => {
+        const logDate = new Date(log.date)
+        return logDate >= weekStartDate && logDate < weekEndDate
       })
 
       const weekData: Record<string, number> = {
@@ -334,10 +386,10 @@ export async function GET(request: Request) {
         }
       })
 
-      const weekInfo = getWeekNumber(weekStart)
+      const weekInfoData = getWeekNumber(weekStartDate)
       evolutionData.push({
-        week: `S${weekInfo.week}`,
-        weekStart: weekStart.toISOString().split('T')[0],
+        week: `S${weekInfoData.week}`,
+        weekStart: weekStartDate.toISOString().split('T')[0],
         ...weekData,
         total: Object.values(weekData).reduce((a, b) => a + b, 0)
       })
@@ -351,11 +403,8 @@ export async function GET(request: Request) {
     }
 
     // =============================================
-    // NEW: DailyProgramCompletion stats
+    // DailyProgramCompletion stats (using todayStart/tomorrowStart from above)
     // =============================================
-    const todayStart = getDayStart(now)
-    const tomorrowStart = new Date(todayStart)
-    tomorrowStart.setDate(tomorrowStart.getDate() + 1)
 
     // Calculate base week based on period selection
     // For current period: use current week
@@ -398,37 +447,44 @@ export async function GET(request: Request) {
     // Calculate if we can navigate forward (not beyond current week)
     const canGoForward = weekStart < currentWeekStart
 
-    // Get all programs
-    const programs = await prisma.program.findMany({
-      where: { code: { in: DAILY_PROGRAMS } }
-    })
-    const programMap = new Map(programs.map(p => [p.code, p]))
+    // Use allPrograms from parallel queries, filter for daily programs
+    const dailyProgramsList = allPrograms.filter(p => DAILY_PROGRAMS.includes(p.code))
+    const programMap = new Map(dailyProgramsList.map(p => [p.code, p]))
 
-    // Today's completions
-    const todayCompletions = await prisma.dailyProgramCompletion.findMany({
-      where: {
-        userId,
-        date: { gte: todayStart, lt: tomorrowStart },
-        completed: true
-      },
-      include: { program: true }
-    })
+    // Parallel fetch of week-specific data
+    const [todayCompletions, weekCompletions, currentWeekObjectives] = await Promise.all([
+      prisma.dailyProgramCompletion.findMany({
+        where: {
+          userId,
+          date: { gte: todayStart, lt: tomorrowStart },
+          completed: true
+        },
+        include: { program: true }
+      }),
+      prisma.dailyProgramCompletion.findMany({
+        where: {
+          userId,
+          date: { gte: weekStart, lt: weekEnd },
+          completed: true
+        },
+        include: { program: true }
+      }),
+      prisma.weeklyObjective.findMany({
+        where: { userId, isActive: true },
+        include: {
+          completions: {
+            where: { weekStartDate: weekStart },
+            take: 1
+          }
+        }
+      })
+    ])
 
     const todayPrograms = DAILY_PROGRAMS.map(code => ({
       code,
       name: programMap.get(code)?.nameFr || code,
       completed: todayCompletions.some(c => c.program.code === code)
     }))
-
-    // This week's completions (by day and program)
-    const weekCompletions = await prisma.dailyProgramCompletion.findMany({
-      where: {
-        userId,
-        date: { gte: weekStart, lt: weekEnd },
-        completed: true
-      },
-      include: { program: true }
-    })
 
     // Build week grid: 7 days x 4 programs
     const weekGrid: Record<string, boolean[]> = {}
@@ -458,19 +514,7 @@ export async function GET(request: Request) {
     // Calculate for the period (month/year)
     let periodProgramStats: typeof weekProgramStats = []
     if (period !== 'global') {
-      // Find user's adoption date (earliest entry from DailyAttendance or DailyProgramCompletion)
-      const firstAttendance = await prisma.dailyAttendance.findFirst({
-        where: { userId },
-        orderBy: { date: 'asc' },
-        select: { date: true }
-      })
-
-      const firstCompletion = await prisma.dailyProgramCompletion.findFirst({
-        where: { userId },
-        orderBy: { date: 'asc' },
-        select: { date: true }
-      })
-
+      // Use adoption date from parallel queries (firstAttendance, firstCompletion)
       let adoptionDate: Date | null = null
       if (firstAttendance) adoptionDate = firstAttendance.date
       if (firstCompletion && (!adoptionDate || firstCompletion.date < adoptionDate)) {
@@ -517,29 +561,9 @@ export async function GET(request: Request) {
     }
 
     // =============================================
-    // NEW: Weekly Objectives stats
+    // Weekly Objectives stats (using weeklyObjectives from parallel queries)
     // =============================================
-    const weeklyObjectives = await prisma.weeklyObjective.findMany({
-      where: { userId, isActive: true },
-      include: {
-        completions: {
-          where: {
-            weekStartDate: { gte: periodStart, lt: periodEnd }
-          }
-        }
-      }
-    })
-
-    // Current week objective status
-    const currentWeekObjectives = await prisma.weeklyObjective.findMany({
-      where: { userId, isActive: true },
-      include: {
-        completions: {
-          where: { weekStartDate: weekStart },
-          take: 1
-        }
-      }
-    })
+    // currentWeekObjectives is already fetched in the second parallel batch above
 
     const weeklyObjectivesStatus = currentWeekObjectives.map(obj => ({
       id: obj.id,
@@ -564,15 +588,9 @@ export async function GET(request: Request) {
     })
 
     // =============================================
-    // NEW: Streak calculation
+    // Streak calculation (using allCompletions from parallel queries)
     // =============================================
     // Daily streak: consecutive days with at least 1 program completed
-    const allCompletions = await prisma.dailyProgramCompletion.findMany({
-      where: { userId, completed: true },
-      orderBy: { date: 'desc' },
-      select: { date: true }
-    })
-
     // Get unique dates
     const completionDates = [...new Set(allCompletions.map(c =>
       getDayStart(c.date).getTime()
@@ -638,13 +656,8 @@ export async function GET(request: Request) {
     }
 
     // =============================================
-    // NEW: Completion Cycles (Révision & Lecture)
+    // Completion Cycles (using completionCycles from parallel queries)
     // =============================================
-    const completionCycles = await prisma.completionCycle.findMany({
-      where: { userId },
-      orderBy: { completedAt: 'desc' }
-    })
-
     const revisionCycles = completionCycles.filter(c => c.type === 'REVISION')
     const lectureCycles = completionCycles.filter(c => c.type === 'LECTURE')
 
@@ -668,19 +681,13 @@ export async function GET(request: Request) {
       : null
 
     // =============================================
-    // NEW: Tafsir Coverage
+    // Tafsir Coverage (using tafsirProgram from parallel queries + progressEntries)
     // =============================================
-    const tafsirProgram = await prisma.program.findFirst({
-      where: { code: 'TAFSIR' }
-    })
-
     let tafsirCoverage = { percentage: 0, coveredVerses: 0, completedSurahs: 0 }
 
     if (tafsirProgram) {
-      const tafsirEntries = await prisma.progress.findMany({
-        where: { userId, programId: tafsirProgram.id },
-        include: { surah: true }
-      })
+      // Use progressEntries we already have instead of a separate query
+      const tafsirEntries = progressEntries.filter(e => e.programId === tafsirProgram.id)
 
       // Calculate covered verses per surah
       const surahVerses: Record<number, Set<number>> = {}
@@ -693,9 +700,10 @@ export async function GET(request: Request) {
         }
       }
 
-      // Get all surahs to check completion
-      const allSurahs = await prisma.surah.findMany()
-      const surahTotals = new Map(allSurahs.map(s => [s.number, s.totalVerses]))
+      // Use surah info from progressEntries to get totals
+      const surahTotals = new Map(
+        tafsirEntries.map(e => [e.surahNumber, e.surah.totalVerses])
+      )
 
       let totalCovered = 0
       let completed = 0
