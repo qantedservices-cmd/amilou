@@ -800,7 +800,8 @@ export async function GET(request: Request) {
           totalCycles: revisionCycles.length,
           lastDate: lastRevision?.completedAt || null,
           daysSinceLast: daysSinceRevision,
-          averageDays: avgRevisionDays
+          averageDays: avgRevisionDays,
+          lastHizbCount: lastRevision?.hizbCount || null
         },
         lecture: {
           totalCycles: lectureCycles.length,

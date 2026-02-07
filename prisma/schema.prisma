@@ -30,6 +30,11 @@ model User {
   privateStats       Boolean @default(false)
   privateEvaluations Boolean @default(false)
 
+  // Memorization program settings
+  memorizationStartSurah  Int?    // Starting surah (default: 1 for Fatiha)
+  memorizationStartVerse  Int?    // Starting verse (default: 1)
+  memorizationDirection   String? // "FORWARD" (towards Nas) or "BACKWARD" (towards Fatiha)
+
   accounts                Account[]
   sessions                Session[]
   groupMembers            GroupMember[]
@@ -472,6 +477,7 @@ model CompletionCycle {
   type           String   // "REVISION" | "LECTURE"
   completedAt    DateTime
   daysToComplete Int?     // Jours depuis le dernier cycle du même type
+  hizbCount      Int?     // Nombre de Hizbs couverts (pour REVISION)
   notes          String?
   createdAt      DateTime @default(now())
 

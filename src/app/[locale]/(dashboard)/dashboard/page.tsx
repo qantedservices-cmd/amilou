@@ -197,6 +197,7 @@ interface Stats {
       lastDate: string | null
       daysSinceLast: number | null
       averageDays: number | null
+      lastHizbCount: number | null
     }
     lecture: {
       totalCycles: number
@@ -262,13 +263,21 @@ export default function DashboardPage() {
     type: string
     completedAt: string
     daysToComplete: number | null
+    hizbCount: number | null
     notes: string | null
   }>>([])
   const [loadingCycleHistory, setLoadingCycleHistory] = useState(false)
   const [editingCycleId, setEditingCycleId] = useState<string | null>(null)
   const [editCycleDate, setEditCycleDate] = useState('')
   const [editCycleNotes, setEditCycleNotes] = useState('')
+  const [editCycleHizbCount, setEditCycleHizbCount] = useState<number | null>(null)
   const [savingCycleEdit, setSavingCycleEdit] = useState(false)
+
+  // New cycle dialog hizbCount
+  const [cycleHizbCount, setCycleHizbCount] = useState<number | null>(null)
+  const [needsMemorizationInput, setNeedsMemorizationInput] = useState(false)
+  const [memorizationSurah, setMemorizationSurah] = useState<number | null>(null)
+  const [memorizationVerse, setMemorizationVerse] = useState<number | null>(null)
 
   // Interactive today programs
   const [localTodayPrograms, setLocalTodayPrograms] = useState<TodayProgram[]>([])
@@ -726,19 +735,52 @@ export default function DashboardPage() {
   async function handleSaveCycle() {
     setCycleSaving(true)
     try {
+      const payload: {
+        type: string
+        completedAt: string
+        notes: string | null
+        hizbCount?: number | null
+        surahNumber?: number
+        verseNumber?: number
+      } = {
+        type: cycleType,
+        completedAt: cycleDate,
+        notes: cycleNotes || null
+      }
+
+      // Add hizbCount for REVISION cycles
+      if (cycleType === 'REVISION') {
+        if (cycleHizbCount !== null) {
+          payload.hizbCount = cycleHizbCount
+        } else if (memorizationSurah && memorizationVerse) {
+          payload.surahNumber = memorizationSurah
+          payload.verseNumber = memorizationVerse
+        }
+      }
+
       const res = await fetch('/api/completion-cycles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: cycleType,
-          completedAt: cycleDate,
-          notes: cycleNotes || null
-        })
+        body: JSON.stringify(payload)
       })
 
-      if (res.ok) {
+      const data = await res.json()
+
+      // Check if API needs memorization input
+      if (data.needsMemorizationInput) {
+        setNeedsMemorizationInput(true)
+        setCycleSaving(false)
+        return
+      }
+
+      if (res.ok && data.id) {
         setCycleDialogOpen(false)
+        toast.success('Cycle enregistré')
         setCycleNotes('')
+        setCycleHizbCount(null)
+        setNeedsMemorizationInput(false)
+        setMemorizationSurah(null)
+        setMemorizationVerse(null)
         fetchStats()
       }
     } catch (error) {
@@ -752,6 +794,10 @@ export default function DashboardPage() {
     setCycleType(type)
     setCycleDate(new Date().toISOString().split('T')[0])
     setCycleNotes('')
+    setCycleHizbCount(null)
+    setNeedsMemorizationInput(false)
+    setMemorizationSurah(null)
+    setMemorizationVerse(null)
     setCycleDialogOpen(true)
   }
 
@@ -776,16 +822,18 @@ export default function DashboardPage() {
     fetchCycleHistory(type)
   }
 
-  function startEditCycle(cycle: { id: string; completedAt: string; notes: string | null }) {
+  function startEditCycle(cycle: { id: string; completedAt: string; notes: string | null; hizbCount: number | null }) {
     setEditingCycleId(cycle.id)
     setEditCycleDate(new Date(cycle.completedAt).toISOString().split('T')[0])
     setEditCycleNotes(cycle.notes || '')
+    setEditCycleHizbCount(cycle.hizbCount)
   }
 
   function cancelEditCycle() {
     setEditingCycleId(null)
     setEditCycleDate('')
     setEditCycleNotes('')
+    setEditCycleHizbCount(null)
   }
 
   async function saveEditCycle() {
@@ -798,12 +846,14 @@ export default function DashboardPage() {
         body: JSON.stringify({
           id: editingCycleId,
           completedAt: editCycleDate,
-          notes: editCycleNotes || null
+          notes: editCycleNotes || null,
+          hizbCount: editCycleHizbCount
         })
       })
       if (res.ok) {
         cancelEditCycle()
         fetchCycleHistory(cycleHistoryType)
+        fetchStats()
         fetchStats()
         toast.success('Cycle modifié')
       } else {
@@ -1518,8 +1568,14 @@ export default function DashboardPage() {
                   <span className="text-muted-foreground">Cycles terminés</span>
                   <span className="font-bold text-lg">{stats?.completionCycles?.revision?.totalCycles || 0}</span>
                 </div>
+                {stats?.completionCycles?.revision?.lastHizbCount && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Dernier cycle</span>
+                    <span className="font-medium text-blue-600">{stats.completionCycles.revision.lastHizbCount} Hizbs</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Dernier cycle</span>
+                  <span className="text-muted-foreground">{stats?.completionCycles?.revision?.lastHizbCount ? 'Date' : 'Dernier cycle'}</span>
                   <span className="font-medium">
                     {stats?.completionCycles?.revision?.lastDate
                       ? new Date(stats.completionCycles.revision.lastDate).toLocaleDateString('fr-FR')
@@ -1538,7 +1594,7 @@ export default function DashboardPage() {
                     {stats?.completionCycles?.revision?.daysSinceLast ?? '-'} j
                   </span>
                 </div>
-                {stats?.completionCycles?.revision?.averageDays && (
+                {stats?.completionCycles?.revision?.averageDays && stats.completionCycles.revision.averageDays > 0 && (
                   <div className="flex justify-between pt-2 border-t">
                     <span className="text-muted-foreground">Moyenne</span>
                     <span className="font-medium">{stats.completionCycles.revision.averageDays} jours</span>
@@ -1595,7 +1651,7 @@ export default function DashboardPage() {
                     {stats?.completionCycles?.lecture?.daysSinceLast ?? '-'} j
                   </span>
                 </div>
-                {stats?.completionCycles?.lecture?.averageDays && (
+                {stats?.completionCycles?.lecture?.averageDays && stats.completionCycles.lecture.averageDays > 0 && (
                   <div className="flex justify-between pt-2 border-t">
                     <span className="text-muted-foreground">Moyenne</span>
                     <span className="font-medium">{stats.completionCycles.lecture.averageDays} jours</span>
@@ -2226,7 +2282,7 @@ export default function DashboardPage() {
             </DialogTitle>
             <DialogDescription>
               {cycleType === 'REVISION'
-                ? 'Enregistrez la fin d\'une boucle complète de révision'
+                ? 'Enregistrez la fin d\'une boucle complète de révision (de la Fatiha au dernier Hizb mémorisé)'
                 : 'Enregistrez la fin d\'une lecture complète du Coran'
               }
             </DialogDescription>
@@ -2240,12 +2296,76 @@ export default function DashboardPage() {
                 onChange={(e) => setCycleDate(e.target.value)}
               />
             </div>
+
+            {/* HizbCount input for REVISION only */}
+            {cycleType === 'REVISION' && (
+              <>
+                {needsMemorizationInput ? (
+                  <div className="space-y-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      Aucune donnée de mémorisation trouvée. Veuillez indiquer votre position actuelle ou le nombre de Hizbs.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Sourate</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={114}
+                          value={memorizationSurah || ''}
+                          onChange={(e) => setMemorizationSurah(e.target.value ? parseInt(e.target.value) : null)}
+                          placeholder="1-114"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Verset</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={memorizationVerse || ''}
+                          onChange={(e) => setMemorizationVerse(e.target.value ? parseInt(e.target.value) : null)}
+                          placeholder="N° verset"
+                        />
+                      </div>
+                    </div>
+                    <div className="text-center text-xs text-muted-foreground">ou</div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nombre de Hizbs directement</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={60}
+                        value={cycleHizbCount || ''}
+                        onChange={(e) => setCycleHizbCount(e.target.value ? parseInt(e.target.value) : null)}
+                        placeholder="1-60"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Nombre de Hizbs (optionnel)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={cycleHizbCount || ''}
+                      onChange={(e) => setCycleHizbCount(e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="Calculé automatiquement si vide"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Laissez vide pour calculer depuis votre avancement en mémorisation
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
             <div className="space-y-2">
               <Label>Notes (optionnel)</Label>
               <Input
                 value={cycleNotes}
                 onChange={(e) => setCycleNotes(e.target.value)}
-                placeholder="Ex: Révision des juz 1-10..."
+                placeholder={cycleType === 'REVISION' ? 'Ex: Bonne révision, fluide...' : 'Ex: Lecture complète...'}
               />
             </div>
           </div>
@@ -2255,7 +2375,7 @@ export default function DashboardPage() {
             </Button>
             <Button
               onClick={handleSaveCycle}
-              disabled={cycleSaving}
+              disabled={cycleSaving || (needsMemorizationInput && !cycleHizbCount && (!memorizationSurah || !memorizationVerse))}
               className={cycleType === 'REVISION' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-purple-600 hover:bg-purple-700'}
             >
               {cycleSaving ? 'Enregistrement...' : 'Enregistrer'}
@@ -2310,7 +2430,7 @@ export default function DashboardPage() {
                       // Edit mode
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">Date:</span>
+                          <span className="text-sm font-medium w-16">Date:</span>
                           <Input
                             type="date"
                             value={editCycleDate}
@@ -2318,8 +2438,22 @@ export default function DashboardPage() {
                             className="h-8 flex-1"
                           />
                         </div>
+                        {cycleHistoryType === 'REVISION' && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium w-16">Hizbs:</span>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={60}
+                              value={editCycleHizbCount || ''}
+                              onChange={(e) => setEditCycleHizbCount(e.target.value ? parseInt(e.target.value) : null)}
+                              placeholder="1-60"
+                              className="h-8 flex-1"
+                            />
+                          </div>
+                        )}
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">Notes:</span>
+                          <span className="text-sm font-medium w-16">Notes:</span>
                           <Input
                             value={editCycleNotes}
                             onChange={(e) => setEditCycleNotes(e.target.value)}
@@ -2350,10 +2484,15 @@ export default function DashboardPage() {
                       // View mode
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center flex-wrap gap-2 mb-1">
                             <span className="font-medium">
                               #{cycleHistory.length - index}
                             </span>
+                            {cycleHistoryType === 'REVISION' && cycle.hizbCount && (
+                              <Badge className="bg-blue-600 text-white text-xs">
+                                {cycle.hizbCount} Hizbs
+                              </Badge>
+                            )}
                             <span className="text-sm">
                               {new Date(cycle.completedAt).toLocaleDateString('fr-FR', {
                                 weekday: 'short',
@@ -2362,7 +2501,7 @@ export default function DashboardPage() {
                                 year: 'numeric'
                               })}
                             </span>
-                            {cycle.daysToComplete && (
+                            {cycle.daysToComplete && cycle.daysToComplete > 0 && (
                               <Badge variant="secondary" className="text-xs">
                                 {cycle.daysToComplete} jours
                               </Badge>
