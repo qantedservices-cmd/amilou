@@ -243,6 +243,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       clone.style.left = '-9999px'
       clone.style.top = '0'
       clone.style.width = exportRef.current.scrollWidth + 'px'
+      clone.style.backgroundColor = '#ffffff'
 
       // Remove sticky and overflow styles from clone
       clone.querySelectorAll('[class*="sticky"]').forEach((el) => {
@@ -253,6 +254,22 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         const htmlEl = el as HTMLElement
         htmlEl.style.overflow = 'visible'
         htmlEl.style.maxHeight = 'none'
+      })
+
+      // Fix CSS color functions not supported by html2canvas (lab, oklch, etc.)
+      clone.querySelectorAll('*').forEach((el) => {
+        const htmlEl = el as HTMLElement
+        const computed = window.getComputedStyle(htmlEl)
+        // Convert colors to RGB
+        if (computed.backgroundColor) {
+          htmlEl.style.backgroundColor = computed.backgroundColor
+        }
+        if (computed.color) {
+          htmlEl.style.color = computed.color
+        }
+        if (computed.borderColor) {
+          htmlEl.style.borderColor = computed.borderColor
+        }
       })
 
       document.body.appendChild(clone)
