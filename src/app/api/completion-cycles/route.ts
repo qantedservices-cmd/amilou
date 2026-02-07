@@ -127,3 +127,83 @@ export async function POST(request: Request) {
     )
   }
 }
+
+export async function PUT(request: Request) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    const userId = session.user.id
+    const body = await request.json()
+    const { id, completedAt, notes } = body
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID du cycle requis' }, { status: 400 })
+    }
+
+    // Verify ownership
+    const existingCycle = await prisma.completionCycle.findFirst({
+      where: { id, userId }
+    })
+
+    if (!existingCycle) {
+      return NextResponse.json({ error: 'Cycle non trouvé' }, { status: 404 })
+    }
+
+    const cycle = await prisma.completionCycle.update({
+      where: { id },
+      data: {
+        completedAt: completedAt ? new Date(completedAt) : existingCycle.completedAt,
+        notes: notes !== undefined ? (notes || null) : existingCycle.notes
+      }
+    })
+
+    return NextResponse.json(cycle)
+  } catch (error) {
+    console.error('Error updating completion cycle:', error)
+    return NextResponse.json(
+      { error: 'Erreur lors de la modification du cycle' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    const userId = session.user.id
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID du cycle requis' }, { status: 400 })
+    }
+
+    // Verify ownership
+    const existingCycle = await prisma.completionCycle.findFirst({
+      where: { id, userId }
+    })
+
+    if (!existingCycle) {
+      return NextResponse.json({ error: 'Cycle non trouvé' }, { status: 404 })
+    }
+
+    await prisma.completionCycle.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting completion cycle:', error)
+    return NextResponse.json(
+      { error: 'Erreur lors de la suppression du cycle' },
+      { status: 500 }
+    )
+  }
+}

@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2 } from 'lucide-react'
+import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import {
@@ -247,12 +247,28 @@ export default function DashboardPage() {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1)
 
-  // Completion cycle dialog
+  // Completion cycle dialog (add new)
   const [cycleDialogOpen, setCycleDialogOpen] = useState(false)
   const [cycleType, setCycleType] = useState<'REVISION' | 'LECTURE'>('REVISION')
   const [cycleDate, setCycleDate] = useState(new Date().toISOString().split('T')[0])
   const [cycleNotes, setCycleNotes] = useState('')
   const [cycleSaving, setCycleSaving] = useState(false)
+
+  // Cycle history dialog
+  const [cycleHistoryOpen, setCycleHistoryOpen] = useState(false)
+  const [cycleHistoryType, setCycleHistoryType] = useState<'REVISION' | 'LECTURE'>('REVISION')
+  const [cycleHistory, setCycleHistory] = useState<Array<{
+    id: string
+    type: string
+    completedAt: string
+    daysToComplete: number | null
+    notes: string | null
+  }>>([])
+  const [loadingCycleHistory, setLoadingCycleHistory] = useState(false)
+  const [editingCycleId, setEditingCycleId] = useState<string | null>(null)
+  const [editCycleDate, setEditCycleDate] = useState('')
+  const [editCycleNotes, setEditCycleNotes] = useState('')
+  const [savingCycleEdit, setSavingCycleEdit] = useState(false)
 
   // Interactive today programs
   const [localTodayPrograms, setLocalTodayPrograms] = useState<TodayProgram[]>([])
@@ -737,6 +753,87 @@ export default function DashboardPage() {
     setCycleDate(new Date().toISOString().split('T')[0])
     setCycleNotes('')
     setCycleDialogOpen(true)
+  }
+
+  async function fetchCycleHistory(type: 'REVISION' | 'LECTURE') {
+    setLoadingCycleHistory(true)
+    try {
+      const res = await fetch(`/api/completion-cycles?type=${type}`)
+      if (res.ok) {
+        const data = await res.json()
+        setCycleHistory(data.cycles || [])
+      }
+    } catch (error) {
+      console.error('Error fetching cycle history:', error)
+    } finally {
+      setLoadingCycleHistory(false)
+    }
+  }
+
+  function openCycleHistory(type: 'REVISION' | 'LECTURE') {
+    setCycleHistoryType(type)
+    setCycleHistoryOpen(true)
+    fetchCycleHistory(type)
+  }
+
+  function startEditCycle(cycle: { id: string; completedAt: string; notes: string | null }) {
+    setEditingCycleId(cycle.id)
+    setEditCycleDate(new Date(cycle.completedAt).toISOString().split('T')[0])
+    setEditCycleNotes(cycle.notes || '')
+  }
+
+  function cancelEditCycle() {
+    setEditingCycleId(null)
+    setEditCycleDate('')
+    setEditCycleNotes('')
+  }
+
+  async function saveEditCycle() {
+    if (!editingCycleId) return
+    setSavingCycleEdit(true)
+    try {
+      const res = await fetch('/api/completion-cycles', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingCycleId,
+          completedAt: editCycleDate,
+          notes: editCycleNotes || null
+        })
+      })
+      if (res.ok) {
+        cancelEditCycle()
+        fetchCycleHistory(cycleHistoryType)
+        fetchStats()
+        toast.success('Cycle modifié')
+      } else {
+        toast.error('Erreur lors de la modification')
+      }
+    } catch (error) {
+      console.error('Error saving cycle edit:', error)
+      toast.error('Erreur de connexion')
+    } finally {
+      setSavingCycleEdit(false)
+    }
+  }
+
+  async function deleteCycle(id: string) {
+    if (!confirm('Supprimer ce cycle ?')) return
+    try {
+      const res = await fetch(`/api/completion-cycles?id=${id}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        fetchCycleHistory(cycleHistoryType)
+        fetchStats()
+        toast.success('Cycle supprimé')
+      } else {
+        toast.error('Erreur lors de la suppression')
+      }
+    } catch (error) {
+      console.error('Error deleting cycle:', error)
+      toast.error('Erreur de connexion')
+    }
   }
 
   function getProgramColor(code: string) {
@@ -1397,7 +1494,10 @@ export default function DashboardPage() {
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2">
             {/* Révision */}
-            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+            <div
+              className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors"
+              onClick={() => openCycleHistory('REVISION')}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <RefreshCw className="h-5 w-5 text-blue-600" />
@@ -1407,10 +1507,10 @@ export default function DashboardPage() {
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs"
-                  onClick={() => openCycleDialog('REVISION')}
+                  onClick={(e) => { e.stopPropagation(); openCycleDialog('REVISION'); }}
                 >
                   <Plus className="h-3 w-3 mr-1" />
-                  Terminer
+                  Ajouter
                 </Button>
               </div>
               <div className="space-y-2 text-sm">
@@ -1445,10 +1545,16 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
+              <p className="text-xs text-center text-muted-foreground mt-3 pt-2 border-t">
+                Cliquez pour voir l'historique
+              </p>
             </div>
 
             {/* Lecture */}
-            <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
+            <div
+              className="p-4 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-950/50 transition-colors"
+              onClick={() => openCycleHistory('LECTURE')}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <BookMarked className="h-5 w-5 text-purple-600" />
@@ -1458,10 +1564,10 @@ export default function DashboardPage() {
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs"
-                  onClick={() => openCycleDialog('LECTURE')}
+                  onClick={(e) => { e.stopPropagation(); openCycleDialog('LECTURE'); }}
                 >
                   <Plus className="h-3 w-3 mr-1" />
-                  Terminer
+                  Ajouter
                 </Button>
               </div>
               <div className="space-y-2 text-sm">
@@ -1496,6 +1602,9 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
+              <p className="text-xs text-center text-muted-foreground mt-3 pt-2 border-t">
+                Cliquez pour voir l'historique
+              </p>
             </div>
           </div>
         </CardContent>
@@ -2150,6 +2259,160 @@ export default function DashboardPage() {
               className={cycleType === 'REVISION' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-purple-600 hover:bg-purple-700'}
             >
               {cycleSaving ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cycle History Dialog */}
+      <Dialog open={cycleHistoryOpen} onOpenChange={setCycleHistoryOpen}>
+        <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {cycleHistoryType === 'REVISION' ? (
+                <>
+                  <RefreshCw className="h-5 w-5 text-blue-600" />
+                  Historique Révision
+                </>
+              ) : (
+                <>
+                  <BookMarked className="h-5 w-5 text-purple-600" />
+                  Historique Lecture
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {cycleHistory.length} cycle{cycleHistory.length > 1 ? 's' : ''} terminé{cycleHistory.length > 1 ? 's' : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto py-4">
+            {loadingCycleHistory ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : cycleHistory.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Aucun cycle terminé
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {cycleHistory.map((cycle, index) => (
+                  <div
+                    key={cycle.id}
+                    className={`p-3 rounded-lg border ${
+                      cycleHistoryType === 'REVISION'
+                        ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+                        : 'bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800'
+                    }`}
+                  >
+                    {editingCycleId === cycle.id ? (
+                      // Edit mode
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">Date:</span>
+                          <Input
+                            type="date"
+                            value={editCycleDate}
+                            onChange={(e) => setEditCycleDate(e.target.value)}
+                            className="h-8 flex-1"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">Notes:</span>
+                          <Input
+                            value={editCycleNotes}
+                            onChange={(e) => setEditCycleNotes(e.target.value)}
+                            placeholder="Notes optionnelles"
+                            className="h-8 flex-1"
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={cancelEditCycle}
+                            disabled={savingCycleEdit}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={saveEditCycle}
+                            disabled={savingCycleEdit}
+                            className={cycleHistoryType === 'REVISION' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-purple-600 hover:bg-purple-700'}
+                          >
+                            {savingCycleEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      // View mode
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium">
+                              #{cycleHistory.length - index}
+                            </span>
+                            <span className="text-sm">
+                              {new Date(cycle.completedAt).toLocaleDateString('fr-FR', {
+                                weekday: 'short',
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                            </span>
+                            {cycle.daysToComplete && (
+                              <Badge variant="secondary" className="text-xs">
+                                {cycle.daysToComplete} jours
+                              </Badge>
+                            )}
+                          </div>
+                          {cycle.notes && (
+                            <p className="text-sm text-muted-foreground italic">
+                              {cycle.notes}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => startEditCycle(cycle)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteCycle(cycle.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="border-t pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCycleHistoryOpen(false)
+                openCycleDialog(cycleHistoryType)
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter un cycle
+            </Button>
+            <Button variant="ghost" onClick={() => setCycleHistoryOpen(false)}>
+              Fermer
             </Button>
           </DialogFooter>
         </DialogContent>
