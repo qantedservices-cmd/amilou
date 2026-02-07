@@ -378,10 +378,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             <CardTitle className="text-sm">Légende - {data.group.name}</CardTitle>
           </CardHeader>
           <CardContent className="py-2">
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-4">
               {STATUS_OPTIONS.filter(s => s.value !== 'NONE').map(s => (
                 <div key={s.value} className="flex items-center gap-2">
-                  <span className={`w-10 text-center py-0.5 rounded text-xs font-medium ${STATUS_COLORS[s.value] || 'bg-gray-200'}`}>
+                  <span className={`w-12 h-6 flex items-center justify-center rounded text-xs font-medium ${STATUS_COLORS[s.value] || 'bg-gray-200'}`}>
                     {STATUS_DISPLAY[s.value] || s.value}
                   </span>
                   <span className="text-xs text-muted-foreground">{s.label.split(' - ')[1] || ''}</span>
@@ -398,7 +398,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             <table className="w-full border-collapse">
               <thead className="sticky top-0 z-20 bg-background">
                 <tr>
-                  <th className="sticky left-0 z-30 bg-background border-b border-r p-1 text-left w-[120px]">
+                  <th className="sticky left-0 z-30 bg-background border-b border-r p-2 text-left w-[180px]">
                     <span className="text-xs font-medium">Sourate</span>
                   </th>
                   {data.members.map(member => {
@@ -409,7 +409,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                     return (
                       <th
                         key={member.id}
-                        className="border-b p-1 text-center min-w-[50px] max-w-[70px] text-xs"
+                        className="border-b p-1 text-center w-[70px] text-xs"
                       >
                         <div className="flex flex-col items-center" title={member.name}>
                           <span className="font-semibold truncate w-full text-[10px]">{lastName}</span>
@@ -499,14 +499,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                   // Regular surah row
                   return (
                     <tr key={group.number} className="hover:bg-muted/50">
-                      <td className="sticky left-0 bg-background border-r p-1 w-[120px]">
+                      <td className="sticky left-0 bg-background border-r p-2 w-[180px]">
                         <div className="text-xs leading-tight">
                           <div className="flex items-center gap-1">
-                            <span className="font-bold w-5 text-right">{group.number}</span>
+                            <span className="font-bold w-6 text-right">{group.number}</span>
                             <span className="font-medium">{group.nameAr}</span>
-                            <span className="text-muted-foreground text-[10px]">({group.totalVerses})</span>
+                            <span className="text-muted-foreground text-[10px]">({group.totalVerses}v)</span>
                           </div>
-                          <div className="pl-6 text-[10px] text-muted-foreground truncate">
+                          <div className="pl-7 text-[10px] text-muted-foreground">
                             {group.nameFr}
                           </div>
                         </div>
