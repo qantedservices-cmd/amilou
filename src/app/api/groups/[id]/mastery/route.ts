@@ -198,6 +198,12 @@ export async function GET(
     // Check if current user is REFERENT
     const isReferent = membership?.role === 'REFERENT' || user?.role === 'ADMIN'
 
+    // Build allSurahs map for expanded collapsed ranges
+    const allSurahsMap: Record<number, { nameAr: string; nameFr: string; totalVerses: number }> = {}
+    for (const s of surahs) {
+      allSurahsMap[s.number] = { nameAr: s.nameAr, nameFr: s.nameFr, totalVerses: s.totalVerses }
+    }
+
     return NextResponse.json({
       group,
       members: members.map(m => ({
@@ -205,6 +211,7 @@ export async function GET(
         name: m.user.name
       })),
       surahGroups,
+      allSurahsMap,
       masteryMap,
       commentsMap,
       isReferent,

@@ -53,10 +53,17 @@ interface Comment {
   createdAt: string
 }
 
+interface SurahInfo {
+  nameAr: string
+  nameFr: string
+  totalVerses: number
+}
+
 interface MasteryData {
   group: { id: string; name: string }
   members: Member[]
   surahGroups: SurahGroup[]
+  allSurahsMap: Record<number, SurahInfo>
   masteryMap: Record<string, Record<number, MasteryEntry>>
   commentsMap: Record<string, Record<number, Comment[]>>
   isReferent: boolean
@@ -402,8 +409,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             <table className="w-full border-collapse">
               <thead className="sticky top-0 z-20 bg-background">
                 <tr>
-                  <th className="sticky left-0 z-30 bg-background border-b border-r p-2 text-left w-[180px]">
-                    <span className="text-xs font-medium">Sourate</span>
+                  <th className="sticky left-0 z-30 bg-background border-b border-r p-2 text-left w-[220px]">
+                    <span className="text-sm font-medium">Sourate</span>
                   </th>
                   {data.members.map(member => {
                     const nameParts = member.name.split(' ')
@@ -436,25 +443,35 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                       const surahsInRange = allSurahs.filter(
                         n => n >= (group.start || 0) && n <= (group.end || 0)
                       )
-                      return surahsInRange.map((surahNum, subIdx) => (
+                      return surahsInRange.map((surahNum, subIdx) => {
+                        const surahInfo = data.allSurahsMap[surahNum]
+                        return (
                         <tr
                           key={`expanded-${surahNum}`}
                           className="hover:bg-muted/50"
                         >
-                          <td className="sticky left-0 bg-background border-r p-2">
-                            <div className="flex items-center gap-2">
+                          <td className="sticky left-0 bg-background border-r p-2 w-[220px]">
+                            <div className="flex items-center gap-1">
                               {subIdx === 0 && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-6 w-6"
+                                  className="h-6 w-6 shrink-0"
                                   onClick={() => toggleExpanded(key)}
                                 >
                                   <ChevronDown className="h-4 w-4" />
                                 </Button>
                               )}
-                              {subIdx !== 0 && <div className="w-6" />}
-                              <span className="text-sm">{surahNum}</span>
+                              {subIdx !== 0 && <div className="w-6 shrink-0" />}
+                              <div className="text-sm leading-snug">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold w-7 text-right">{surahNum}</span>
+                                  <span className="font-semibold">{surahInfo?.nameAr}</span>
+                                </div>
+                                <div className="pl-9 text-xs text-gray-500">
+                                  {surahInfo?.nameFr} <span className="text-gray-400">({surahInfo?.totalVerses} v.)</span>
+                                </div>
+                              </div>
                             </div>
                           </td>
                           {data.members.map(member => (
@@ -474,7 +491,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                             </td>
                           ))}
                         </tr>
-                      ))
+                      )})
                     }
 
                     return (
@@ -503,15 +520,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                   // Regular surah row
                   return (
                     <tr key={group.number} className="hover:bg-muted/50">
-                      <td className="sticky left-0 bg-background border-r p-2 w-[180px]">
-                        <div className="text-xs leading-tight">
-                          <div className="flex items-center gap-1">
-                            <span className="font-bold w-6 text-right">{group.number}</span>
-                            <span className="font-medium">{group.nameAr}</span>
-                            <span className="text-muted-foreground text-[10px]">({group.totalVerses}v)</span>
+                      <td className="sticky left-0 bg-background border-r p-2 w-[220px]">
+                        <div className="text-sm leading-snug">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold w-7 text-right">{group.number}</span>
+                            <span className="font-semibold">{group.nameAr}</span>
                           </div>
-                          <div className="pl-7 text-[10px] text-muted-foreground">
-                            {group.nameFr}
+                          <div className="pl-9 text-xs text-gray-500">
+                            {group.nameFr} <span className="text-gray-400">({group.totalVerses} v.)</span>
                           </div>
                         </div>
                       </td>
