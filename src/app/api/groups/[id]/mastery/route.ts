@@ -90,6 +90,54 @@ export async function GET(
       }
     })
 
+    // Get all comments from SurahRecitation for these members in this group's sessions
+    const groupSessions = await prisma.groupSession.findMany({
+      where: { groupId },
+      select: { id: true, weekNumber: true, date: true }
+    })
+    const sessionIds = groupSessions.map(s => s.id)
+    const sessionWeekMap = new Map(groupSessions.map(s => [s.id, s.weekNumber]))
+
+    const recitations = await prisma.surahRecitation.findMany({
+      where: {
+        sessionId: { in: sessionIds },
+        userId: { in: memberIds },
+        comment: { not: null }
+      },
+      select: {
+        id: true,
+        userId: true,
+        surahNumber: true,
+        comment: true,
+        sessionId: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // Build comments map: userId -> surahNumber -> array of { id, comment, weekNumber, createdAt }
+    const commentsMap: Record<string, Record<number, Array<{
+      id: string
+      comment: string
+      weekNumber: number | null
+      createdAt: string
+    }>>> = {}
+    for (const r of recitations) {
+      if (!r.comment) continue
+      if (!commentsMap[r.userId]) {
+        commentsMap[r.userId] = {}
+      }
+      if (!commentsMap[r.userId][r.surahNumber]) {
+        commentsMap[r.userId][r.surahNumber] = []
+      }
+      commentsMap[r.userId][r.surahNumber].push({
+        id: r.id,
+        comment: r.comment,
+        weekNumber: sessionWeekMap.get(r.sessionId) || null,
+        createdAt: r.createdAt.toISOString()
+      })
+    }
+
     // Build mastery map: userId -> surahNumber -> { status, validatedWeek }
     const masteryMap: Record<string, Record<number, { status: string; validatedWeek: number | null }>> = {}
     for (const m of masteryData) {
@@ -157,6 +205,7 @@ export async function GET(
       })),
       surahGroups,
       masteryMap,
+      commentsMap,
       isReferent,
       referent: referent ? { id: referent.userId, name: referent.user.name } : null
     })
@@ -248,6 +297,154 @@ export async function PUT(
     return NextResponse.json({ success: true, mastery })
   } catch (error) {
     console.error('Error updating mastery:', error)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  }
+}
+
+// POST /api/groups/[id]/mastery - Add a comment (creates SurahRecitation)
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    const { userId: effectiveUserId } = await getEffectiveUserId()
+    const { id: groupId } = await params
+
+    if (!effectiveUserId) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    // Check if user is REFERENT of this group or ADMIN
+    const membership = await prisma.groupMember.findFirst({
+      where: {
+        groupId,
+        userId: effectiveUserId,
+        role: 'REFERENT'
+      }
+    })
+
+    const user = await prisma.user.findUnique({
+      where: { id: effectiveUserId },
+      select: { role: true }
+    })
+
+    if (!membership && user?.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Seul le référent peut ajouter des commentaires' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { userId, surahNumber, comment, weekNumber } = body
+
+    if (!userId || !surahNumber || !comment) {
+      return NextResponse.json({ error: 'Données manquantes' }, { status: 400 })
+    }
+
+    // Find or create a session for this week
+    let sessionRecord = await prisma.groupSession.findFirst({
+      where: {
+        groupId,
+        weekNumber: weekNumber || null
+      }
+    })
+
+    if (!sessionRecord) {
+      // Create a new session for this group
+      sessionRecord = await prisma.groupSession.create({
+        data: {
+          groupId,
+          date: new Date(),
+          weekNumber: weekNumber || null,
+          createdBy: effectiveUserId
+        }
+      })
+    }
+
+    // Create the recitation with comment
+    const recitation = await prisma.surahRecitation.create({
+      data: {
+        sessionId: sessionRecord.id,
+        userId,
+        surahNumber,
+        type: 'MEMORIZATION',
+        verseStart: 1,
+        verseEnd: 1,
+        status: 'V',
+        comment,
+        createdBy: effectiveUserId
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      comment: {
+        id: recitation.id,
+        comment: recitation.comment,
+        weekNumber: sessionRecord.weekNumber,
+        createdAt: recitation.createdAt.toISOString()
+      }
+    })
+  } catch (error) {
+    console.error('Error adding comment:', error)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  }
+}
+
+// DELETE /api/groups/[id]/mastery - Delete a comment
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    const { userId: effectiveUserId } = await getEffectiveUserId()
+    const { id: groupId } = await params
+
+    if (!effectiveUserId) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    // Check if user is REFERENT of this group or ADMIN
+    const membership = await prisma.groupMember.findFirst({
+      where: {
+        groupId,
+        userId: effectiveUserId,
+        role: 'REFERENT'
+      }
+    })
+
+    const user = await prisma.user.findUnique({
+      where: { id: effectiveUserId },
+      select: { role: true }
+    })
+
+    if (!membership && user?.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Seul le référent peut supprimer des commentaires' }, { status: 403 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const commentId = searchParams.get('commentId')
+
+    if (!commentId) {
+      return NextResponse.json({ error: 'ID du commentaire manquant' }, { status: 400 })
+    }
+
+    // Delete the recitation
+    await prisma.surahRecitation.delete({
+      where: { id: commentId }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting comment:', error)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }

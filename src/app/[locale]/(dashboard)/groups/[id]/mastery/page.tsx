@@ -22,7 +22,8 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ArrowLeft, ChevronDown, ChevronRight, Users } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, MessageSquare, Plus, Trash2, Users } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
 import Link from 'next/link'
 
 interface Member {
@@ -44,11 +45,19 @@ interface MasteryEntry {
   validatedWeek: number | null
 }
 
+interface Comment {
+  id: string
+  comment: string
+  weekNumber: number | null
+  createdAt: string
+}
+
 interface MasteryData {
   group: { id: string; name: string }
   members: Member[]
   surahGroups: SurahGroup[]
   masteryMap: Record<string, Record<number, MasteryEntry>>
+  commentsMap: Record<string, Record<number, Comment[]>>
   isReferent: boolean
   referent: { id: string; name: string } | null
 }
@@ -94,6 +103,13 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [editStatus, setEditStatus] = useState('')
   const [editWeek, setEditWeek] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Comments state
+  const [newComment, setNewComment] = useState('')
+  const [commentWeek, setCommentWeek] = useState('')
+  const [showAllComments, setShowAllComments] = useState(false)
+  const [addingComment, setAddingComment] = useState(false)
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchMastery()
@@ -146,13 +162,68 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     return STATUS_COLORS[entry.status] || STATUS_COLORS[baseStatus] || 'bg-gray-200 text-gray-700'
   }
 
+  function hasComments(userId: string, surahNumber: number): boolean {
+    const comments = data?.commentsMap?.[userId]?.[surahNumber]
+    return comments && comments.length > 0
+  }
+
   function openEditDialog(userId: string, userName: string, surahNumber: number, surahName: string) {
     if (!data?.isReferent) return
     const entry = data?.masteryMap[userId]?.[surahNumber]
     setEditingCell({ userId, userName, surahNumber, surahName })
     setEditStatus(entry?.status || 'NONE')
     setEditWeek(entry?.validatedWeek?.toString() || '')
+    setNewComment('')
+    setCommentWeek('')
+    setShowAllComments(false)
     setEditDialogOpen(true)
+  }
+
+  function getComments(): Comment[] {
+    if (!editingCell || !data?.commentsMap) return []
+    return data.commentsMap[editingCell.userId]?.[editingCell.surahNumber] || []
+  }
+
+  async function handleAddComment() {
+    if (!editingCell || !newComment.trim()) return
+    setAddingComment(true)
+    try {
+      const res = await fetch(`/api/groups/${groupId}/mastery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: editingCell.userId,
+          surahNumber: editingCell.surahNumber,
+          comment: newComment.trim(),
+          weekNumber: commentWeek ? parseInt(commentWeek) : null
+        })
+      })
+      if (res.ok) {
+        await fetchMastery()
+        setNewComment('')
+        setCommentWeek('')
+      }
+    } catch (err) {
+      console.error('Error adding comment:', err)
+    } finally {
+      setAddingComment(false)
+    }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    setDeletingCommentId(commentId)
+    try {
+      const res = await fetch(`/api/groups/${groupId}/mastery?commentId=${commentId}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        await fetchMastery()
+      }
+    } catch (err) {
+      console.error('Error deleting comment:', err)
+    } finally {
+      setDeletingCommentId(null)
+    }
   }
 
   async function handleSave() {
@@ -217,10 +288,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold">{data.group.name}</h1>
+            <h1 className="text-2xl font-bold">Grille de suivi</h1>
             <p className="text-muted-foreground flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Suivi des sourates - {data.members.length} élèves
+              {data.group.name} - {data.members.length} élèves
             </p>
           </div>
         </div>
@@ -255,19 +326,27 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             <table className="w-full border-collapse">
               <thead className="sticky top-0 z-20 bg-background">
                 <tr>
-                  <th className="sticky left-0 z-30 bg-background border-b border-r p-2 text-left min-w-[200px]">
+                  <th className="sticky left-0 z-30 bg-background border-b border-r p-2 text-left min-w-[100px] max-w-[120px]">
                     Sourate
                   </th>
-                  {data.members.map(member => (
-                    <th
-                      key={member.id}
-                      className="border-b p-2 text-center min-w-[70px] text-xs font-medium"
-                    >
-                      <div className="truncate max-w-[70px]" title={member.name}>
-                        {member.name.split(' ')[0]}
-                      </div>
-                    </th>
-                  ))}
+                  {data.members.map(member => {
+                    const nameParts = member.name.split(' ')
+                    const firstName = nameParts[0]
+                    const lastName = nameParts.slice(1).join(' ')
+                    return (
+                      <th
+                        key={member.id}
+                        className="border-b p-2 text-center min-w-[60px] max-w-[80px] text-xs"
+                      >
+                        <div className="flex flex-col items-center" title={member.name}>
+                          <span className="font-semibold truncate w-full">{firstName}</span>
+                          {lastName && (
+                            <span className="text-[10px] text-muted-foreground truncate w-full">{lastName}</span>
+                          )}
+                        </div>
+                      </th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -309,9 +388,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                               className={`p-1 text-center border-l ${data.isReferent ? 'cursor-pointer hover:ring-2 hover:ring-primary' : ''}`}
                               onClick={() => openEditDialog(member.id, member.name, surahNum, `Sourate ${surahNum}`)}
                             >
-                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getCellColor(member.id, surahNum)}`}>
-                                {getCellDisplay(member.id, surahNum)}
-                              </span>
+                              <div className="relative inline-block">
+                                <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getCellColor(member.id, surahNum)}`}>
+                                  {getCellDisplay(member.id, surahNum)}
+                                </span>
+                                {hasComments(member.id, surahNum) && (
+                                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full" title="Commentaires" />
+                                )}
+                              </div>
                             </td>
                           ))}
                         </tr>
@@ -344,10 +428,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                   // Regular surah row
                   return (
                     <tr key={group.number} className="hover:bg-muted/50">
-                      <td className="sticky left-0 bg-background border-r p-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium w-8">{group.number}</span>
-                          <span className="text-sm text-muted-foreground">{group.nameAr}</span>
+                      <td className="sticky left-0 bg-background border-r p-1">
+                        <div className="flex items-center gap-1 text-xs">
+                          <span className="font-medium w-6 text-right">{group.number}</span>
+                          <span className="text-muted-foreground truncate">{group.nameAr}</span>
                         </div>
                       </td>
                       {data.members.map(member => (
@@ -356,9 +440,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                           className={`p-1 text-center border-l ${data.isReferent ? 'cursor-pointer hover:ring-2 hover:ring-primary' : ''}`}
                           onClick={() => openEditDialog(member.id, member.name, group.number!, `${group.number} - ${group.nameAr}`)}
                         >
-                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getCellColor(member.id, group.number!)}`}>
-                            {getCellDisplay(member.id, group.number!)}
-                          </span>
+                          <div className="relative inline-block">
+                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getCellColor(member.id, group.number!)}`}>
+                              {getCellDisplay(member.id, group.number!)}
+                            </span>
+                            {hasComments(member.id, group.number!) && (
+                              <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full" title="Commentaires" />
+                            )}
+                          </div>
                         </td>
                       ))}
                     </tr>
@@ -372,7 +461,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Modifier le statut</DialogTitle>
             <DialogDescription>
@@ -380,6 +469,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {/* Status section */}
             <div className="space-y-2">
               <Label>Statut</Label>
               <Select value={editStatus} onValueChange={setEditStatus}>
@@ -408,6 +498,103 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 />
               </div>
             )}
+
+            {/* Comments section */}
+            <div className="border-t pt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                <Label className="text-sm font-medium">Commentaires</Label>
+              </div>
+
+              {/* Existing comments */}
+              {(() => {
+                const comments = getComments()
+                const visibleComments = showAllComments ? comments : comments.slice(0, 3)
+                const hasMore = comments.length > 3
+
+                return (
+                  <>
+                    {comments.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">Aucun commentaire</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {visibleComments.map((c) => (
+                          <div key={c.id} className="flex items-start gap-2 bg-muted/50 rounded p-2 text-sm">
+                            <div className="flex-1">
+                              {c.weekNumber && (
+                                <span className="font-medium text-primary">S{c.weekNumber}: </span>
+                              )}
+                              <span>{c.comment}</span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 shrink-0 text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteComment(c.id)}
+                              disabled={deletingCommentId === c.id}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                        {hasMore && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full text-xs"
+                            onClick={() => setShowAllComments(!showAllComments)}
+                          >
+                            {showAllComments ? (
+                              <>
+                                <ChevronUp className="h-3 w-3 mr-1" />
+                                Voir moins
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-3 w-3 mr-1" />
+                                Voir {comments.length - 3} de plus
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+
+              {/* Add new comment */}
+              <div className="space-y-2 pt-2 border-t">
+                <Label className="text-xs text-muted-foreground">Ajouter un commentaire</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    min="1"
+                    max="53"
+                    value={commentWeek}
+                    onChange={(e) => setCommentWeek(e.target.value)}
+                    placeholder="S?"
+                    className="w-16"
+                  />
+                  <Textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Ex: Hésitation v.8"
+                    className="flex-1 min-h-[60px]"
+                  />
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleAddComment}
+                  disabled={addingComment || !newComment.trim()}
+                  className="w-full"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  {addingComment ? 'Ajout...' : 'Ajouter'}
+                </Button>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
