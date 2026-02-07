@@ -235,10 +235,15 @@ TOTAL:    ██████████████████░░  92%
 - ✅ Préservation du scroll lors des changements de période
 - ✅ Optimisation API stats : requêtes parallèles (14 queries en 1 batch)
 - ✅ Script backfill hizbCount pour cycles existants
-- ✅ Matrice de suivi sourates : vue groupe (élèves × sourates)
+- ✅ Grille de suivi sourates : vue groupe (élèves × sourates)
 - ✅ Regroupement sourates sans données (collapsible)
-- ✅ Édition statut par le référent (V, X, 90%, AM, etc.)
+- ✅ Édition statut par le référent (V, C, 90%, AM, etc.)
 - ✅ Scripts d'import corrigés (SurahMastery + Progress)
+- ✅ Grille de suivi : noms formatés (prénom en gras, nom en dessous)
+- ✅ Grille de suivi : colonne sourate compacte
+- ✅ Système de commentaires avec historique des séances
+- ✅ Indicateur visuel (point orange) sur cellules avec commentaires
+- ✅ CRUD commentaires pour le référent
 
 ### v0.7.0 (Janvier 2026)
 - ✅ Assiduité score 0-5 (nb programmes accomplis par jour)

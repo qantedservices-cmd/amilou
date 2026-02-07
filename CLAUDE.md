@@ -156,14 +156,14 @@ Base PostgreSQL hébergée sur Supabase. Schéma Prisma dans `prisma/schema.pris
 - `SurahRecitation` : Historique des récitations en séance
 - `CompletionCycle` : Cycles de révision/lecture complètes (CRUD complet via API)
 
-## Matrice de suivi sourates (Mastery)
+## Grille de suivi (Mastery)
 
 Page `/groups/[id]/mastery` - Vue matricielle du suivi par sourate pour un groupe.
 
 ### Structure
-- **Lignes** : Sourates (1 → 114)
-- **Colonnes** : Élèves du groupe
-- **Cellules** : Statut (V7, X, 90%, 50%, AM, -)
+- **Lignes** : Sourates (1 → 114), format compact "108 الكوثر"
+- **Colonnes** : Élèves du groupe (prénom en gras, nom en dessous)
+- **Cellules** : Statut (V7, C, 90%, 50%, AM, -) avec indicateur orange si commentaires
 
 ### Regroupement
 - Sourates sans données sont collapsées (ex: "Sourates 2-99 (aucune donnée)")
@@ -173,17 +173,26 @@ Page `/groups/[id]/mastery` - Vue matricielle du suivi par sourate pour un group
 | Action | Qui peut |
 |--------|----------|
 | Voir | Tous les membres du groupe |
-| Modifier | REFERENT uniquement |
+| Modifier statut | REFERENT uniquement |
+| Ajouter commentaire | REFERENT uniquement |
+| Supprimer commentaire | REFERENT uniquement |
 
 ### Statuts
 | Code | Signification | Couleur |
 |------|--------------|---------|
 | V{n} | Validé semaine n | Vert |
-| X | Déjà connu | Bleu |
+| C | Supposé connu, à valider (stocké comme X) | Bleu |
 | 90% | 90% maîtrisé | Vert clair |
 | 50%/51% | Partiel | Jaune |
 | AM | À mémoriser | Orange |
 | S{n} | Récité à un élève sem. n | Violet |
+
+### Commentaires
+- Les commentaires sont liés aux séances (`SurahRecitation`)
+- Affichés avec numéro de semaine (ex: "S7: Hésitation v.8")
+- 3 commentaires visibles par défaut, bouton pour voir plus
+- Point orange sur les cellules avec commentaires
+- CRUD complet pour le référent
 
 ## Cycles de complétion (Révision/Lecture)
 
