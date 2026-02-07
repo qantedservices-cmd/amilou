@@ -1,3 +1,5 @@
+// Prisma Schema for Amilou - Quran Learning Tracker
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,8 +9,54 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// Authentication & Users
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String?
+  image         String?
+  emailVerified DateTime?
+  role          String    @default("USER")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Privacy settings - what data is private
+  privateAttendance  Boolean @default(false)
+  privateProgress    Boolean @default(false)
+  privateStats       Boolean @default(false)
+  privateEvaluations Boolean @default(false)
+
+  // Memorization program settings
+  memorizationStartSurah  Int?    // Starting surah (default: 1 for Fatiha)
+  memorizationStartVerse  Int?    // Starting verse (default: 1)
+  memorizationDirection   String? // "FORWARD" (towards Nas) or "BACKWARD" (towards Fatiha)
+
+  accounts                Account[]
+  sessions                Session[]
+  groupMembers            GroupMember[]
+  progressEntries         Progress[]
+  dailyAttendance         DailyAttendance[]
+  evaluationsGiven        Evaluation[]             @relation("EvaluatorRelation")
+  evaluationsReceived     Evaluation[]             @relation("EvaluatedRelation")
+  representedUsers        UserRepresentative[]     @relation("RepresentativeRelation")
+  representatives         UserRepresentative[]     @relation("RepresentedRelation")
+  sessionAttendance       SessionAttendance[]
+  objectives              UserObjective[]
+  programSettings         UserProgramSettings[]
+  dailyLogs               DailyLog[]
+  dailyProgramCompletions DailyProgramCompletion[]
+  weeklyObjectives        WeeklyObjective[]
+  surahMasteries          SurahMastery[]
+  surahRecitations        SurahRecitation[]
+  completionCycles        CompletionCycle[]
+}
+
 model Account {
-  id                String  @id
+  id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
@@ -20,28 +68,139 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
 
-model CompletionCycle {
-  id             String   @id
-  userId         String
-  type           String
-  completedAt    DateTime
-  daysToComplete Int?
-  notes          String?
-  createdAt      DateTime @default(now())
-  hizbCount      Int?
-  User           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, completedAt])
-  @@index([userId, type])
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model UserRepresentative {
+  id               String   @id @default(cuid())
+  representativeId String
+  representedId    String
+  createdAt        DateTime @default(now())
+
+  representative User @relation("RepresentativeRelation", fields: [representativeId], references: [id], onDelete: Cascade)
+  represented    User @relation("RepresentedRelation", fields: [representedId], references: [id], onDelete: Cascade)
+
+  @@unique([representativeId, representedId])
+}
+
+// ============================================
+// Groups
+// ============================================
+
+model Group {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  sessionFrequency String   @default("WEEKLY")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  members  GroupMember[]
+  sessions GroupSession[]
+}
+
+model GroupMember {
+  id       String   @id @default(cuid())
+  userId   String
+  groupId  String
+  role     String   @default("MEMBER")
+  joinedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+}
+
+// ============================================
+// Programs & Objectives
+// ============================================
+
+model Program {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  nameAr      String
+  nameFr      String
+  nameEn      String
+  description String?
+  createdAt   DateTime @default(now())
+
+  progressEntries  Progress[]
+  objectives       UserObjective[]
+  userSettings     UserProgramSettings[]
+  dailyLogs        DailyLog[]
+  dailyCompletions DailyProgramCompletion[]
+  weeklyObjectives WeeklyObjective[]
+}
+
+model UserObjective {
+  id           String   @id @default(cuid())
+  userId       String
+  programId    String
+  dailyTarget  Int
+  targetMonths Int?
+  totalTarget  Int?
+  startDate    DateTime @default(now())
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// Progress Tracking
+// ============================================
+
+model Progress {
+  id          String   @id @default(cuid())
+  userId      String
+  programId   String
+  date        DateTime
+  surahNumber Int
+  verseStart  Int
+  verseEnd    Int
+  repetitions Int?
+  comment     String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  surah   Surah   @relation(fields: [surahNumber], references: [number])
+
+  evaluations Evaluation[]
+
+  @@index([userId, programId, date])
+}
+
+// ============================================
+// Daily Attendance
+// ============================================
+
 model DailyAttendance {
-  id        String   @id
+  id        String   @id @default(cuid())
   userId    String
   date      DateTime
   sunday    Int      @default(0)
@@ -54,360 +213,294 @@ model DailyAttendance {
   comment   String?
   createdBy String
   createdAt DateTime @default(now())
-  updatedAt DateTime
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@index([userId, date])
 }
 
-model DailyLog {
-  id        String   @id
-  userId    String
-  programId String
-  date      DateTime
-  quantity  Float
-  unit      String
-  comment   String?
-  createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime
-  Program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, programId, date])
-  @@index([userId, date])
-  @@index([userId, programId, date])
-}
-
-model DailyProgramCompletion {
-  id        String   @id
-  userId    String
-  programId String
-  date      DateTime
-  completed Boolean  @default(false)
-  createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime
-  Program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, programId, date])
-  @@index([userId, date])
-}
+// ============================================
+// Evaluations
+// ============================================
 
 model Evaluation {
-  id                                String   @id
-  progressId                        String
-  evaluatorId                       String
-  evaluatedId                       String
-  surahNumber                       Int
-  verseNumber                       Int
-  comment                           String
-  rating                            Int?
-  createdAt                         DateTime @default(now())
-  updatedAt                         DateTime
-  User_Evaluation_evaluatedIdToUser User     @relation("Evaluation_evaluatedIdToUser", fields: [evaluatedId], references: [id], onDelete: Cascade)
-  User_Evaluation_evaluatorIdToUser User     @relation("Evaluation_evaluatorIdToUser", fields: [evaluatorId], references: [id], onDelete: Cascade)
-  Progress                          Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
-  Surah                             Surah    @relation(fields: [surahNumber], references: [number])
+  id          String   @id @default(cuid())
+  progressId  String
+  evaluatorId String
+  evaluatedId String
+  surahNumber Int
+  verseNumber Int
+  comment     String
+  rating      Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  progress  Progress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  evaluator User     @relation("EvaluatorRelation", fields: [evaluatorId], references: [id], onDelete: Cascade)
+  evaluated User     @relation("EvaluatedRelation", fields: [evaluatedId], references: [id], onDelete: Cascade)
+  surah     Surah    @relation(fields: [surahNumber], references: [number])
 }
 
-model Group {
-  id               String         @id
-  name             String
-  description      String?
-  sessionFrequency String         @default("WEEKLY")
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime
-  GroupMember      GroupMember[]
-  GroupSession     GroupSession[]
-}
-
-model GroupMember {
-  id       String   @id
-  userId   String
-  groupId  String
-  role     String   @default("MEMBER")
-  joinedAt DateTime @default(now())
-  Group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  User     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, groupId])
-}
+// ============================================
+// Group Sessions & Attendance
+// ============================================
 
 model GroupSession {
-  id                String              @id
-  groupId           String
-  date              DateTime
-  notes             String?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime
-  createdBy         String?
-  weekNumber        Int?
-  Group             Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  SessionAttendance SessionAttendance[]
-  SurahRecitation   SurahRecitation[]
-}
+  id         String   @id @default(cuid())
+  groupId    String
+  date       DateTime
+  weekNumber Int?     // Numéro de semaine (S1, S2, S12...)
+  notes      String?
+  createdBy  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-model Program {
-  id                     String                   @id
-  code                   String                   @unique
-  nameAr                 String
-  nameFr                 String
-  nameEn                 String
-  description            String?
-  createdAt              DateTime                 @default(now())
-  DailyLog               DailyLog[]
-  DailyProgramCompletion DailyProgramCompletion[]
-  Progress               Progress[]
-  UserObjective          UserObjective[]
-  UserProgramSettings    UserProgramSettings[]
-  WeeklyObjective        WeeklyObjective[]
-}
-
-model Progress {
-  id          String       @id
-  userId      String
-  programId   String
-  date        DateTime
-  surahNumber Int
-  verseStart  Int
-  verseEnd    Int
-  repetitions Int?
-  comment     String?
-  createdBy   String
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime
-  Evaluation  Evaluation[]
-  Program     Program      @relation(fields: [programId], references: [id], onDelete: Cascade)
-  Surah       Surah        @relation(fields: [surahNumber], references: [number])
-  User        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, programId, date])
-}
-
-model RecitationStatus {
-  id        String   @id
-  code      String   @unique
-  label     String
-  tooltip   String
-  color     String?
-  sortOrder Int      @default(0)
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime
-
-  @@index([sortOrder])
-}
-
-model Session {
-  id           String   @id
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group       Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  attendance  SessionAttendance[]
+  recitations SurahRecitation[]
 }
 
 model SessionAttendance {
-  id           String       @id
-  sessionId    String
-  userId       String
-  present      Boolean      @default(false)
-  excused      Boolean      @default(false)
-  note         String?
-  GroupSession GroupSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  User         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  sessionId String
+  userId    String
+  present   Boolean @default(false)
+  excused   Boolean @default(false)
+  note      String?
+
+  session GroupSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, userId])
 }
 
+// ============================================
+// Quran Reference Data
+// ============================================
+
 model Surah {
-  number          Int               @id
+  number          Int    @id
   nameAr          String
   nameFr          String
   nameEn          String
   totalVerses     Int
   revelationOrder Int
   revelationType  String
-  Evaluation      Evaluation[]
-  Progress        Progress[]
-  SurahMastery    SurahMastery[]
-  SurahRecitation SurahRecitation[]
-  Verse           Verse[]
+
+  verses      Verse[]
+  progress    Progress[]
+  evaluations Evaluation[]
+  masteries   SurahMastery[]
+  recitations SurahRecitation[]
 }
 
-model SurahMastery {
-  id            String    @id
-  userId        String
-  surahNumber   Int
-  status        String
-  validatedWeek Int?
-  validatedAt   DateTime?
-  verseStart    Int?
-  verseEnd      Int?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime
-  Surah         Surah     @relation(fields: [surahNumber], references: [number])
-  User          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Verse {
+  id          String @id @default(cuid())
+  surahNumber Int
+  verseNumber Int
+  page        Int
+  juz         Int?
+  hizb        Float?
 
-  @@unique([userId, surahNumber])
-  @@index([userId])
-  @@index([userId, status])
+  surah Surah @relation(fields: [surahNumber], references: [number])
+
+  @@unique([surahNumber, verseNumber])
+  @@index([page])
 }
 
-model SurahRecitation {
-  id           String       @id
-  sessionId    String
-  userId       String
-  surahNumber  Int
-  type         String
-  verseStart   Int
-  verseEnd     Int
-  status       String
-  comment      String?
-  createdBy    String
-  createdAt    DateTime     @default(now())
-  GroupSession GroupSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  Surah        Surah        @relation(fields: [surahNumber], references: [number])
-  User         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId])
-  @@index([userId])
-  @@index([userId, surahNumber])
-}
-
-model User {
-  id                                                           String                   @id
-  email                                                        String                   @unique
-  name                                                         String?
-  password                                                     String?
-  image                                                        String?
-  emailVerified                                                DateTime?
-  role                                                         String                   @default("USER")
-  createdAt                                                    DateTime                 @default(now())
-  updatedAt                                                    DateTime
-  privateAttendance                                            Boolean                  @default(false)
-  privateEvaluations                                           Boolean                  @default(false)
-  privateProgress                                              Boolean                  @default(false)
-  privateStats                                                 Boolean                  @default(false)
-  memorizationDirection                                        String?
-  memorizationStartSurah                                       Int?
-  memorizationStartVerse                                       Int?
-  Account                                                      Account[]
-  CompletionCycle                                              CompletionCycle[]
-  DailyAttendance                                              DailyAttendance[]
-  DailyLog                                                     DailyLog[]
-  DailyProgramCompletion                                       DailyProgramCompletion[]
-  Evaluation_Evaluation_evaluatedIdToUser                      Evaluation[]             @relation("Evaluation_evaluatedIdToUser")
-  Evaluation_Evaluation_evaluatorIdToUser                      Evaluation[]             @relation("Evaluation_evaluatorIdToUser")
-  GroupMember                                                  GroupMember[]
-  Progress                                                     Progress[]
-  Session                                                      Session[]
-  SessionAttendance                                            SessionAttendance[]
-  SurahMastery                                                 SurahMastery[]
-  SurahRecitation                                              SurahRecitation[]
-  UserObjective                                                UserObjective[]
-  UserProgramSettings                                          UserProgramSettings[]
-  UserRepresentative_UserRepresentative_representativeIdToUser UserRepresentative[]     @relation("UserRepresentative_representativeIdToUser")
-  UserRepresentative_UserRepresentative_representedIdToUser    UserRepresentative[]     @relation("UserRepresentative_representedIdToUser")
-  WeeklyObjective                                              WeeklyObjective[]
-}
-
-model UserObjective {
-  id           String   @id
-  userId       String
-  programId    String
-  dailyTarget  Int
-  targetMonths Int?
-  totalTarget  Int?
-  startDate    DateTime @default(now())
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime
-  Program      Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
-  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
+// ============================================
+// User Program Settings (Objectifs par programme)
+// ============================================
 
 model UserProgramSettings {
-  id           String    @id
+  id           String    @id @default(cuid())
   userId       String
   programId    String
-  quantity     Float     @default(1)
-  unit         String    @default("PAGE")
-  period       String    @default("DAY")
+  quantity     Float     @default(1) // 0.25, 0.33, 0.5, 0.75, 1, 2, etc.
+  unit         String    @default("PAGE") // PAGE, QUART, DEMI_HIZB, HIZB, JUZ
+  period       String    @default("DAY") // DAY, WEEK, MONTH, YEAR
   isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime
   startDate    DateTime  @default(now())
   endDate      DateTime?
-  snapshotDate DateTime?
-  wasModified  Boolean   @default(false)
-  Program      Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
-  User         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshotDate DateTime? // Groups settings saved together in a snapshot
+  wasModified  Boolean   @default(false) // True if this setting was modified in the snapshot
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, isActive])
   @@index([userId, snapshotDate])
 }
 
-model UserRepresentative {
-  id                                             String   @id
-  representativeId                               String
-  representedId                                  String
-  createdAt                                      DateTime @default(now())
-  User_UserRepresentative_representativeIdToUser User     @relation("UserRepresentative_representativeIdToUser", fields: [representativeId], references: [id], onDelete: Cascade)
-  User_UserRepresentative_representedIdToUser    User     @relation("UserRepresentative_representedIdToUser", fields: [representedId], references: [id], onDelete: Cascade)
+// ============================================
+// Daily Log (Suivi quotidien par programme)
+// ============================================
 
-  @@unique([representativeId, representedId])
+model DailyLog {
+  id        String   @id @default(cuid())
+  userId    String
+  programId String
+  date      DateTime
+  quantity  Float // Quantité réalisée
+  unit      String // PAGE, QUART, DEMI_HIZB, HIZB, JUZ
+  comment   String?
+  createdBy String // ID de celui qui a saisi
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, programId, date])
+  @@index([userId, date])
+  @@index([userId, programId, date])
 }
 
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
+// ============================================
+// Daily Program Completion (New Attendance System)
+// ============================================
 
-  @@unique([identifier, token])
+model DailyProgramCompletion {
+  id        String   @id @default(cuid())
+  userId    String
+  programId String
+  date      DateTime
+  completed Boolean  @default(false)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, programId, date])
+  @@index([userId, date])
 }
 
-model Verse {
-  id          String @id
-  surahNumber Int
-  verseNumber Int
-  page        Int
-  juz         Int?
-  hizb        Float?
-  Surah       Surah  @relation(fields: [surahNumber], references: [number])
-
-  @@unique([surahNumber, verseNumber])
-  @@index([page])
-}
+// ============================================
+// Weekly Objectives (Tafsir, Hadith, etc.)
+// ============================================
 
 model WeeklyObjective {
-  id                        String                      @id
-  userId                    String
-  name                      String
-  programId                 String?
-  isCustom                  Boolean                     @default(false)
-  isActive                  Boolean                     @default(true)
-  createdAt                 DateTime                    @default(now())
-  updatedAt                 DateTime
-  Program                   Program?                    @relation(fields: [programId], references: [id])
-  User                      User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  WeeklyObjectiveCompletion WeeklyObjectiveCompletion[]
+  id        String   @id @default(cuid())
+  userId    String
+  name      String // "Tafsir", "Hadith", etc.
+  programId String? // Lien optionnel vers Program (pour Tafsir)
+  isCustom  Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program     Program?                    @relation(fields: [programId], references: [id])
+  completions WeeklyObjectiveCompletion[]
 
   @@index([userId, isActive])
 }
 
 model WeeklyObjectiveCompletion {
-  id                String          @id
+  id                String   @id @default(cuid())
   weeklyObjectiveId String
   weekStartDate     DateTime
-  completed         Boolean         @default(false)
+  completed         Boolean  @default(false)
   createdBy         String
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime
-  WeeklyObjective   WeeklyObjective @relation(fields: [weeklyObjectiveId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  weeklyObjective WeeklyObjective @relation(fields: [weeklyObjectiveId], references: [id], onDelete: Cascade)
 
   @@unique([weeklyObjectiveId, weekStartDate])
+}
+
+// ============================================
+// Surah Mastery (État actuel par élève/sourate)
+// ============================================
+
+model SurahMastery {
+  id            String    @id @default(cuid())
+  userId        String
+  surahNumber   Int
+  status        String    // Code statut (X, AM, 50%, 51%, 90%, V, S, etc.)
+  validatedWeek Int?      // Numéro de semaine de validation (ex: 12 pour V12)
+  validatedAt   DateTime?
+  verseStart    Int?      // Si progression partielle
+  verseEnd      Int?      // Si progression partielle
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surah Surah @relation(fields: [surahNumber], references: [number])
+
+  @@unique([userId, surahNumber])
+  @@index([userId])
+  @@index([userId, status])
+}
+
+// ============================================
+// Surah Recitation (Historique des récitations par séance)
+// ============================================
+
+model SurahRecitation {
+  id          String   @id @default(cuid())
+  sessionId   String
+  userId      String
+  surahNumber Int
+  type        String   // MEMORIZATION | REVISION
+  verseStart  Int
+  verseEnd    Int
+  status      String   // Code statut (X, AM, 50%, 51%, 90%, V, S, etc.)
+  comment     String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  session GroupSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surah   Surah        @relation(fields: [surahNumber], references: [number])
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([userId, surahNumber])
+}
+
+// ============================================
+// Completion Cycles (Révision & Lecture complètes)
+// ============================================
+
+model CompletionCycle {
+  id             String   @id @default(cuid())
+  userId         String
+  type           String   // "REVISION" | "LECTURE"
+  completedAt    DateTime
+  daysToComplete Int?     // Jours depuis le dernier cycle du même type
+  hizbCount      Int?     // Nombre de Hizbs couverts (pour REVISION)
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([userId, completedAt])
+}
+
+// ============================================
+// Recitation Status Codes (Codes de statut personnalisables)
+// ============================================
+
+model RecitationStatus {
+  id          String   @id @default(cuid())
+  code        String   @unique // X, AM, 50%, 51%, 90%, V, S, etc.
+  label       String   // Libellé court
+  tooltip     String   // Description tooltip
+  color       String?  // Couleur hex optionnelle (ex: #10B981)
+  sortOrder   Int      @default(0) // Ordre d'affichage
+  isDefault   Boolean  @default(false) // Statuts système non supprimables
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sortOrder])
 }
