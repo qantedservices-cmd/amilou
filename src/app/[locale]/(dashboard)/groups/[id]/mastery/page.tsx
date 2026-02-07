@@ -245,14 +245,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       clone.style.width = exportRef.current.scrollWidth + 'px'
 
       // Remove sticky and overflow styles from clone
-      const stickyElements = clone.querySelectorAll('[class*="sticky"]')
-      stickyElements.forEach(el => {
-        (el as HTMLElement).style.position = 'relative'
+      clone.querySelectorAll('[class*="sticky"]').forEach((el) => {
+        const htmlEl = el as HTMLElement
+        htmlEl.style.position = 'relative'
       })
-      const overflowElements = clone.querySelectorAll('[class*="overflow"]')
-      overflowElements.forEach(el => {
-        (el as HTMLElement).style.overflow = 'visible'
-        (el as HTMLElement).style.maxHeight = 'none'
+      clone.querySelectorAll('[class*="overflow"]').forEach((el) => {
+        const htmlEl = el as HTMLElement
+        htmlEl.style.overflow = 'visible'
+        htmlEl.style.maxHeight = 'none'
       })
 
       document.body.appendChild(clone)
@@ -398,8 +398,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             <table className="w-full border-collapse">
               <thead className="sticky top-0 z-20 bg-background">
                 <tr>
-                  <th className="sticky left-0 z-30 bg-background border-b border-r p-1 text-left min-w-[140px] max-w-[160px]">
-                    <span className="text-xs">Sourate</span>
+                  <th className="sticky left-0 z-30 bg-background border-b border-r p-1 text-left w-[120px]">
+                    <span className="text-xs font-medium">Sourate</span>
                   </th>
                   {data.members.map(member => {
                     const nameParts = member.name.split(' ')
@@ -499,15 +499,15 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                   // Regular surah row
                   return (
                     <tr key={group.number} className="hover:bg-muted/50">
-                      <td className="sticky left-0 bg-background border-r p-1">
-                        <div className="flex flex-col text-[10px] leading-tight">
+                      <td className="sticky left-0 bg-background border-r p-1 w-[120px]">
+                        <div className="text-xs leading-tight">
                           <div className="flex items-center gap-1">
-                            <span className="font-medium w-5 text-right">{group.number}</span>
-                            <span className="text-muted-foreground">{group.nameAr}</span>
+                            <span className="font-bold w-5 text-right">{group.number}</span>
+                            <span className="font-medium">{group.nameAr}</span>
+                            <span className="text-muted-foreground text-[10px]">({group.totalVerses})</span>
                           </div>
-                          <div className="flex items-center gap-1 pl-6">
-                            <span className="text-muted-foreground truncate">{group.nameFr}</span>
-                            <span className="text-muted-foreground/60">({group.totalVerses}v)</span>
+                          <div className="pl-6 text-[10px] text-muted-foreground truncate">
+                            {group.nameFr}
                           </div>
                         </div>
                       </td>
