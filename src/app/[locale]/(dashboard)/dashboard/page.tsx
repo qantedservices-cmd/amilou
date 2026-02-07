@@ -244,6 +244,7 @@ export default function DashboardPage() {
   const locale = useLocale()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [period, setPeriod] = useState<PeriodType>('year')
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1)
@@ -360,8 +361,11 @@ export default function DashboardPage() {
     }
   }
 
-  async function fetchStats() {
-    setLoading(true)
+  async function fetchStats(showLoader = true) {
+    // Only show loading spinner on initial load, not on period changes
+    if (showLoader && isInitialLoad) {
+      setLoading(true)
+    }
     try {
       const params = new URLSearchParams()
       params.set('period', period)
@@ -389,6 +393,7 @@ export default function DashboardPage() {
       console.error('Error fetching stats:', error)
     } finally {
       setLoading(false)
+      setIsInitialLoad(false)
     }
   }
 
@@ -1027,7 +1032,7 @@ export default function DashboardPage() {
     READING: 'bg-purple-500',
   }
 
-  if (loading) {
+  if (loading && !stats) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <p className="text-muted-foreground">{t('common.loading')}</p>
