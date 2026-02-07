@@ -301,54 +301,103 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     setExporting(true)
     try {
       const { jsPDF } = await import('jspdf')
+      const autoTableModule = await import('jspdf-autotable')
+      const autoTable = autoTableModule.default
 
       // Create PDF in landscape
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
 
-      // Title
-      doc.setFontSize(16)
-      doc.text(`Grille de suivi - ${data.group.name}`, 14, 15)
-      doc.setFontSize(10)
-      doc.text(new Date().toLocaleDateString('fr-FR'), 14, 22)
-
-      // Simple text-based grid
-      let y = 35
-      const colWidth = 12
-      const firstColWidth = 50
-
-      // Header row - member names
-      doc.setFontSize(7)
+      // Header with gradient effect
+      doc.setFillColor(45, 55, 72)
+      doc.rect(0, 0, 297, 25, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(18)
       doc.setFont('helvetica', 'bold')
-      doc.text('Sourate', 14, y)
-      data.members.forEach((m, i) => {
-        const parts = m.name.split(' ')
-        const firstName = parts[parts.length - 1]
-        doc.text(firstName.substring(0, 8), 14 + firstColWidth + (i * colWidth), y)
-      })
-      y += 6
-
-      // Data rows
+      doc.text(`Grille de suivi`, 14, 12)
+      doc.setFontSize(12)
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6)
+      doc.text(data.group.name, 14, 19)
+      doc.setFontSize(10)
+      doc.text(new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }), 250, 15)
+
+      // Reset text color
+      doc.setTextColor(0, 0, 0)
+
+      // Prepare table headers - member names on 2 lines
+      const headers = ['Sourate']
+      for (const m of data.members) {
+        const parts = m.name.split(' ')
+        const lastName = parts.slice(0, -1).join(' ')
+        const firstName = parts[parts.length - 1]
+        headers.push(`${lastName}\n${firstName}`)
+      }
+
+      // Prepare table rows
+      const rows: string[][] = []
       for (const group of data.surahGroups) {
         if (group.type === 'surah' && group.number) {
-          if (y > 195) {
-            doc.addPage()
-            y = 15
-          }
           const surahInfo = data.allSurahsMap[group.number]
-          doc.text(`${group.number}. ${(surahInfo?.nameFr || '').substring(0, 20)}`, 14, y)
-
-          data.members.forEach((member, i) => {
-            const status = getCellDisplay(member.id, group.number!)
-            doc.text(status, 14 + firstColWidth + (i * colWidth), y)
-          })
-          y += 4
+          const row = [`${group.number}. ${surahInfo?.nameFr || ''}`]
+          for (const member of data.members) {
+            row.push(getCellDisplay(member.id, group.number!))
+          }
+          rows.push(row)
         }
       }
 
-      // Comments section
-      const allComments: string[] = []
+      // Status colors mapping
+      const getStatusColor = (text: string): [number, number, number] | null => {
+        if (text.startsWith('V')) return [34, 197, 94] // green
+        if (text === 'C') return [59, 130, 246] // blue
+        if (text === '90%') return [134, 239, 172] // light green
+        if (text.includes('50') || text.includes('51')) return [250, 204, 21] // yellow
+        if (text === 'AM') return [251, 146, 60] // orange
+        if (text.startsWith('S')) return [167, 139, 250] // purple
+        return null
+      }
+
+      // Add styled table
+      autoTable(doc, {
+        head: [headers],
+        body: rows,
+        startY: 30,
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+          halign: 'center',
+          valign: 'middle',
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1
+        },
+        headStyles: {
+          fillColor: [71, 85, 105],
+          textColor: [255, 255, 255],
+          fontSize: 7,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        columnStyles: {
+          0: { cellWidth: 35, halign: 'left', fontStyle: 'bold' }
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        },
+        didParseCell: (hookData: any) => {
+          if (hookData.section === 'body' && hookData.column.index > 0) {
+            const text = hookData.cell.text.join('')
+            const color = getStatusColor(text)
+            if (color) {
+              hookData.cell.styles.fillColor = color
+              hookData.cell.styles.textColor = text === '90%' || text.includes('50') ? [0, 0, 0] : [255, 255, 255]
+              hookData.cell.styles.fontStyle = 'bold'
+            }
+          }
+        },
+        margin: { left: 10, right: 10 }
+      })
+
+      // Collect comments
+      const allComments: { member: string; surah: string; week: string; comment: string }[] = []
       for (const member of data.members) {
         const memberComments = data.commentsMap[member.id]
         if (!memberComments) continue
@@ -358,29 +407,68 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         for (const [surahNum, comments] of Object.entries(memberComments)) {
           const surahInfo = data.allSurahsMap[parseInt(surahNum)]
           for (const c of comments) {
-            const weekLabel = c.weekNumber ? `S${c.weekNumber}` : ''
-            allComments.push(`${firstName} - ${surahNum}. ${surahInfo?.nameFr || ''} ${weekLabel}: ${c.comment}`)
+            allComments.push({
+              member: firstName,
+              surah: `${surahNum}. ${surahInfo?.nameFr || ''}`,
+              week: c.weekNumber ? `S${c.weekNumber}` : '-',
+              comment: c.comment
+            })
           }
         }
       }
 
+      // Comments page if any
       if (allComments.length > 0) {
         doc.addPage()
+
+        // Header
+        doc.setFillColor(45, 55, 72)
+        doc.rect(0, 0, 297, 20, 'F')
+        doc.setTextColor(255, 255, 255)
         doc.setFontSize(14)
-        doc.text('Commentaires', 14, 15)
-        doc.setFontSize(9)
-        let cy = 25
-        for (const c of allComments) {
-          if (cy > 195) {
-            doc.addPage()
-            cy = 15
-          }
-          doc.text(c.substring(0, 100), 14, cy)
-          cy += 6
-        }
+        doc.setFont('helvetica', 'bold')
+        doc.text('Commentaires', 14, 13)
+        doc.setTextColor(0, 0, 0)
+
+        // Comments table
+        autoTable(doc, {
+          head: [['Élève', 'Sourate', 'Sem.', 'Commentaire']],
+          body: allComments.map(c => [c.member, c.surah, c.week, c.comment]),
+          startY: 25,
+          styles: {
+            fontSize: 9,
+            cellPadding: 3,
+            lineColor: [200, 200, 200],
+            lineWidth: 0.1
+          },
+          headStyles: {
+            fillColor: [71, 85, 105],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
+          },
+          columnStyles: {
+            0: { cellWidth: 30 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 15, halign: 'center' },
+            3: { cellWidth: 'auto' }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 250, 252]
+          },
+          margin: { left: 10, right: 10 }
+        })
       }
 
-      // Download using blob
+      // Footer on all pages
+      const pageCount = doc.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setTextColor(150, 150, 150)
+        doc.text(`Page ${i}/${pageCount}`, 280, 205)
+      }
+
+      // Download
       const pdfOutput = doc.output('blob')
       const blobUrl = window.URL.createObjectURL(pdfOutput)
       const a = document.createElement('a')
