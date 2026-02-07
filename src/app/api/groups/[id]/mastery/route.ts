@@ -149,12 +149,6 @@ export async function GET(
     // Check if current user is REFERENT
     const isReferent = membership?.role === 'REFERENT' || user?.role === 'ADMIN'
 
-    console.log('[Mastery API] Group:', group.name)
-    console.log('[Mastery API] Members:', members.length)
-    console.log('[Mastery API] MasteryData:', masteryData.length)
-    console.log('[Mastery API] SurahGroups:', surahGroups.length)
-    console.log('[Mastery API] SurahsWithData:', surahsWithData.size)
-
     return NextResponse.json({
       group,
       members: members.map(m => ({
