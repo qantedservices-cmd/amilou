@@ -356,7 +356,6 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   // Load Amiri font + Arabic reshaper for jsPDF
   async function loadPdfArabicSupport(doc: any): Promise<{ hasFont: boolean; reshape: (text: string) => string }> {
     let hasFont = false
-    let reshaper: any = null
 
     try {
       const fontRes = await fetch('/fonts/Amiri-Regular.ttf')
@@ -366,33 +365,21 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       for (let i = 0; i < bytes.length; i++) {
         binary += String.fromCharCode(bytes[i])
       }
-      doc.addFileToVFS('Amiri-Regular.ttf', btoa(binary))
+      const base64 = btoa(binary)
+      doc.addFileToVFS('Amiri-Regular.ttf', base64)
       doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal')
+      // Register same font for bold style (no bold TTF available, but prevents fallback to helvetica)
+      doc.addFileToVFS('Amiri-Bold.ttf', base64)
+      doc.addFont('Amiri-Bold.ttf', 'Amiri', 'bold')
       hasFont = true
     } catch (err) {
       console.error('Error loading Arabic font:', err)
     }
 
-    try {
-      const mod = await import('arabic-reshaper')
-      const lib: any = mod.default || mod
-      // arabic-reshaper exports { convertArabic, convertArabicBack }
-      if (lib.convertArabic) {
-        reshaper = (text: string) => lib.convertArabic(text)
-      } else if (typeof lib === 'function') {
-        reshaper = lib
-      }
-    } catch (err) {
-      console.error('Error loading arabic-reshaper:', err)
-    }
-
+    // No reshaping needed: Amiri font + PDF viewer handle Arabic shaping/bidi natively
     const reshape = (text: string): string => {
-      if (!text || !hasFont || !reshaper) return ''
-      try {
-        const reshaped = reshaper(text)
-        // Reverse for LTR rendering in jsPDF (Arabic is RTL)
-        return reshaped.split('').reverse().join('')
-      } catch { return text }
+      if (!text || !hasFont) return ''
+      return text
     }
 
     return { hasFont, reshape }
