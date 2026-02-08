@@ -609,6 +609,135 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         margin: { left: 10, right: 10 }
       })
 
+      // 6. Classement des élèves (par sourates validées)
+      doc.addPage()
+
+      doc.setFillColor(45, 55, 72)
+      doc.rect(0, 0, 297, 20, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Classement des eleves', 14, 13)
+      doc.setTextColor(0, 0, 0)
+
+      // Count validated surahs per member
+      const rankingData = data.members.map(m => {
+        const memberMastery = data.masteryMap[m.id] || {}
+        let validatedCount = 0
+        for (const entry of Object.values(memberMastery)) {
+          if (entry.status === 'V') validatedCount++
+        }
+        const nameParts = m.name.split(' ')
+        const firstName = nameParts[nameParts.length - 1]
+        const lastName = nameParts.slice(0, -1).join(' ')
+        return { name: stripAccents(`${lastName} ${firstName}`), validated: validatedCount }
+      }).sort((a, b) => b.validated - a.validated)
+
+      autoTable(doc, {
+        head: [['#', 'Eleve', 'Sourates validees']],
+        body: rankingData.map((r, i) => [(i + 1).toString(), r.name, r.validated.toString()]),
+        startY: 25,
+        styles: {
+          fontSize: 10,
+          cellPadding: 3,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1
+        },
+        headStyles: {
+          fillColor: [71, 85, 105],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        },
+        columnStyles: {
+          0: { cellWidth: 15, halign: 'center' },
+          1: { cellWidth: 80 },
+          2: { cellWidth: 40, halign: 'center' }
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        },
+        didParseCell: (hookData: any) => {
+          // Gold/silver/bronze for top 3
+          if (hookData.section === 'body' && hookData.column.index === 0) {
+            const rank = parseInt(hookData.cell.text[0])
+            if (rank === 1) { hookData.cell.styles.fillColor = [255, 215, 0]; hookData.cell.styles.fontStyle = 'bold' }
+            else if (rank === 2) { hookData.cell.styles.fillColor = [192, 192, 192]; hookData.cell.styles.fontStyle = 'bold' }
+            else if (rank === 3) { hookData.cell.styles.fillColor = [205, 127, 50]; hookData.cell.styles.textColor = [255, 255, 255]; hookData.cell.styles.fontStyle = 'bold' }
+          }
+        },
+        margin: { left: 60, right: 60 }
+      })
+
+      // 7. Annexe - Commentaires des séances précédentes
+      const allPastComments: { session: string; member: string; surah: string; comment: string }[] = []
+      for (const member of data.members) {
+        const memberComments = data.commentsMap[member.id]
+        if (!memberComments) continue
+        const nameParts = member.name.split(' ')
+        const firstName = nameParts[nameParts.length - 1]
+
+        for (const [surahNum, comments] of Object.entries(memberComments)) {
+          const surahInfo = data.allSurahsMap[parseInt(surahNum)]
+          for (const c of comments) {
+            if (c.sessionNumber && c.sessionNumber < targetSessionNumber) {
+              const dateStr = c.sessionDate ? new Date(c.sessionDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''
+              allPastComments.push({
+                session: `S${c.sessionNumber}${dateStr ? ` (${dateStr})` : ''}`,
+                member: stripAccents(firstName),
+                surah: stripAccents(`${surahNum}. ${surahInfo?.nameFr || ''}`),
+                comment: stripAccents(stripHtmlTags(c.comment))
+              })
+            }
+          }
+        }
+      }
+
+      // Sort by session number
+      allPastComments.sort((a, b) => {
+        const numA = parseInt(a.session.replace(/\D/g, ''))
+        const numB = parseInt(b.session.replace(/\D/g, ''))
+        return numA - numB
+      })
+
+      if (allPastComments.length > 0) {
+        doc.addPage()
+
+        doc.setFillColor(45, 55, 72)
+        doc.rect(0, 0, 297, 20, 'F')
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(14)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Annexe - Commentaires des seances precedentes', 14, 13)
+        doc.setTextColor(0, 0, 0)
+
+        autoTable(doc, {
+          head: [['Seance', 'Eleve', 'Sourate', 'Commentaire']],
+          body: allPastComments.map(c => [c.session, c.member, c.surah, c.comment]),
+          startY: 25,
+          styles: {
+            fontSize: 7,
+            cellPadding: 2,
+            lineColor: [200, 200, 200],
+            lineWidth: 0.1
+          },
+          headStyles: {
+            fillColor: [71, 85, 105],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
+          },
+          columnStyles: {
+            0: { cellWidth: 25 },
+            1: { cellWidth: 25 },
+            2: { cellWidth: 35 },
+            3: { cellWidth: 'auto' }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 250, 252]
+          },
+          margin: { left: 10, right: 10 }
+        })
+      }
+
       // Footer on all pages
       const pageCount = doc.getNumberOfPages()
       for (let i = 1; i <= pageCount; i++) {
