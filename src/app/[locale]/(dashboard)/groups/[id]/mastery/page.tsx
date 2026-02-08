@@ -619,18 +619,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
 
       // Download
-      const pdfOutput = doc.output('blob')
-      const blobUrl = window.URL.createObjectURL(pdfOutput)
-      const a = document.createElement('a')
-      a.style.display = 'none'
-      a.href = blobUrl
-      a.download = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-')}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      setTimeout(() => {
-        window.URL.revokeObjectURL(blobUrl)
-        document.body.removeChild(a)
-      }, 500)
+      doc.save(`seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-')}.pdf`)
 
       setSessionReportOpen(false)
     } catch (err) {
@@ -873,16 +862,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
 
       // Download
-      const pdfOutput = doc.output('blob')
-      const blobUrl = window.URL.createObjectURL(pdfOutput)
-      const a = document.createElement('a')
-      a.style.display = 'none'
-      a.href = blobUrl
-      a.download = `grille-${data.group.name.replace(/\s+/g, '-')}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(blobUrl)
-      document.body.removeChild(a)
+      doc.save(`grille-${data.group.name.replace(/\s+/g, '-')}.pdf`)
     } catch (err) {
       console.error('Error exporting PDF:', err)
       alert('Erreur PDF: ' + (err instanceof Error ? err.message : 'Erreur'))
