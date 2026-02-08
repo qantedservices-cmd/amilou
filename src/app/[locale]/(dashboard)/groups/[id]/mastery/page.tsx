@@ -392,12 +392,13 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     return { hasFont, reshape }
   }
 
-  // Format surah label for PDF with Arabic: "108. L'Abondance (الكوثر) 3v."
+  // Format surah label for PDF: "الكوثر 108. L'Abondance 3v."
+  // Arabic name first as requested
   function surahLabel(num: number, info: SurahInfo | undefined, reshape: (s: string) => string): string {
     const fr = stripAccents(info?.nameFr || '')
     const ar = reshape(info?.nameAr || '')
     const v = info?.totalVerses || '?'
-    if (ar) return `${num}. ${fr} (${ar}) ${v}v.`
+    if (ar) return `${ar}  ${num}. ${fr} ${v}v.`
     return `${num}. ${fr} ${v}v.`
   }
 
