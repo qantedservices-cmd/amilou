@@ -667,29 +667,31 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.text('Légende :', 14, legendY)
       legendY += 6
       doc.setFont(pdfFont, 'normal')
-      doc.setFontSize(11)
+      doc.setFontSize(10)
       const legendItems = [
-        { code: 'V', color: [34, 197, 94], label: 'V = Validé', textWhite: true },
-        { code: 'C', color: [59, 130, 246], label: 'C = Supposé connu, à valider', textWhite: true },
-        { code: '90%', color: [134, 239, 172], label: '90% = Presque maîtrisé', textWhite: false },
-        { code: '51%', color: [250, 204, 21], label: '51%/50% = Moitié acquise', textWhite: false },
-        { code: 'AM', color: [251, 146, 60], label: 'AM = À mémoriser', textWhite: false },
-        { code: 'S', color: [167, 139, 250], label: 'S = Récité à un élève', textWhite: true },
+        { code: 'V', color: [34, 197, 94], label: 'Validé', textWhite: true },
+        { code: 'C', color: [59, 130, 246], label: 'Supposé connu', textWhite: true },
+        { code: '90%', color: [134, 239, 172], label: 'Presque maîtrisé', textWhite: false },
+        { code: '51%', color: [250, 204, 21], label: 'Moitié acquise', textWhite: false },
+        { code: 'AM', color: [251, 146, 60], label: 'À mémoriser', textWhite: false },
+        { code: 'S', color: [167, 139, 250], label: 'Récité à un élève', textWhite: true },
       ]
-      let legendX = 14
-      for (const item of legendItems) {
+      // 3 items per row, centered on page (A4 landscape = 297mm)
+      const colWidth = 90
+      const startX = (297 - colWidth * 3) / 2
+      for (let i = 0; i < legendItems.length; i++) {
+        const item = legendItems[i]
+        const col = i % 3
+        const legendX = startX + col * colWidth
         doc.setFillColor(item.color[0], item.color[1], item.color[2])
-        doc.rect(legendX, legendY - 3, 8, 4, 'F')
+        doc.rect(legendX, legendY - 3, 10, 4, 'F')
         doc.setTextColor(item.textWhite ? 255 : 0, item.textWhite ? 255 : 0, item.textWhite ? 255 : 0)
-        doc.text(item.code, legendX + 4, legendY, { align: 'center' })
+        doc.text(item.code, legendX + 5, legendY, { align: 'center' })
         doc.setTextColor(0, 0, 0)
-        doc.text(item.label, legendX + 10, legendY)
-        legendX += 48
-        if (legendX > 250) {
-          legendX = 14
-          legendY += 6
-        }
+        doc.text(item.label, legendX + 12, legendY)
+        if (col === 2) legendY += 6
       }
+      if (legendItems.length % 3 !== 0) legendY += 6
 
       // 6. Classement des élèves (par sourates validées)
       doc.addPage()
@@ -1049,27 +1051,28 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.setFont(pdfFont, 'normal')
       doc.setFontSize(10)
       const fullLegendItems = [
-        { code: 'V', color: [34, 197, 94], label: 'V = Validé', textWhite: true },
-        { code: 'C', color: [59, 130, 246], label: 'C = Supposé connu, à valider', textWhite: true },
-        { code: '90%', color: [134, 239, 172], label: '90% = Presque maîtrisé', textWhite: false },
-        { code: '51%', color: [250, 204, 21], label: '51%/50% = Moitié acquise', textWhite: false },
-        { code: 'AM', color: [251, 146, 60], label: 'AM = À mémoriser', textWhite: false },
-        { code: 'S', color: [167, 139, 250], label: 'S = Récité à un élève', textWhite: true },
+        { code: 'V', color: [34, 197, 94], label: 'Validé', textWhite: true },
+        { code: 'C', color: [59, 130, 246], label: 'Supposé connu', textWhite: true },
+        { code: '90%', color: [134, 239, 172], label: 'Presque maîtrisé', textWhite: false },
+        { code: '51%', color: [250, 204, 21], label: 'Moitié acquise', textWhite: false },
+        { code: 'AM', color: [251, 146, 60], label: 'À mémoriser', textWhite: false },
+        { code: 'S', color: [167, 139, 250], label: 'Récité à un élève', textWhite: true },
       ]
-      let fullLegendX = 14
-      for (const item of fullLegendItems) {
+      const fColWidth = 90
+      const fStartX = (297 - fColWidth * 3) / 2
+      for (let i = 0; i < fullLegendItems.length; i++) {
+        const item = fullLegendItems[i]
+        const col = i % 3
+        const fLegendX = fStartX + col * fColWidth
         doc.setFillColor(item.color[0], item.color[1], item.color[2])
-        doc.rect(fullLegendX, fullLegendY - 3, 8, 4, 'F')
+        doc.rect(fLegendX, fullLegendY - 3, 10, 4, 'F')
         doc.setTextColor(item.textWhite ? 255 : 0, item.textWhite ? 255 : 0, item.textWhite ? 255 : 0)
-        doc.text(item.code, fullLegendX + 4, fullLegendY, { align: 'center' })
+        doc.text(item.code, fLegendX + 5, fullLegendY, { align: 'center' })
         doc.setTextColor(0, 0, 0)
-        doc.text(item.label, fullLegendX + 10, fullLegendY)
-        fullLegendX += 48
-        if (fullLegendX > 250) {
-          fullLegendX = 14
-          fullLegendY += 6
-        }
+        doc.text(item.label, fLegendX + 12, fullLegendY)
+        if (col === 2) fullLegendY += 6
       }
+      if (fullLegendItems.length % 3 !== 0) fullLegendY += 6
 
       // Collect comments
       const allComments: { member: string; surah: string; session: string; comment: string }[] = []
