@@ -445,28 +445,175 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       const { hasFont: hasArabicFont, reshape: reshapeAr } = await loadPdfArabicSupport(doc)
       const pdfFont = hasArabicFont ? 'Amiri' : 'helvetica'
 
-      // Header
+      // Helper: draw section header bar
+      const drawSectionHeader = (title: string) => {
+        doc.setFillColor(45, 55, 72)
+        doc.rect(0, 0, 297, 20, 'F')
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(16)
+        doc.setFont(pdfFont, 'bold')
+        doc.text(title, 14, 13)
+        doc.setTextColor(0, 0, 0)
+      }
+
+      // Helper: status color
+      const getStatusColor = (text: string): [number, number, number] | null => {
+        if (text.startsWith('V')) return [34, 197, 94]
+        if (text === 'C') return [59, 130, 246]
+        if (text === '90%') return [134, 239, 172]
+        if (text.includes('50') || text.includes('51')) return [250, 204, 21]
+        if (text === 'AM') return [251, 146, 60]
+        if (text.startsWith('S')) return [167, 139, 250]
+        return null
+      }
+
+      // Helper: draw legend (3x2 grid centered)
+      const drawLegend = (startLegendY: number): number => {
+        let lY = startLegendY
+        doc.setFontSize(12)
+        doc.setFont(pdfFont, 'bold')
+        doc.text('Légende :', 14, lY)
+        lY += 6
+        doc.setFont(pdfFont, 'normal')
+        doc.setFontSize(10)
+        const items = [
+          { code: 'V', color: [34, 197, 94], label: 'Validé', textWhite: true },
+          { code: 'C', color: [59, 130, 246], label: 'Supposé connu', textWhite: true },
+          { code: '90%', color: [134, 239, 172], label: 'Presque maîtrisé', textWhite: false },
+          { code: '51%', color: [250, 204, 21], label: 'Moitié acquise', textWhite: false },
+          { code: 'AM', color: [251, 146, 60], label: 'À mémoriser', textWhite: false },
+          { code: 'S', color: [167, 139, 250], label: 'Récité à un élève', textWhite: true },
+        ]
+        const cw = 90
+        const sx = (297 - cw * 3) / 2
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i]
+          const col = i % 3
+          const lx = sx + col * cw
+          doc.setFillColor(item.color[0], item.color[1], item.color[2])
+          doc.rect(lx, lY - 3, 10, 4, 'F')
+          doc.setTextColor(item.textWhite ? 255 : 0, item.textWhite ? 255 : 0, item.textWhite ? 255 : 0)
+          doc.text(item.code, lx + 5, lY, { align: 'center' })
+          doc.setTextColor(0, 0, 0)
+          doc.text(item.label, lx + 12, lY)
+          if (col === 2) lY += 6
+        }
+        if (items.length % 3 !== 0) lY += 6
+        return lY
+      }
+
+      // Pre-compute data for all sections
+      // Ranking data
+      const rankingData = data.members.map(m => {
+        const memberMastery = data.masteryMap[m.id] || {}
+        let validatedCount = 0
+        for (const entry of Object.values(memberMastery)) {
+          if (entry.status === 'V') validatedCount++
+        }
+        const nameParts = m.name.split(' ')
+        const firstName = nameParts[nameParts.length - 1]
+        const lastName = nameParts.slice(0, -1).join(' ')
+        return { name: `${lastName} ${firstName}`, validated: validatedCount }
+      }).sort((a, b) => b.validated - a.validated)
+
+      // Session rows
+      const sessionRows: string[][] = []
+      for (const member of data.members) {
+        const memberComments = data.commentsMap[member.id]
+        if (!memberComments) continue
+        const nameParts = member.name.split(' ')
+        const firstName = nameParts[nameParts.length - 1]
+        for (const [surahNum, comments] of Object.entries(memberComments)) {
+          for (const c of comments) {
+            if (c.sessionNumber === targetSessionNumber) {
+              const surahInfo = data.allSurahsMap[parseInt(surahNum)]
+              sessionRows.push([
+                firstName,
+                surahLabel(parseInt(surahNum), surahInfo, reshapeAr),
+                `1-${surahInfo?.totalVerses || '?'}`,
+                getCellDisplay(member.id, parseInt(surahNum)),
+                stripHtmlTags(c.comment)
+              ])
+            }
+          }
+        }
+      }
+
+      // Past comments
+      const pastCommentsByMember: Record<string, { memberName: string; comments: { sessionNum: number; session: string; surah: string; comment: string }[] }> = {}
+      for (const member of data.members) {
+        const memberComments = data.commentsMap[member.id]
+        if (!memberComments) continue
+        const nameParts = member.name.split(' ')
+        const firstName = nameParts[nameParts.length - 1]
+        const lastName = nameParts.slice(0, -1).join(' ')
+        const fullName = `${lastName} ${firstName}`
+        for (const [surahNum, comments] of Object.entries(memberComments)) {
+          const surahInfo = data.allSurahsMap[parseInt(surahNum)]
+          for (const c of comments) {
+            if (c.sessionNumber && c.sessionNumber < targetSessionNumber) {
+              if (!pastCommentsByMember[member.id]) {
+                pastCommentsByMember[member.id] = { memberName: fullName, comments: [] }
+              }
+              const dateStr = c.sessionDate ? new Date(c.sessionDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''
+              pastCommentsByMember[member.id].comments.push({
+                sessionNum: c.sessionNumber,
+                session: `S${c.sessionNumber}${dateStr ? ` (${dateStr})` : ''}`,
+                surah: surahLabel(parseInt(surahNum), surahInfo, reshapeAr),
+                comment: stripHtmlTags(c.comment)
+              })
+            }
+          }
+        }
+      }
+      for (const entry of Object.values(pastCommentsByMember)) {
+        entry.comments.sort((a, b) => b.sessionNum - a.sessionNum)
+      }
+      const membersWithComments = Object.values(pastCommentsByMember).filter(e => e.comments.length > 0)
+
+      // Build table of contents entries
+      const tocEntries: string[] = []
+      tocEntries.push('Points abordés de la séance')
+      tocEntries.push('Classement des élèves')
+      if (sessionRows.length > 0) tocEntries.push('Suivi individuel de mémorisation')
+      if (reportHomework.trim()) tocEntries.push('Devoirs')
+      tocEntries.push('Grille de suivi')
+      if (membersWithComments.length > 0) tocEntries.push('Annexe - Commentaires des séances précédentes')
+
+      // ===== PAGE 1: Cover + Table of contents =====
       doc.setFillColor(45, 55, 72)
-      doc.rect(0, 0, 297, 25, 'F')
+      doc.rect(0, 0, 297, 30, 'F')
       doc.setTextColor(255, 255, 255)
-      doc.setFontSize(18)
+      doc.setFontSize(20)
       doc.setFont(pdfFont, 'bold')
-      doc.text(`Séance N°${targetSessionNumber}${sessionWeekNumber ? ` - Semaine ${sessionWeekNumber}` : ''}`, 14, 12)
-      doc.setFontSize(13)
+      doc.text(`Séance N°${targetSessionNumber}${sessionWeekNumber ? ` - Semaine ${sessionWeekNumber}` : ''}`, 14, 14)
+      doc.setFontSize(14)
       doc.setFont(pdfFont, 'normal')
-      doc.text(`${data.group.name} - ${sessionDate}`, 14, 19)
+      doc.text(`${data.group.name} - ${sessionDate}`, 14, 24)
 
       doc.setTextColor(0, 0, 0)
-      let yPos = 32
+      let yPos = 42
 
-      // 1. Checklist - points abordés (all items with check/cross)
+      // Table of contents
+      doc.setFontSize(14)
+      doc.setFont(pdfFont, 'bold')
+      doc.text('Table des matières', 14, yPos)
+      yPos += 8
+      doc.setFont(pdfFont, 'normal')
+      doc.setFontSize(12)
+      for (let i = 0; i < tocEntries.length; i++) {
+        doc.text(`${i + 1}.  ${tocEntries[i]}`, 20, yPos)
+        yPos += 7
+      }
+
+      // ===== PAGE 2: Points abordés + Prochaine sourate =====
+      doc.addPage()
+      drawSectionHeader('Points abordés de la séance')
+      yPos = 28
+
       if (reportTopics.length > 0) {
-        doc.setFontSize(13)
-        doc.setFont(pdfFont, 'bold')
-        doc.text('Points abordés :', 14, yPos)
-        yPos += 6
-        doc.setFont(pdfFont, 'normal')
         doc.setFontSize(12)
+        doc.setFont(pdfFont, 'normal')
         for (const topic of reportTopics) {
           if (topic.checked) {
             doc.setFillColor(34, 197, 94)
@@ -475,12 +622,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           }
           doc.rect(14, yPos - 3, 3, 3, 'F')
           doc.text(`  ${topic.label}`, 18, yPos)
-          yPos += 5
+          yPos += 6
         }
-        yPos += 3
+        yPos += 4
       }
 
-      // 2. Next surah (single doc.text() call to avoid Arabic encoding issues)
       if (reportNextSurah && reportNextSurah !== 'none') {
         const surahInfo = reportSurahs.find(s => s.number === parseInt(reportNextSurah))
         if (surahInfo) {
@@ -492,37 +638,54 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         }
       }
 
-      // 3. Recitations table
-      const sessionRows: string[][] = []
-      for (const member of data.members) {
-        const memberComments = data.commentsMap[member.id]
-        if (!memberComments) continue
-        const nameParts = member.name.split(' ')
-        const firstName = nameParts[nameParts.length - 1]
+      // ===== PAGE 3: Classement des élèves =====
+      doc.addPage()
+      drawSectionHeader('Classement des élèves')
 
-        for (const [surahNum, comments] of Object.entries(memberComments)) {
-          for (const c of comments) {
-            if (c.sessionNumber === targetSessionNumber) {
-              const surahInfo = data.allSurahsMap[parseInt(surahNum)]
-              const surahLbl = surahLabel(parseInt(surahNum), surahInfo, reshapeAr)
-              const statusDisplay = getCellDisplay(member.id, parseInt(surahNum))
-              sessionRows.push([
-                firstName,
-                surahLbl,
-                `1-${surahInfo?.totalVerses || '?'}`,
-                statusDisplay,
-                stripHtmlTags(c.comment)
-              ])
-            }
+      autoTable(doc, {
+        head: [['#', 'Élève', 'Sourates validées']],
+        body: rankingData.map((r, i) => [(i + 1).toString(), r.name, r.validated.toString()]),
+        startY: 25,
+        styles: {
+          font: pdfFont,
+          fontSize: 12,
+          cellPadding: 3,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1
+        },
+        headStyles: {
+          fillColor: [71, 85, 105],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        },
+        columnStyles: {
+          0: { cellWidth: 15, halign: 'center' },
+          1: { cellWidth: 80 },
+          2: { cellWidth: 40, halign: 'center' }
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        },
+        didParseCell: (hookData: any) => {
+          if (hookData.section === 'body' && hookData.column.index === 0) {
+            const rank = parseInt(hookData.cell.text[0])
+            if (rank === 1) { hookData.cell.styles.fillColor = [255, 215, 0]; hookData.cell.styles.fontStyle = 'bold' }
+            else if (rank === 2) { hookData.cell.styles.fillColor = [192, 192, 192]; hookData.cell.styles.fontStyle = 'bold' }
+            else if (rank === 3) { hookData.cell.styles.fillColor = [205, 127, 50]; hookData.cell.styles.textColor = [255, 255, 255]; hookData.cell.styles.fontStyle = 'bold' }
           }
-        }
-      }
+        },
+        margin: { left: 60, right: 60 }
+      })
 
+      // ===== PAGE 4: Suivi individuel (Recitations) =====
       if (sessionRows.length > 0) {
+        doc.addPage()
+        drawSectionHeader('Suivi individuel de mémorisation')
+
         autoTable(doc, {
           head: [['Élève', 'Sourate', 'Versets', 'Statut', 'Commentaire']],
           body: sessionRows,
-          startY: yPos,
+          startY: 25,
           styles: {
             font: pdfFont,
             fontSize: 12,
@@ -549,19 +712,34 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           margin: { left: 10, right: 10 }
         })
         yPos = (doc as any).lastAutoTable.finalY + 8
-      }
 
-      // 4. Homework section
-      if (reportHomework.trim()) {
-        // Check if we need a new page
-        if (yPos > 170) {
-          doc.addPage()
-          yPos = 15
+        // Homework after recitations on same page if fits
+        if (reportHomework.trim()) {
+          if (yPos > 170) {
+            doc.addPage()
+            yPos = 15
+          }
+          doc.setFontSize(13)
+          doc.setFont(pdfFont, 'bold')
+          doc.text('Devoirs :', 14, yPos)
+          yPos += 6
+          doc.setFont(pdfFont, 'normal')
+          doc.setFontSize(12)
+          const homeworkLines = reportHomework.split('\n')
+          for (const line of homeworkLines) {
+            if (yPos > 195) {
+              doc.addPage()
+              yPos = 15
+            }
+            doc.text(line, 14, yPos)
+            yPos += 5
+          }
         }
-        doc.setFontSize(13)
-        doc.setFont(pdfFont, 'bold')
-        doc.text('Devoirs :', 14, yPos)
-        yPos += 6
+      } else if (reportHomework.trim()) {
+        // No recitations but has homework
+        doc.addPage()
+        drawSectionHeader('Devoirs')
+        yPos = 28
         doc.setFont(pdfFont, 'normal')
         doc.setFontSize(12)
         const homeworkLines = reportHomework.split('\n')
@@ -575,16 +753,9 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         }
       }
 
-      // 5. Mastery grid on new page
+      // ===== Grille de suivi =====
       doc.addPage()
-
-      doc.setFillColor(45, 55, 72)
-      doc.rect(0, 0, 297, 20, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(16)
-      doc.setFont(pdfFont, 'bold')
-      doc.text('Grille de suivi', 14, 13)
-      doc.setTextColor(0, 0, 0)
+      drawSectionHeader('Grille de suivi')
 
       const gridHeaders = ['Sourate']
       for (const m of data.members) {
@@ -604,16 +775,6 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           }
           gridRows.push(row)
         }
-      }
-
-      const getStatusColor = (text: string): [number, number, number] | null => {
-        if (text.startsWith('V')) return [34, 197, 94]
-        if (text === 'C') return [59, 130, 246]
-        if (text === '90%') return [134, 239, 172]
-        if (text.includes('50') || text.includes('51')) return [250, 204, 21]
-        if (text === 'AM') return [251, 146, 60]
-        if (text.startsWith('S')) return [167, 139, 250]
-        return null
       }
 
       autoTable(doc, {
@@ -656,160 +817,27 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         margin: { left: 10, right: 10 }
       })
 
-      // 5b. Légende des statuts
+      // Légende after grid
       let legendY = (doc as any).lastAutoTable?.finalY + 8 || 180
       if (legendY > 180) {
         doc.addPage()
         legendY = 15
       }
-      doc.setFontSize(12)
-      doc.setFont(pdfFont, 'bold')
-      doc.text('Légende :', 14, legendY)
-      legendY += 6
-      doc.setFont(pdfFont, 'normal')
-      doc.setFontSize(10)
-      const legendItems = [
-        { code: 'V', color: [34, 197, 94], label: 'Validé', textWhite: true },
-        { code: 'C', color: [59, 130, 246], label: 'Supposé connu', textWhite: true },
-        { code: '90%', color: [134, 239, 172], label: 'Presque maîtrisé', textWhite: false },
-        { code: '51%', color: [250, 204, 21], label: 'Moitié acquise', textWhite: false },
-        { code: 'AM', color: [251, 146, 60], label: 'À mémoriser', textWhite: false },
-        { code: 'S', color: [167, 139, 250], label: 'Récité à un élève', textWhite: true },
-      ]
-      // 3 items per row, centered on page (A4 landscape = 297mm)
-      const colWidth = 90
-      const startX = (297 - colWidth * 3) / 2
-      for (let i = 0; i < legendItems.length; i++) {
-        const item = legendItems[i]
-        const col = i % 3
-        const legendX = startX + col * colWidth
-        doc.setFillColor(item.color[0], item.color[1], item.color[2])
-        doc.rect(legendX, legendY - 3, 10, 4, 'F')
-        doc.setTextColor(item.textWhite ? 255 : 0, item.textWhite ? 255 : 0, item.textWhite ? 255 : 0)
-        doc.text(item.code, legendX + 5, legendY, { align: 'center' })
-        doc.setTextColor(0, 0, 0)
-        doc.text(item.label, legendX + 12, legendY)
-        if (col === 2) legendY += 6
-      }
-      if (legendItems.length % 3 !== 0) legendY += 6
+      drawLegend(legendY)
 
-      // 6. Classement des élèves (par sourates validées)
-      doc.addPage()
-
-      doc.setFillColor(45, 55, 72)
-      doc.rect(0, 0, 297, 20, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(16)
-      doc.setFont(pdfFont, 'bold')
-      doc.text('Classement des élèves', 14, 13)
-      doc.setTextColor(0, 0, 0)
-
-      // Count validated surahs per member
-      const rankingData = data.members.map(m => {
-        const memberMastery = data.masteryMap[m.id] || {}
-        let validatedCount = 0
-        for (const entry of Object.values(memberMastery)) {
-          if (entry.status === 'V') validatedCount++
-        }
-        const nameParts = m.name.split(' ')
-        const firstName = nameParts[nameParts.length - 1]
-        const lastName = nameParts.slice(0, -1).join(' ')
-        return { name: `${lastName} ${firstName}`, validated: validatedCount }
-      }).sort((a, b) => b.validated - a.validated)
-
-      autoTable(doc, {
-        head: [['#', 'Élève', 'Sourates validées']],
-        body: rankingData.map((r, i) => [(i + 1).toString(), r.name, r.validated.toString()]),
-        startY: 25,
-        styles: {
-          font: pdfFont,
-          fontSize: 12,
-          cellPadding: 3,
-          lineColor: [200, 200, 200],
-          lineWidth: 0.1
-        },
-        headStyles: {
-          fillColor: [71, 85, 105],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold'
-        },
-        columnStyles: {
-          0: { cellWidth: 15, halign: 'center' },
-          1: { cellWidth: 80 },
-          2: { cellWidth: 40, halign: 'center' }
-        },
-        alternateRowStyles: {
-          fillColor: [248, 250, 252]
-        },
-        didParseCell: (hookData: any) => {
-          // Gold/silver/bronze for top 3
-          if (hookData.section === 'body' && hookData.column.index === 0) {
-            const rank = parseInt(hookData.cell.text[0])
-            if (rank === 1) { hookData.cell.styles.fillColor = [255, 215, 0]; hookData.cell.styles.fontStyle = 'bold' }
-            else if (rank === 2) { hookData.cell.styles.fillColor = [192, 192, 192]; hookData.cell.styles.fontStyle = 'bold' }
-            else if (rank === 3) { hookData.cell.styles.fillColor = [205, 127, 50]; hookData.cell.styles.textColor = [255, 255, 255]; hookData.cell.styles.fontStyle = 'bold' }
-          }
-        },
-        margin: { left: 60, right: 60 }
-      })
-
-      // 7. Annexe - Commentaires des séances précédentes (regroupés par élève, séances décroissantes)
-      const pastCommentsByMember: Record<string, { memberName: string; comments: { sessionNum: number; session: string; surah: string; comment: string }[] }> = {}
-      for (const member of data.members) {
-        const memberComments = data.commentsMap[member.id]
-        if (!memberComments) continue
-        const nameParts = member.name.split(' ')
-        const firstName = nameParts[nameParts.length - 1]
-        const lastName = nameParts.slice(0, -1).join(' ')
-        const fullName = `${lastName} ${firstName}`
-
-        for (const [surahNum, comments] of Object.entries(memberComments)) {
-          const surahInfo = data.allSurahsMap[parseInt(surahNum)]
-          for (const c of comments) {
-            if (c.sessionNumber && c.sessionNumber < targetSessionNumber) {
-              if (!pastCommentsByMember[member.id]) {
-                pastCommentsByMember[member.id] = { memberName: fullName, comments: [] }
-              }
-              const dateStr = c.sessionDate ? new Date(c.sessionDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''
-              pastCommentsByMember[member.id].comments.push({
-                sessionNum: c.sessionNumber,
-                session: `S${c.sessionNumber}${dateStr ? ` (${dateStr})` : ''}`,
-                surah: surahLabel(parseInt(surahNum), surahInfo, reshapeAr),
-                comment: stripHtmlTags(c.comment)
-              })
-            }
-          }
-        }
-      }
-
-      // Sort each member's comments by session number descending
-      for (const entry of Object.values(pastCommentsByMember)) {
-        entry.comments.sort((a, b) => b.sessionNum - a.sessionNum)
-      }
-
-      const membersWithComments = Object.values(pastCommentsByMember).filter(e => e.comments.length > 0)
-
+      // ===== Annexe =====
       if (membersWithComments.length > 0) {
         doc.addPage()
-
-        doc.setFillColor(45, 55, 72)
-        doc.rect(0, 0, 297, 20, 'F')
-        doc.setTextColor(255, 255, 255)
-        doc.setFontSize(16)
-        doc.setFont(pdfFont, 'bold')
-        doc.text('Annexe - Commentaires des séances précédentes', 14, 13)
-        doc.setTextColor(0, 0, 0)
+        drawSectionHeader('Annexe - Commentaires des séances précédentes')
 
         let annexeY = 25
 
         for (const entry of membersWithComments) {
-          // Check if we need a new page
           if (annexeY > 180) {
             doc.addPage()
             annexeY = 15
           }
 
-          // Member name header
           doc.setFontSize(12)
           doc.setFont(pdfFont, 'bold')
           doc.setFillColor(226, 232, 240)
