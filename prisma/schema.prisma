@@ -111,6 +111,7 @@ model Group {
   name             String
   description      String?
   sessionFrequency String   @default("WEEKLY")
+  defaultHomework  String?  // Devoirs par défaut pré-remplis pour les rapports de séance
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -248,14 +249,17 @@ model Evaluation {
 // ============================================
 
 model GroupSession {
-  id         String   @id @default(cuid())
-  groupId    String
-  date       DateTime
-  weekNumber Int?     // Numéro de semaine (S1, S2, S12...)
-  notes      String?
-  createdBy  String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String   @id @default(cuid())
+  groupId         String
+  date            DateTime
+  weekNumber      Int?     // Numéro de semaine (S1, S2, S12...)
+  notes           String?
+  nextSurahNumber Int?     // Prochaine sourate à mémoriser annoncée
+  homework        String?  // Devoirs spécifiques à cette séance
+  sessionTopics   Json?    // Checklist des points abordés [{label, checked}]
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   group       Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
   attendance  SessionAttendance[]

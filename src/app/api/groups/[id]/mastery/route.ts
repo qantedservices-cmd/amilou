@@ -93,10 +93,21 @@ export async function GET(
     // Get all comments from SurahRecitation for these members in this group's sessions
     const groupSessions = await prisma.groupSession.findMany({
       where: { groupId },
-      select: { id: true, weekNumber: true, date: true }
+      select: { id: true, weekNumber: true, date: true },
+      orderBy: { date: 'asc' }
     })
     const sessionIds = groupSessions.map(s => s.id)
     const sessionWeekMap = new Map(groupSessions.map(s => [s.id, s.weekNumber]))
+
+    // Build session number map (chronological order per group)
+    const sessionNumberMap = new Map<string, number>()
+    const sessionDateMap = new Map<string, string>()
+    groupSessions.forEach((s, idx) => {
+      sessionNumberMap.set(s.id, idx + 1)
+      sessionDateMap.set(s.id, s.date.toISOString())
+    })
+    const nextSessionNumber = groupSessions.length + 1
+    const totalSessions = groupSessions.length
 
     const recitations = await prisma.surahRecitation.findMany({
       where: {
@@ -115,11 +126,14 @@ export async function GET(
       orderBy: { createdAt: 'desc' }
     })
 
-    // Build comments map: userId -> surahNumber -> array of { id, comment, weekNumber, createdAt }
+    // Build comments map: userId -> surahNumber -> array of comments with session info
     const commentsMap: Record<string, Record<number, Array<{
       id: string
       comment: string
       weekNumber: number | null
+      sessionNumber: number | null
+      sessionId: string | null
+      sessionDate: string | null
       createdAt: string
     }>>> = {}
     for (const r of recitations) {
@@ -134,6 +148,9 @@ export async function GET(
         id: r.id,
         comment: r.comment,
         weekNumber: sessionWeekMap.get(r.sessionId) || null,
+        sessionNumber: sessionNumberMap.get(r.sessionId) || null,
+        sessionId: r.sessionId,
+        sessionDate: sessionDateMap.get(r.sessionId) || null,
         createdAt: r.createdAt.toISOString()
       })
     }
@@ -215,7 +232,9 @@ export async function GET(
       masteryMap,
       commentsMap,
       isReferent,
-      referent: referent ? { id: referent.userId, name: referent.user.name } : null
+      referent: referent ? { id: referent.userId, name: referent.user.name } : null,
+      nextSessionNumber,
+      totalSessions
     })
   } catch (error) {
     console.error('Error fetching mastery:', error)
@@ -346,30 +365,64 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { userId, surahNumber, comment, weekNumber } = body
+    const { userId, surahNumber, comment, sessionNumber, verseStart: reqVerseStart, verseEnd: reqVerseEnd, weekNumber } = body
 
     if (!userId || !surahNumber || !comment) {
       return NextResponse.json({ error: 'Données manquantes' }, { status: 400 })
     }
 
-    // Find or create a session for this week
-    let sessionRecord = await prisma.groupSession.findFirst({
-      where: {
-        groupId,
-        weekNumber: weekNumber || null
-      }
+    // Get surah info for default verse range
+    const surah = await prisma.surah.findUnique({
+      where: { number: surahNumber },
+      select: { totalVerses: true }
     })
+    const totalVerses = surah?.totalVerses || 1
+    const verseStart = reqVerseStart || 1
+    const verseEnd = reqVerseEnd || totalVerses
 
-    if (!sessionRecord) {
-      // Create a new session for this group
-      sessionRecord = await prisma.groupSession.create({
-        data: {
-          groupId,
-          date: new Date(),
-          weekNumber: weekNumber || null,
-          createdBy: effectiveUserId
-        }
+    let sessionRecord: any
+
+    if (sessionNumber) {
+      // Resolve session by chronological number
+      const allSessions = await prisma.groupSession.findMany({
+        where: { groupId },
+        orderBy: { date: 'asc' }
       })
+
+      if (sessionNumber <= allSessions.length) {
+        // Use existing session
+        sessionRecord = allSessions[sessionNumber - 1]
+      } else {
+        // Create a new session (date = today, auto-calculate weekNumber)
+        const today = new Date()
+        const startOfYear = new Date(today.getFullYear(), 0, 1)
+        const diffDays = Math.floor((today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24))
+        const autoWeekNumber = Math.ceil((diffDays + startOfYear.getDay() + 1) / 7)
+
+        sessionRecord = await prisma.groupSession.create({
+          data: {
+            groupId,
+            date: today,
+            weekNumber: autoWeekNumber,
+            createdBy: effectiveUserId
+          }
+        })
+      }
+    } else {
+      // Fallback: find or create by weekNumber (backward compat)
+      sessionRecord = await prisma.groupSession.findFirst({
+        where: { groupId, weekNumber: weekNumber || null }
+      })
+      if (!sessionRecord) {
+        sessionRecord = await prisma.groupSession.create({
+          data: {
+            groupId,
+            date: new Date(),
+            weekNumber: weekNumber || null,
+            createdBy: effectiveUserId
+          }
+        })
+      }
     }
 
     // Create the recitation with comment
@@ -379,13 +432,21 @@ export async function POST(
         userId,
         surahNumber,
         type: 'MEMORIZATION',
-        verseStart: 1,
-        verseEnd: 1,
+        verseStart,
+        verseEnd,
         status: 'V',
         comment,
         createdBy: effectiveUserId
       }
     })
+
+    // Calculate session number for response
+    const allSessionsForNumber = await prisma.groupSession.findMany({
+      where: { groupId },
+      orderBy: { date: 'asc' },
+      select: { id: true }
+    })
+    const responseSessionNumber = allSessionsForNumber.findIndex(s => s.id === sessionRecord.id) + 1
 
     return NextResponse.json({
       success: true,
@@ -393,11 +454,117 @@ export async function POST(
         id: recitation.id,
         comment: recitation.comment,
         weekNumber: sessionRecord.weekNumber,
+        sessionNumber: responseSessionNumber,
+        sessionId: sessionRecord.id,
+        sessionDate: sessionRecord.date.toISOString(),
         createdAt: recitation.createdAt.toISOString()
       }
     })
   } catch (error) {
     console.error('Error adding comment:', error)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  }
+}
+
+// PATCH /api/groups/[id]/mastery - Edit a comment (text and/or session)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    const { userId: effectiveUserId } = await getEffectiveUserId()
+    const { id: groupId } = await params
+
+    if (!effectiveUserId) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    // Check if user is REFERENT of this group or ADMIN
+    const membership = await prisma.groupMember.findFirst({
+      where: {
+        groupId,
+        userId: effectiveUserId,
+        role: 'REFERENT'
+      }
+    })
+
+    const user = await prisma.user.findUnique({
+      where: { id: effectiveUserId },
+      select: { role: true }
+    })
+
+    if (!membership && user?.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Seul le référent peut modifier les commentaires' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { commentId, comment, sessionNumber } = body
+
+    if (!commentId) {
+      return NextResponse.json({ error: 'ID du commentaire manquant' }, { status: 400 })
+    }
+
+    // Get the existing recitation
+    const recitation = await prisma.surahRecitation.findUnique({
+      where: { id: commentId }
+    })
+
+    if (!recitation) {
+      return NextResponse.json({ error: 'Commentaire non trouvé' }, { status: 404 })
+    }
+
+    const updateData: any = {}
+
+    // Update comment text if provided
+    if (comment !== undefined) {
+      updateData.comment = comment
+    }
+
+    // Update session if sessionNumber provided
+    if (sessionNumber !== undefined) {
+      const allSessions = await prisma.groupSession.findMany({
+        where: { groupId },
+        orderBy: { date: 'asc' }
+      })
+
+      if (sessionNumber > 0 && sessionNumber <= allSessions.length) {
+        updateData.sessionId = allSessions[sessionNumber - 1].id
+      } else if (sessionNumber > allSessions.length) {
+        // Create a new session
+        const today = new Date()
+        const startOfYear = new Date(today.getFullYear(), 0, 1)
+        const diffDays = Math.floor((today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24))
+        const autoWeekNumber = Math.ceil((diffDays + startOfYear.getDay() + 1) / 7)
+
+        const newSession = await prisma.groupSession.create({
+          data: {
+            groupId,
+            date: today,
+            weekNumber: autoWeekNumber,
+            createdBy: effectiveUserId
+          }
+        })
+        updateData.sessionId = newSession.id
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: 'Aucune modification fournie' }, { status: 400 })
+    }
+
+    const updated = await prisma.surahRecitation.update({
+      where: { id: commentId },
+      data: updateData
+    })
+
+    return NextResponse.json({ success: true, updated })
+  } catch (error) {
+    console.error('Error editing comment:', error)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }

@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Download, FileText, MessageSquare, Plus, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Download, FileText, MessageSquare, Pencil, Plus, Trash2, Users, Check, X } from 'lucide-react'
 import { RichTextEditor, stripHtmlTags } from '@/components/ui/rich-text-editor'
 import Link from 'next/link'
 
@@ -50,6 +50,9 @@ interface Comment {
   id: string
   comment: string
   weekNumber: number | null
+  sessionNumber: number | null
+  sessionId: string | null
+  sessionDate: string | null
   createdAt: string
 }
 
@@ -57,6 +60,17 @@ interface SurahInfo {
   nameAr: string
   nameFr: string
   totalVerses: number
+}
+
+interface TopicItem {
+  label: string
+  checked: boolean
+}
+
+interface SurahOption {
+  number: number
+  nameAr: string
+  nameFr: string
 }
 
 interface MasteryData {
@@ -68,6 +82,8 @@ interface MasteryData {
   commentsMap: Record<string, Record<number, Comment[]>>
   isReferent: boolean
   referent: { id: string; name: string } | null
+  nextSessionNumber: number
+  totalSessions: number
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -114,14 +130,32 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
   // Comments state
   const [newComment, setNewComment] = useState('')
-  const [commentWeek, setCommentWeek] = useState('')
+  const [sessionNumber, setSessionNumber] = useState('')
+  const [verseStart, setVerseStart] = useState(1)
+  const [verseEnd, setVerseEnd] = useState(1)
   const [showAllComments, setShowAllComments] = useState(false)
   const [addingComment, setAddingComment] = useState(false)
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
 
+  // Inline editing state
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
+  const [editingCommentText, setEditingCommentText] = useState('')
+  const [editingCommentSession, setEditingCommentSession] = useState('')
+  const [savingComment, setSavingComment] = useState(false)
+
   // Export state
   const exportRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState(false)
+
+  // Session report dialog state
+  const [sessionReportOpen, setSessionReportOpen] = useState(false)
+  const [reportLoading, setReportLoading] = useState(false)
+  const [reportSessionNumber, setReportSessionNumber] = useState(0)
+  const [reportTopics, setReportTopics] = useState<TopicItem[]>([])
+  const [reportNextSurah, setReportNextSurah] = useState<string>('')
+  const [reportHomework, setReportHomework] = useState('')
+  const [reportSurahs, setReportSurahs] = useState<SurahOption[]>([])
+  const [newTopicLabel, setNewTopicLabel] = useState('')
 
   useEffect(() => {
     fetchMastery()
@@ -186,8 +220,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     setEditStatus(entry?.status || 'NONE')
     setEditWeek(entry?.validatedWeek?.toString() || '')
     setNewComment('')
-    setCommentWeek('')
+    setSessionNumber(data.nextSessionNumber.toString())
+    const surahInfo = data.allSurahsMap[surahNumber]
+    setVerseStart(1)
+    setVerseEnd(surahInfo?.totalVerses || 1)
     setShowAllComments(false)
+    setEditingCommentId(null)
     setEditDialogOpen(true)
   }
 
@@ -207,13 +245,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           userId: editingCell.userId,
           surahNumber: editingCell.surahNumber,
           comment: newComment.trim(),
-          weekNumber: commentWeek ? parseInt(commentWeek) : null
+          sessionNumber: sessionNumber ? parseInt(sessionNumber) : null,
+          verseStart,
+          verseEnd
         })
       })
       if (res.ok) {
         await fetchMastery()
         setNewComment('')
-        setCommentWeek('')
       } else {
         const errorData = await res.json()
         alert('Erreur: ' + (errorData.error || 'Impossible d\'ajouter le commentaire'))
@@ -223,6 +262,36 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       alert('Erreur de connexion')
     } finally {
       setAddingComment(false)
+    }
+  }
+
+  async function handleEditComment() {
+    if (!editingCommentId) return
+    setSavingComment(true)
+    try {
+      const res = await fetch(`/api/groups/${groupId}/mastery`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          commentId: editingCommentId,
+          comment: editingCommentText.trim() || undefined,
+          sessionNumber: editingCommentSession ? parseInt(editingCommentSession) : undefined
+        })
+      })
+      if (res.ok) {
+        await fetchMastery()
+        setEditingCommentId(null)
+        setEditingCommentText('')
+        setEditingCommentSession('')
+      } else {
+        const errorData = await res.json()
+        alert('Erreur: ' + (errorData.error || 'Impossible de modifier le commentaire'))
+      }
+    } catch (err) {
+      console.error('Error editing comment:', err)
+      alert('Erreur de connexion')
+    } finally {
+      setSavingComment(false)
     }
   }
 
@@ -239,6 +308,327 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       console.error('Error deleting comment:', err)
     } finally {
       setDeletingCommentId(null)
+    }
+  }
+
+  async function openSessionReportDialog() {
+    if (!data) return
+    setSessionReportOpen(true)
+    setReportLoading(true)
+    try {
+      const targetNum = data.nextSessionNumber - 1
+      const res = await fetch(`/api/groups/${groupId}/mastery/session-report${targetNum > 0 ? `?sessionNumber=${targetNum}` : ''}`)
+      if (res.ok) {
+        const json = await res.json()
+        setReportSessionNumber(json.sessionNumber || data.nextSessionNumber)
+        setReportTopics(json.sessionTopics || [])
+        setReportNextSurah(json.nextSurahNumber?.toString() || '')
+        setReportHomework(json.homework || '')
+        setReportSurahs(json.surahs || [])
+      }
+    } catch (err) {
+      console.error('Error loading session report:', err)
+    } finally {
+      setReportLoading(false)
+    }
+  }
+
+  function toggleTopic(index: number) {
+    setReportTopics(prev => prev.map((t, i) => i === index ? { ...t, checked: !t.checked } : t))
+  }
+
+  function addCustomTopic() {
+    if (!newTopicLabel.trim()) return
+    setReportTopics(prev => [...prev, { label: newTopicLabel.trim(), checked: true }])
+    setNewTopicLabel('')
+  }
+
+  function removeCustomTopic(index: number) {
+    setReportTopics(prev => prev.filter((_, i) => i !== index))
+  }
+
+  async function handleGenerateSessionPDF() {
+    if (!data) return
+    setExporting(true)
+
+    // Save report data to DB first
+    try {
+      await fetch(`/api/groups/${groupId}/mastery/session-report`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionNumber: reportSessionNumber,
+          nextSurahNumber: reportNextSurah && reportNextSurah !== 'none' ? parseInt(reportNextSurah) : null,
+          homework: reportHomework,
+          sessionTopics: reportTopics,
+          saveAsDefault: true
+        })
+      })
+    } catch (err) {
+      console.error('Error saving session report:', err)
+    }
+
+    try {
+      const { jsPDF } = await import('jspdf')
+      const autoTableModule = await import('jspdf-autotable')
+      const autoTable = autoTableModule.default
+
+      const targetSessionNumber = reportSessionNumber
+
+      // Find session date and weekNumber from comments
+      let sessionDate = ''
+      let sessionWeekNumber: number | null = null
+      for (const memberComments of Object.values(data.commentsMap)) {
+        for (const surahComments of Object.values(memberComments)) {
+          for (const c of surahComments) {
+            if (c.sessionNumber === targetSessionNumber) {
+              if (c.sessionDate) {
+                sessionDate = new Date(c.sessionDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+              }
+              if (c.weekNumber) sessionWeekNumber = c.weekNumber
+              break
+            }
+          }
+          if (sessionDate) break
+        }
+        if (sessionDate) break
+      }
+      if (!sessionDate) {
+        sessionDate = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      }
+
+      // Create PDF
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+
+      // Header
+      doc.setFillColor(45, 55, 72)
+      doc.rect(0, 0, 297, 25, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Seance N${targetSessionNumber}${sessionWeekNumber ? ` — Semaine ${sessionWeekNumber}` : ''}`, 14, 12)
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`${data.group.name} — ${sessionDate}`, 14, 19)
+
+      doc.setTextColor(0, 0, 0)
+      let yPos = 32
+
+      // 1. Checklist - points abordés
+      const checkedTopics = reportTopics.filter(t => t.checked)
+      if (checkedTopics.length > 0) {
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Points abordes :', 14, yPos)
+        yPos += 6
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(10)
+        for (const topic of checkedTopics) {
+          doc.text(`  \u2713  ${topic.label}`, 14, yPos)
+          yPos += 5
+        }
+        yPos += 3
+      }
+
+      // 2. Next surah
+      if (reportNextSurah && reportNextSurah !== 'none') {
+        const surahInfo = reportSurahs.find(s => s.number === parseInt(reportNextSurah))
+        if (surahInfo) {
+          doc.setFontSize(11)
+          doc.setFont('helvetica', 'bold')
+          doc.text(`Prochaine sourate : ${surahInfo.number}. ${surahInfo.nameFr}`, 14, yPos)
+          yPos += 8
+        }
+      }
+
+      // 3. Recitations table
+      const sessionRows: string[][] = []
+      for (const member of data.members) {
+        const memberComments = data.commentsMap[member.id]
+        if (!memberComments) continue
+        const nameParts = member.name.split(' ')
+        const firstName = nameParts[nameParts.length - 1]
+
+        for (const [surahNum, comments] of Object.entries(memberComments)) {
+          for (const c of comments) {
+            if (c.sessionNumber === targetSessionNumber) {
+              const surahInfo = data.allSurahsMap[parseInt(surahNum)]
+              const surahLabel = `${surahNum}. ${surahInfo?.nameAr || ''}`
+              const statusDisplay = getCellDisplay(member.id, parseInt(surahNum))
+              sessionRows.push([
+                firstName,
+                surahLabel,
+                `1-${surahInfo?.totalVerses || '?'}`,
+                statusDisplay,
+                stripHtmlTags(c.comment)
+              ])
+            }
+          }
+        }
+      }
+
+      if (sessionRows.length > 0) {
+        autoTable(doc, {
+          head: [['Eleve', 'Sourate', 'Versets', 'Statut', 'Commentaire']],
+          body: sessionRows,
+          startY: yPos,
+          styles: {
+            fontSize: 9,
+            cellPadding: 3,
+            lineColor: [200, 200, 200],
+            lineWidth: 0.1
+          },
+          headStyles: {
+            fillColor: [71, 85, 105],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
+          },
+          columnStyles: {
+            0: { cellWidth: 30 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 20, halign: 'center' },
+            3: { cellWidth: 20, halign: 'center' },
+            4: { cellWidth: 'auto' }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 250, 252]
+          },
+          margin: { left: 10, right: 10 }
+        })
+        yPos = (doc as any).lastAutoTable.finalY + 8
+      }
+
+      // 4. Homework section
+      if (reportHomework.trim()) {
+        // Check if we need a new page
+        if (yPos > 170) {
+          doc.addPage()
+          yPos = 15
+        }
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Devoirs :', 14, yPos)
+        yPos += 6
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(10)
+        const homeworkLines = reportHomework.split('\n')
+        for (const line of homeworkLines) {
+          if (yPos > 195) {
+            doc.addPage()
+            yPos = 15
+          }
+          doc.text(line, 14, yPos)
+          yPos += 5
+        }
+      }
+
+      // 5. Mastery grid on new page
+      doc.addPage()
+
+      doc.setFillColor(45, 55, 72)
+      doc.rect(0, 0, 297, 20, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Grille de suivi', 14, 13)
+      doc.setTextColor(0, 0, 0)
+
+      const gridHeaders = ['Sourate']
+      for (const m of data.members) {
+        const parts = m.name.split(' ')
+        const lastName = parts.slice(0, -1).join(' ')
+        const firstName = parts[parts.length - 1]
+        gridHeaders.push(`${lastName}\n${firstName}`)
+      }
+
+      const gridRows: string[][] = []
+      for (const group of data.surahGroups) {
+        if (group.type === 'surah' && group.number) {
+          const surahInfo = data.allSurahsMap[group.number]
+          const row = [`${group.number}. ${surahInfo?.nameAr || ''}\n${surahInfo?.nameFr || ''}`]
+          for (const member of data.members) {
+            row.push(getCellDisplay(member.id, group.number!))
+          }
+          gridRows.push(row)
+        }
+      }
+
+      const getStatusColor = (text: string): [number, number, number] | null => {
+        if (text.startsWith('V')) return [34, 197, 94]
+        if (text === 'C') return [59, 130, 246]
+        if (text === '90%') return [134, 239, 172]
+        if (text.includes('50') || text.includes('51')) return [250, 204, 21]
+        if (text === 'AM') return [251, 146, 60]
+        if (text.startsWith('S')) return [167, 139, 250]
+        return null
+      }
+
+      autoTable(doc, {
+        head: [gridHeaders],
+        body: gridRows,
+        startY: 25,
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+          halign: 'center',
+          valign: 'middle',
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1
+        },
+        headStyles: {
+          fillColor: [71, 85, 105],
+          textColor: [255, 255, 255],
+          fontSize: 7,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        columnStyles: {
+          0: { cellWidth: 45, halign: 'left', fontStyle: 'bold' }
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        },
+        didParseCell: (hookData: any) => {
+          if (hookData.section === 'body' && hookData.column.index > 0) {
+            const text = hookData.cell.text.join('')
+            const color = getStatusColor(text)
+            if (color) {
+              hookData.cell.styles.fillColor = color
+              hookData.cell.styles.textColor = text === '90%' || text.includes('50') ? [0, 0, 0] : [255, 255, 255]
+              hookData.cell.styles.fontStyle = 'bold'
+            }
+          }
+        },
+        margin: { left: 10, right: 10 }
+      })
+
+      // Footer on all pages
+      const pageCount = doc.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setTextColor(150, 150, 150)
+        doc.text(`Page ${i}/${pageCount}`, 280, 205)
+      }
+
+      // Download
+      const pdfOutput = doc.output('blob')
+      const blobUrl = window.URL.createObjectURL(pdfOutput)
+      const a = document.createElement('a')
+      a.style.display = 'none'
+      a.href = blobUrl
+      a.download = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-')}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(blobUrl)
+      document.body.removeChild(a)
+
+      setSessionReportOpen(false)
+    } catch (err) {
+      console.error('Error exporting session PDF:', err)
+      alert('Erreur PDF: ' + (err instanceof Error ? err.message : 'Erreur'))
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -401,7 +791,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       })
 
       // Collect comments
-      const allComments: { member: string; surah: string; week: string; comment: string }[] = []
+      const allComments: { member: string; surah: string; session: string; comment: string }[] = []
       for (const member of data.members) {
         const memberComments = data.commentsMap[member.id]
         if (!memberComments) continue
@@ -411,10 +801,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         for (const [surahNum, comments] of Object.entries(memberComments)) {
           const surahInfo = data.allSurahsMap[parseInt(surahNum)]
           for (const c of comments) {
+            const dateStr = c.sessionDate ? new Date(c.sessionDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''
             allComments.push({
               member: firstName,
               surah: `${surahNum}. ${surahInfo?.nameAr || ''} - ${surahInfo?.nameFr || ''}`,
-              week: c.weekNumber ? `S${c.weekNumber}` : '-',
+              session: c.sessionNumber ? `S${c.sessionNumber}${dateStr ? ` (${dateStr})` : ''}` : '-',
               comment: stripHtmlTags(c.comment)
             })
           }
@@ -436,8 +827,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
         // Comments table
         autoTable(doc, {
-          head: [['Élève', 'Sourate', 'Sem.', 'Commentaire']],
-          body: allComments.map(c => [c.member, c.surah, c.week, c.comment]),
+          head: [['Élève', 'Sourate', 'Séance', 'Commentaire']],
+          body: allComments.map(c => [c.member, c.surah, c.session, c.comment]),
           startY: 25,
           styles: {
             fontSize: 9,
@@ -504,7 +895,9 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             userId: editingCell.userId,
             surahNumber: editingCell.surahNumber,
             comment: newComment.trim(),
-            weekNumber: commentWeek ? parseInt(commentWeek) : null
+            sessionNumber: sessionNumber ? parseInt(sessionNumber) : null,
+            verseStart,
+            verseEnd
           })
         })
         if (!commentRes.ok) {
@@ -514,7 +907,6 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           return
         }
         setNewComment('')
-        setCommentWeek('')
       }
 
       const statusToSend = editStatus === 'NONE' ? '' : editStatus
@@ -600,6 +992,15 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           >
             <FileText className="h-4 w-4 mr-2" />
             PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openSessionReportDialog}
+            disabled={exporting}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            PDF Séance
           </Button>
           {data.referent && (
             <Badge variant="outline">Référent: {data.referent.name}</Badge>
@@ -836,6 +1237,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 const visibleComments = showAllComments ? comments : comments.slice(0, 3)
                 const hasMore = comments.length > 3
 
+                const formatSessionDate = (dateStr: string | null) => {
+                  if (!dateStr) return ''
+                  return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                }
+
                 return (
                   <>
                     {comments.length === 0 ? (
@@ -843,22 +1249,93 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                     ) : (
                       <div className="space-y-2">
                         {visibleComments.map((c) => (
-                          <div key={c.id} className="flex items-start gap-2 bg-muted/50 rounded p-2 text-sm">
-                            <div className="flex-1">
-                              {c.weekNumber && (
-                                <span className="font-medium text-primary">S{c.weekNumber}: </span>
-                              )}
-                              <span dangerouslySetInnerHTML={{ __html: c.comment }} />
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 shrink-0 text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteComment(c.id)}
-                              disabled={deletingCommentId === c.id}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+                          <div key={c.id} className="bg-muted/50 rounded p-2 text-sm">
+                            {editingCommentId === c.id ? (
+                              // Inline editing mode
+                              <div className="space-y-2">
+                                <div className="flex gap-2 items-center">
+                                  <Label className="text-xs shrink-0">Séance</Label>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    value={editingCommentSession}
+                                    onChange={(e) => setEditingCommentSession(e.target.value)}
+                                    className="w-20 h-7 text-xs"
+                                  />
+                                </div>
+                                <RichTextEditor
+                                  value={editingCommentText}
+                                  onChange={setEditingCommentText}
+                                  placeholder="Commentaire..."
+                                  className="min-h-[60px]"
+                                />
+                                <div className="flex gap-1 justify-end">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => {
+                                      setEditingCommentId(null)
+                                      setEditingCommentText('')
+                                      setEditingCommentSession('')
+                                    }}
+                                    disabled={savingComment}
+                                  >
+                                    <X className="h-3 w-3 mr-1" />
+                                    Annuler
+                                  </Button>
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={handleEditComment}
+                                    disabled={savingComment}
+                                  >
+                                    <Check className="h-3 w-3 mr-1" />
+                                    {savingComment ? 'Sauvegarde...' : 'Sauvegarder'}
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              // Display mode
+                              <div className="flex items-start gap-2">
+                                <div className="flex-1">
+                                  <span className="font-medium text-primary">
+                                    S{c.sessionNumber || '?'}
+                                    {c.sessionDate && (
+                                      <span className="text-muted-foreground font-normal text-xs ml-1">
+                                        ({formatSessionDate(c.sessionDate)})
+                                      </span>
+                                    )}
+                                    {': '}
+                                  </span>
+                                  <span dangerouslySetInnerHTML={{ __html: c.comment }} />
+                                </div>
+                                <div className="flex shrink-0">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-muted-foreground hover:text-primary"
+                                    onClick={() => {
+                                      setEditingCommentId(c.id)
+                                      setEditingCommentText(c.comment)
+                                      setEditingCommentSession(c.sessionNumber?.toString() || '')
+                                    }}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-destructive hover:text-destructive"
+                                    onClick={() => handleDeleteComment(c.id)}
+                                    disabled={deletingCommentId === c.id}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                         {hasMore && (
@@ -890,23 +1367,43 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               {/* Add new comment */}
               <div className="space-y-2 pt-2 border-t">
                 <Label className="text-xs text-muted-foreground">Ajouter un commentaire</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    max="53"
-                    value={commentWeek}
-                    onChange={(e) => setCommentWeek(e.target.value)}
-                    placeholder="S?"
-                    className="w-16"
-                  />
-                  <RichTextEditor
-                    value={newComment}
-                    onChange={setNewComment}
-                    placeholder="Ex: Hésitation v.8"
-                    className="flex-1"
-                  />
+                <div className="flex gap-2 items-center">
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs">Séance</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={sessionNumber}
+                      onChange={(e) => setSessionNumber(e.target.value)}
+                      className="w-20 h-8 text-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs">Versets</Label>
+                    <div className="flex gap-1 items-center">
+                      <Input
+                        type="number"
+                        min="1"
+                        value={verseStart}
+                        onChange={(e) => setVerseStart(parseInt(e.target.value) || 1)}
+                        className="w-14 h-8 text-xs"
+                      />
+                      <span className="text-xs text-muted-foreground">-</span>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={verseEnd}
+                        onChange={(e) => setVerseEnd(parseInt(e.target.value) || 1)}
+                        className="w-14 h-8 text-xs"
+                      />
+                    </div>
+                  </div>
                 </div>
+                <RichTextEditor
+                  value={newComment}
+                  onChange={setNewComment}
+                  placeholder="Ex: Hésitation v.8"
+                />
                 <Button
                   variant="secondary"
                   size="sm"
@@ -926,6 +1423,113 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Session Report Dialog */}
+      <Dialog open={sessionReportOpen} onOpenChange={setSessionReportOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Rapport de séance</DialogTitle>
+            <DialogDescription>
+              {data.group.name} — Séance N°{reportSessionNumber}
+            </DialogDescription>
+          </DialogHeader>
+
+          {reportLoading ? (
+            <div className="py-8 text-center text-muted-foreground">Chargement...</div>
+          ) : (
+            <div className="grid gap-4 py-4">
+              {/* Checklist */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Points abordés</Label>
+                <div className="space-y-1">
+                  {reportTopics.map((topic, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={topic.checked}
+                        onChange={() => toggleTopic(idx)}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <span className="text-sm flex-1">{topic.label}</span>
+                      {/* Allow removing non-default items (index >= 5) */}
+                      {idx >= 5 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive hover:text-destructive"
+                          onClick={() => removeCustomTopic(idx)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {/* Add custom topic */}
+                <div className="flex gap-2 pt-1">
+                  <Input
+                    value={newTopicLabel}
+                    onChange={(e) => setNewTopicLabel(e.target.value)}
+                    placeholder="Autre point..."
+                    className="h-8 text-sm"
+                    onKeyDown={(e) => e.key === 'Enter' && addCustomTopic()}
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={addCustomTopic}
+                    disabled={!newTopicLabel.trim()}
+                    className="h-8 shrink-0"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Ajouter
+                  </Button>
+                </div>
+              </div>
+
+              {/* Next surah */}
+              <div className="space-y-2 border-t pt-4">
+                <Label className="text-sm font-medium">Prochaine sourate à mémoriser</Label>
+                <Select value={reportNextSurah} onValueChange={setReportNextSurah}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner une sourate" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    <SelectItem value="none">— Aucune —</SelectItem>
+                    {reportSurahs.map(s => (
+                      <SelectItem key={s.number} value={s.number.toString()}>
+                        {s.number}. {s.nameFr} - {s.nameAr}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Homework */}
+              <div className="space-y-2 border-t pt-4">
+                <Label className="text-sm font-medium">Devoirs</Label>
+                <textarea
+                  value={reportHomework}
+                  onChange={(e) => setReportHomework(e.target.value)}
+                  rows={5}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  placeholder="Devoirs pour les élèves..."
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSessionReportOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleGenerateSessionPDF} disabled={exporting || reportLoading}>
+              <FileText className="h-4 w-4 mr-2" />
+              {exporting ? 'Génération...' : 'Générer PDF'}
             </Button>
           </DialogFooter>
         </DialogContent>

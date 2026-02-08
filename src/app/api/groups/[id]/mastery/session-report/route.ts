@@ -1,0 +1,198 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
+import prisma from '@/lib/db'
+import { getEffectiveUserId } from '@/lib/impersonation'
+
+// GET /api/groups/[id]/mastery/session-report?sessionNumber=N
+// Returns session report data (checklist, homework, next surah) for a given session number
+// If no sessionNumber, returns data for the last session + group defaults
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    const { userId: effectiveUserId } = await getEffectiveUserId()
+    const { id: groupId } = await params
+
+    if (!effectiveUserId) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const sessionNumberParam = searchParams.get('sessionNumber')
+
+    // Get group with defaultHomework
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      select: { id: true, name: true, defaultHomework: true }
+    })
+
+    if (!group) {
+      return NextResponse.json({ error: 'Groupe non trouvé' }, { status: 404 })
+    }
+
+    // Get all sessions ordered chronologically
+    const allSessions = await prisma.groupSession.findMany({
+      where: { groupId },
+      orderBy: { date: 'asc' },
+      select: {
+        id: true,
+        date: true,
+        weekNumber: true,
+        nextSurahNumber: true,
+        homework: true,
+        sessionTopics: true
+      }
+    })
+
+    let targetSession = null
+    let targetSessionNumber = 0
+
+    if (sessionNumberParam) {
+      const num = parseInt(sessionNumberParam)
+      if (num > 0 && num <= allSessions.length) {
+        targetSession = allSessions[num - 1]
+        targetSessionNumber = num
+      }
+    } else {
+      // Default to last session
+      if (allSessions.length > 0) {
+        targetSession = allSessions[allSessions.length - 1]
+        targetSessionNumber = allSessions.length
+      }
+    }
+
+    // Get all surahs for the selector
+    const surahs = await prisma.surah.findMany({
+      orderBy: { number: 'asc' },
+      select: { number: true, nameAr: true, nameFr: true }
+    })
+
+    // Default homework text
+    const defaultHomework = group.defaultHomework ||
+      '• Lire quotidiennement de tête les sourates mémorisées\n• Écouter quotidiennement les sourates en cours\n• Répéter 20 fois la partie à mémoriser\n• Écouter 10 fois par jour la partie à mémoriser'
+
+    // Default checklist items
+    const defaultTopics = [
+      { label: 'Suivi individuel de mémorisation', checked: true },
+      { label: 'Préparation de la prochaine sourate en groupe', checked: true },
+      { label: 'Lecture arc-en-ciel', checked: false },
+      { label: 'Échanges ouverts', checked: false },
+      { label: 'Sujets de recherche', checked: false },
+    ]
+
+    return NextResponse.json({
+      sessionNumber: targetSessionNumber,
+      sessionId: targetSession?.id || null,
+      sessionDate: targetSession?.date?.toISOString() || null,
+      weekNumber: targetSession?.weekNumber || null,
+      nextSurahNumber: targetSession?.nextSurahNumber || null,
+      homework: targetSession?.homework || defaultHomework,
+      sessionTopics: (targetSession?.sessionTopics as any[]) || defaultTopics,
+      defaultHomework,
+      surahs,
+      totalSessions: allSessions.length
+    })
+  } catch (error) {
+    console.error('Error fetching session report:', error)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  }
+}
+
+// PUT /api/groups/[id]/mastery/session-report
+// Save session report data (checklist, homework, next surah) and optionally update group default homework
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    const { userId: effectiveUserId } = await getEffectiveUserId()
+    const { id: groupId } = await params
+
+    if (!effectiveUserId) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    // Check permissions
+    const membership = await prisma.groupMember.findFirst({
+      where: { groupId, userId: effectiveUserId, role: 'REFERENT' }
+    })
+    const user = await prisma.user.findUnique({
+      where: { id: effectiveUserId },
+      select: { role: true }
+    })
+
+    if (!membership && user?.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Seul le référent peut modifier' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { sessionNumber, nextSurahNumber, homework, sessionTopics, saveAsDefault } = body
+
+    if (!sessionNumber) {
+      return NextResponse.json({ error: 'Numéro de séance manquant' }, { status: 400 })
+    }
+
+    // Resolve session by number
+    const allSessions = await prisma.groupSession.findMany({
+      where: { groupId },
+      orderBy: { date: 'asc' },
+      select: { id: true }
+    })
+
+    let sessionId: string
+
+    if (sessionNumber <= allSessions.length) {
+      sessionId = allSessions[sessionNumber - 1].id
+    } else {
+      // Create new session
+      const today = new Date()
+      const startOfYear = new Date(today.getFullYear(), 0, 1)
+      const diffDays = Math.floor((today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24))
+      const autoWeekNumber = Math.ceil((diffDays + startOfYear.getDay() + 1) / 7)
+
+      const newSession = await prisma.groupSession.create({
+        data: {
+          groupId,
+          date: today,
+          weekNumber: autoWeekNumber,
+          createdBy: effectiveUserId
+        }
+      })
+      sessionId = newSession.id
+    }
+
+    // Update session with report data
+    await prisma.groupSession.update({
+      where: { id: sessionId },
+      data: {
+        nextSurahNumber: nextSurahNumber || null,
+        homework: homework || null,
+        sessionTopics: sessionTopics || null
+      }
+    })
+
+    // Optionally save homework as group default
+    if (saveAsDefault && homework) {
+      await prisma.group.update({
+        where: { id: groupId },
+        data: { defaultHomework: homework }
+      })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error saving session report:', error)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  }
+}
