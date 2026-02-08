@@ -353,8 +353,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   }
 
-  // Load Amiri font for Arabic text in jsPDF
-  async function loadArabicFont(doc: any) {
+  // Load Amiri font + Arabic reshaper for jsPDF
+  async function loadPdfArabicSupport(doc: any): Promise<{ hasFont: boolean; reshape: (text: string) => string }> {
+    let hasFont = false
+    let reshaper: any = null
+
     try {
       const fontRes = await fetch('/fonts/Amiri-Regular.ttf')
       const fontData = await fontRes.arrayBuffer()
@@ -363,24 +366,39 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       for (let i = 0; i < bytes.length; i++) {
         binary += String.fromCharCode(bytes[i])
       }
-      const fontBase64 = btoa(binary)
-      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64)
+      doc.addFileToVFS('Amiri-Regular.ttf', btoa(binary))
       doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal')
-      return true
+      hasFont = true
     } catch (err) {
       console.error('Error loading Arabic font:', err)
-      return false
     }
+
+    try {
+      const mod = await import('arabic-reshaper')
+      reshaper = mod.default || mod
+    } catch (err) {
+      console.error('Error loading arabic-reshaper:', err)
+    }
+
+    const reshape = (text: string): string => {
+      if (!text || !hasFont || !reshaper) return ''
+      try {
+        const reshaped = reshaper(text)
+        // Reverse for LTR rendering in jsPDF (Arabic is RTL)
+        return reshaped.split('').reverse().join('')
+      } catch { return text }
+    }
+
+    return { hasFont, reshape }
   }
 
-  // Format surah label for PDF: "108. L'Abondance (الكوثر) - 3 v."
-  function surahPdfLabel(num: number, info: SurahInfo | undefined): string {
-    return stripAccents(`${num}. ${info?.nameFr || ''} - ${info?.totalVerses || '?'} v.`)
-  }
-
-  // Format surah label with Arabic for autoTable (returns parts for mixed font rendering)
-  function surahPdfLabelWithAr(num: number, info: SurahInfo | undefined): string {
-    return `${num}. ${info?.nameFr || ''} (${info?.nameAr || ''}) - ${info?.totalVerses || '?'} v.`
+  // Format surah label for PDF with Arabic: "108. L'Abondance (الكوثر) 3v."
+  function surahLabel(num: number, info: SurahInfo | undefined, reshape: (s: string) => string): string {
+    const fr = stripAccents(info?.nameFr || '')
+    const ar = reshape(info?.nameAr || '')
+    const v = info?.totalVerses || '?'
+    if (ar) return `${num}. ${fr} (${ar}) ${v}v.`
+    return `${num}. ${fr} ${v}v.`
   }
 
   async function handleGenerateSessionPDF() {
@@ -435,7 +453,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
       // Create PDF
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
-      const hasArabicFont = await loadArabicFont(doc)
+      const { hasFont: hasArabicFont, reshape: reshapeAr } = await loadPdfArabicSupport(doc)
       const pdfFont = hasArabicFont ? 'Amiri' : 'helvetica'
 
       // Header
@@ -452,17 +470,20 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.setTextColor(0, 0, 0)
       let yPos = 32
 
-      // 1. Checklist - points abordés
-      const checkedTopics = reportTopics.filter(t => t.checked)
-      if (checkedTopics.length > 0) {
+      // 1. Checklist - points abordés (all items with check/cross)
+      if (reportTopics.length > 0) {
         doc.setFontSize(11)
         doc.setFont(pdfFont, 'bold')
         doc.text('Points abordes :', 14, yPos)
         yPos += 6
         doc.setFont(pdfFont, 'normal')
         doc.setFontSize(10)
-        for (const topic of checkedTopics) {
-          doc.setFillColor(34, 197, 94)
+        for (const topic of reportTopics) {
+          if (topic.checked) {
+            doc.setFillColor(34, 197, 94)
+          } else {
+            doc.setFillColor(200, 200, 200)
+          }
           doc.rect(14, yPos - 3, 3, 3, 'F')
           doc.text(`  ${stripAccents(topic.label)}`, 18, yPos)
           yPos += 5
@@ -476,7 +497,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         if (surahInfo) {
           doc.setFontSize(11)
           doc.setFont(pdfFont, 'bold')
-          doc.text(stripAccents(`Prochaine sourate : ${surahInfo.number}. ${surahInfo.nameFr}`) + (hasArabicFont ? ` (${surahInfo.nameAr})` : '') + ` - ${surahInfo.totalVerses} v.`, 14, yPos)
+          doc.text(`Prochaine sourate : ${surahLabel(surahInfo.number, { nameAr: surahInfo.nameAr, nameFr: surahInfo.nameFr, totalVerses: surahInfo.totalVerses }, reshapeAr)}`, 14, yPos)
           yPos += 8
         }
       }
@@ -493,11 +514,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           for (const c of comments) {
             if (c.sessionNumber === targetSessionNumber) {
               const surahInfo = data.allSurahsMap[parseInt(surahNum)]
-              const surahLabel = stripAccents(`${surahNum}. ${surahInfo?.nameFr || ''}`) + (hasArabicFont ? ` (${surahInfo?.nameAr || ''})` : '') + ` - ${surahInfo?.totalVerses || '?'} v.`
+              const surahLbl = surahLabel(parseInt(surahNum), surahInfo, reshapeAr)
               const statusDisplay = getCellDisplay(member.id, parseInt(surahNum))
               sessionRows.push([
                 stripAccents(firstName),
-                surahLabel,
+                surahLbl,
                 `1-${surahInfo?.totalVerses || '?'}`,
                 statusDisplay,
                 stripAccents(stripHtmlTags(c.comment))
@@ -525,10 +546,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             fontStyle: 'bold'
           },
           columnStyles: {
-            0: { cellWidth: 30 },
-            1: { cellWidth: 40 },
-            2: { cellWidth: 20, halign: 'center' },
-            3: { cellWidth: 20, halign: 'center' },
+            0: { cellWidth: 28 },
+            1: { cellWidth: 55 },
+            2: { cellWidth: 18, halign: 'center' },
+            3: { cellWidth: 18, halign: 'center' },
             4: { cellWidth: 'auto' }
           },
           alternateRowStyles: {
@@ -586,8 +607,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       for (const group of data.surahGroups) {
         if (group.type === 'surah' && group.number) {
           const surahInfo = data.allSurahsMap[group.number]
-          const surahGridLabel = stripAccents(`${group.number}. ${surahInfo?.nameFr || ''}`) + (hasArabicFont ? ` (${surahInfo?.nameAr || ''})` : '') + ` - ${surahInfo?.totalVerses || '?'} v.`
-          const row = [surahGridLabel]
+          const row = [surahLabel(group.number!, surahInfo, reshapeAr)]
           for (const member of data.members) {
             row.push(getCellDisplay(member.id, group.number!))
           }
@@ -761,7 +781,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               pastCommentsByMember[member.id].comments.push({
                 sessionNum: c.sessionNumber,
                 session: `S${c.sessionNumber}${dateStr ? ` (${dateStr})` : ''}`,
-                surah: stripAccents(`${surahNum}. ${surahInfo?.nameFr || ''}`) + (hasArabicFont ? ` (${surahInfo?.nameAr || ''})` : '') + ` - ${surahInfo?.totalVerses || '?'} v.`,
+                surah: surahLabel(parseInt(surahNum), surahInfo, reshapeAr),
                 comment: stripAccents(stripHtmlTags(c.comment))
               })
             }
@@ -932,7 +952,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
       // Create PDF in landscape
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
-      const hasArabicFont = await loadArabicFont(doc)
+      const { hasFont: hasArabicFont, reshape: reshapeAr } = await loadPdfArabicSupport(doc)
       const pdfFont = hasArabicFont ? 'Amiri' : 'helvetica'
 
       // Header with gradient effect
@@ -965,9 +985,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       for (const group of data.surahGroups) {
         if (group.type === 'surah' && group.number) {
           const surahInfo = data.allSurahsMap[group.number]
-          const row = [hasArabicFont
-            ? `${group.number}. ${surahInfo?.nameFr || ''} (${surahInfo?.nameAr || ''}) - ${surahInfo?.totalVerses || '?'} v.`
-            : `${group.number}. ${stripAccents(surahInfo?.nameFr || '')} - ${surahInfo?.totalVerses || '?'} v.`]
+          const row = [surahLabel(group.number!, surahInfo, reshapeAr)]
           for (const member of data.members) {
             row.push(getCellDisplay(member.id, group.number!))
           }
@@ -1076,9 +1094,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             const dateStr = c.sessionDate ? new Date(c.sessionDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''
             allComments.push({
               member: firstName,
-              surah: hasArabicFont
-                ? `${surahNum}. ${stripAccents(surahInfo?.nameFr || '')} (${surahInfo?.nameAr || ''}) - ${surahInfo?.totalVerses || '?'} v.`
-                : `${surahNum}. ${stripAccents(surahInfo?.nameFr || '')} - ${surahInfo?.totalVerses || '?'} v.`,
+              surah: surahLabel(parseInt(surahNum), surahInfo, reshapeAr),
               session: c.sessionNumber ? `S${c.sessionNumber}${dateStr ? ` (${dateStr})` : ''}` : '-',
               comment: stripHtmlTags(c.comment)
             })
