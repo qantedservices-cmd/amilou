@@ -618,8 +618,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.text(`Page ${i}/${pageCount}`, 280, 205)
       }
 
-      // Download
-      doc.save(`seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-')}.pdf`)
+      // Download via data URI (blob URLs blocked on HTTP)
+      const pdfDataUri = doc.output('datauristring')
+      const link = document.createElement('a')
+      link.href = pdfDataUri
+      link.download = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-')}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
 
       setSessionReportOpen(false)
     } catch (err) {
@@ -861,8 +867,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.text(`Page ${i}/${pageCount}`, 280, 205)
       }
 
-      // Download
-      doc.save(`grille-${data.group.name.replace(/\s+/g, '-')}.pdf`)
+      // Download via data URI (blob URLs blocked on HTTP)
+      const pdfDataUri = doc.output('datauristring')
+      const link = document.createElement('a')
+      link.href = pdfDataUri
+      link.download = `grille-${data.group.name.replace(/\s+/g, '-')}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     } catch (err) {
       console.error('Error exporting PDF:', err)
       alert('Erreur PDF: ' + (err instanceof Error ? err.message : 'Erreur'))
