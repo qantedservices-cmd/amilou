@@ -3,6 +3,49 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
 
+// Helper: get the Sunday (start of week) for a given date
+function getWeekStart(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const day = d.getDay() // 0=Sunday
+  d.setDate(d.getDate() - day)
+  return d
+}
+
+// Helper: find or create session for the current week (Sunday-Saturday)
+// Ensures only one session per week per group
+async function findOrCreateWeekSession(groupId: string, createdBy: string) {
+  const today = new Date()
+  const weekStart = getWeekStart(today)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekEnd.getDate() + 7) // Next Sunday 00:00
+
+  // Look for an existing session in this week
+  const existing = await prisma.groupSession.findFirst({
+    where: {
+      groupId,
+      date: { gte: weekStart, lt: weekEnd }
+    },
+    orderBy: { date: 'asc' }
+  })
+
+  if (existing) return existing
+
+  // Calculate week number of the year
+  const startOfYear = new Date(today.getFullYear(), 0, 1)
+  const diffDays = Math.floor((today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24))
+  const autoWeekNumber = Math.ceil((diffDays + startOfYear.getDay() + 1) / 7)
+
+  return prisma.groupSession.create({
+    data: {
+      groupId,
+      date: today,
+      weekNumber: autoWeekNumber,
+      createdBy
+    }
+  })
+}
+
 // GET /api/groups/[id]/mastery - Get mastery matrix for a group
 export async function GET(
   request: NextRequest,
@@ -393,36 +436,12 @@ export async function POST(
         // Use existing session
         sessionRecord = allSessions[sessionNumber - 1]
       } else {
-        // Create a new session (date = today, auto-calculate weekNumber)
-        const today = new Date()
-        const startOfYear = new Date(today.getFullYear(), 0, 1)
-        const diffDays = Math.floor((today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24))
-        const autoWeekNumber = Math.ceil((diffDays + startOfYear.getDay() + 1) / 7)
-
-        sessionRecord = await prisma.groupSession.create({
-          data: {
-            groupId,
-            date: today,
-            weekNumber: autoWeekNumber,
-            createdBy: effectiveUserId
-          }
-        })
+        // Find or create session for current week (one per week rule)
+        sessionRecord = await findOrCreateWeekSession(groupId, effectiveUserId)
       }
     } else {
-      // Fallback: find or create by weekNumber (backward compat)
-      sessionRecord = await prisma.groupSession.findFirst({
-        where: { groupId, weekNumber: weekNumber || null }
-      })
-      if (!sessionRecord) {
-        sessionRecord = await prisma.groupSession.create({
-          data: {
-            groupId,
-            date: new Date(),
-            weekNumber: weekNumber || null,
-            createdBy: effectiveUserId
-          }
-        })
-      }
+      // No session number: find or create for current week
+      sessionRecord = await findOrCreateWeekSession(groupId, effectiveUserId)
     }
 
     // Create the recitation with comment
@@ -535,21 +554,9 @@ export async function PATCH(
       if (sessionNumber > 0 && sessionNumber <= allSessions.length) {
         updateData.sessionId = allSessions[sessionNumber - 1].id
       } else if (sessionNumber > allSessions.length) {
-        // Create a new session
-        const today = new Date()
-        const startOfYear = new Date(today.getFullYear(), 0, 1)
-        const diffDays = Math.floor((today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24))
-        const autoWeekNumber = Math.ceil((diffDays + startOfYear.getDay() + 1) / 7)
-
-        const newSession = await prisma.groupSession.create({
-          data: {
-            groupId,
-            date: today,
-            weekNumber: autoWeekNumber,
-            createdBy: effectiveUserId
-          }
-        })
-        updateData.sessionId = newSession.id
+        // Find or create session for current week (one per week rule)
+        const weekSession = await findOrCreateWeekSession(groupId, effectiveUserId)
+        updateData.sessionId = weekSession.id
       }
     }
 

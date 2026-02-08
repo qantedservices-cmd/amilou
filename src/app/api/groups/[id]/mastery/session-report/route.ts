@@ -3,6 +3,46 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
 
+// Helper: get the Sunday (start of week) for a given date
+function getWeekStart(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const day = d.getDay() // 0=Sunday
+  d.setDate(d.getDate() - day)
+  return d
+}
+
+// Helper: find or create session for the current week (Sunday-Saturday)
+async function findOrCreateWeekSession(groupId: string, createdBy: string) {
+  const today = new Date()
+  const weekStart = getWeekStart(today)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekEnd.getDate() + 7)
+
+  const existing = await prisma.groupSession.findFirst({
+    where: {
+      groupId,
+      date: { gte: weekStart, lt: weekEnd }
+    },
+    orderBy: { date: 'asc' }
+  })
+
+  if (existing) return existing
+
+  const startOfYear = new Date(today.getFullYear(), 0, 1)
+  const diffDays = Math.floor((today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24))
+  const autoWeekNumber = Math.ceil((diffDays + startOfYear.getDay() + 1) / 7)
+
+  return prisma.groupSession.create({
+    data: {
+      groupId,
+      date: today,
+      weekNumber: autoWeekNumber,
+      createdBy
+    }
+  })
+}
+
 // GET /api/groups/[id]/mastery/session-report?sessionNumber=N
 // Returns session report data (checklist, homework, next surah) for a given session number
 // If no sessionNumber, returns data for the last session + group defaults
@@ -155,21 +195,9 @@ export async function PUT(
     if (sessionNumber <= allSessions.length) {
       sessionId = allSessions[sessionNumber - 1].id
     } else {
-      // Create new session
-      const today = new Date()
-      const startOfYear = new Date(today.getFullYear(), 0, 1)
-      const diffDays = Math.floor((today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24))
-      const autoWeekNumber = Math.ceil((diffDays + startOfYear.getDay() + 1) / 7)
-
-      const newSession = await prisma.groupSession.create({
-        data: {
-          groupId,
-          date: today,
-          weekNumber: autoWeekNumber,
-          createdBy: effectiveUserId
-        }
-      })
-      sessionId = newSession.id
+      // Find or create session for current week (one per week rule)
+      const weekSession = await findOrCreateWeekSession(groupId, effectiveUserId)
+      sessionId = weekSession.id
     }
 
     // Update session with report data
