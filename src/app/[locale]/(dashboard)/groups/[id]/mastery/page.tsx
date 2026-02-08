@@ -461,10 +461,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.setFillColor(45, 55, 72)
       doc.rect(0, 0, 297, 25, 'F')
       doc.setTextColor(255, 255, 255)
-      doc.setFontSize(16)
+      doc.setFontSize(18)
       doc.setFont(pdfFont, 'bold')
       doc.text(stripAccents(`Seance N${targetSessionNumber}${sessionWeekNumber ? ` - Semaine ${sessionWeekNumber}` : ''}`), 14, 12)
-      doc.setFontSize(11)
+      doc.setFontSize(13)
       doc.setFont(pdfFont, 'normal')
       doc.text(stripAccents(`${data.group.name} - ${sessionDate}`), 14, 19)
 
@@ -473,12 +473,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
       // 1. Checklist - points abordés (all items with check/cross)
       if (reportTopics.length > 0) {
-        doc.setFontSize(11)
+        doc.setFontSize(13)
         doc.setFont(pdfFont, 'bold')
         doc.text('Points abordes :', 14, yPos)
         yPos += 6
         doc.setFont(pdfFont, 'normal')
-        doc.setFontSize(11)
+        doc.setFontSize(12)
         for (const topic of reportTopics) {
           if (topic.checked) {
             doc.setFillColor(34, 197, 94)
@@ -496,9 +496,15 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       if (reportNextSurah && reportNextSurah !== 'none') {
         const surahInfo = reportSurahs.find(s => s.number === parseInt(reportNextSurah))
         if (surahInfo) {
-          doc.setFontSize(11)
+          doc.setFontSize(13)
           doc.setFont(pdfFont, 'bold')
-          doc.text(`Prochaine sourate : ${surahLabel(surahInfo.number, { nameAr: surahInfo.nameAr, nameFr: surahInfo.nameFr, totalVerses: surahInfo.totalVerses }, reshapeAr)}`, 14, yPos)
+          const arName = reshapeAr(surahInfo.nameAr || '')
+          const frPart = `Prochaine sourate : ${surahInfo.number}. ${stripAccents(surahInfo.nameFr)} ${surahInfo.totalVerses}v.`
+          doc.text(frPart, 14, yPos)
+          if (arName) {
+            const frWidth = doc.getTextWidth(frPart)
+            doc.text(`  ${arName}`, 14 + frWidth, yPos)
+          }
           yPos += 8
         }
       }
@@ -536,7 +542,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           startY: yPos,
           styles: {
             font: pdfFont,
-            fontSize: 11,
+            fontSize: 12,
             cellPadding: 3,
             lineColor: [200, 200, 200],
             lineWidth: 0.1
@@ -544,11 +550,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           headStyles: {
             fillColor: [71, 85, 105],
             textColor: [255, 255, 255],
-            fontStyle: 'bold'
+            fontStyle: 'bold',
+            fontSize: 12
           },
           columnStyles: {
             0: { cellWidth: 28 },
-            1: { cellWidth: 55 },
+            1: { cellWidth: 60 },
             2: { cellWidth: 18, halign: 'center' },
             3: { cellWidth: 18, halign: 'center' },
             4: { cellWidth: 'auto' }
@@ -568,12 +575,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           doc.addPage()
           yPos = 15
         }
-        doc.setFontSize(11)
+        doc.setFontSize(13)
         doc.setFont(pdfFont, 'bold')
         doc.text('Devoirs :', 14, yPos)
         yPos += 6
         doc.setFont(pdfFont, 'normal')
-        doc.setFontSize(11)
+        doc.setFontSize(12)
         const homeworkLines = reportHomework.split('\n')
         for (const line of homeworkLines) {
           if (yPos > 195) {
@@ -591,7 +598,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.setFillColor(45, 55, 72)
       doc.rect(0, 0, 297, 20, 'F')
       doc.setTextColor(255, 255, 255)
-      doc.setFontSize(14)
+      doc.setFontSize(16)
       doc.setFont(pdfFont, 'bold')
       doc.text('Grille de suivi', 14, 13)
       doc.setTextColor(0, 0, 0)
@@ -632,7 +639,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         startY: 25,
         styles: {
           font: pdfFont,
-          fontSize: 9,
+          fontSize: 10,
           cellPadding: 2,
           halign: 'center',
           valign: 'middle',
@@ -642,12 +649,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         headStyles: {
           fillColor: [71, 85, 105],
           textColor: [255, 255, 255],
-          fontSize: 9,
+          fontSize: 10,
           fontStyle: 'bold',
           halign: 'center'
         },
         columnStyles: {
-          0: { cellWidth: 55, halign: 'left', fontStyle: 'bold' }
+          0: { cellWidth: 60, halign: 'left', fontStyle: 'bold' }
         },
         alternateRowStyles: {
           fillColor: [248, 250, 252]
@@ -672,7 +679,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.addPage()
         legendY = 15
       }
-      doc.setFontSize(11)
+      doc.setFontSize(12)
       doc.setFont(pdfFont, 'bold')
       doc.text('Legende :', 14, legendY)
       legendY += 6
@@ -707,7 +714,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.setFillColor(45, 55, 72)
       doc.rect(0, 0, 297, 20, 'F')
       doc.setTextColor(255, 255, 255)
-      doc.setFontSize(14)
+      doc.setFontSize(16)
       doc.setFont(pdfFont, 'bold')
       doc.text('Classement des eleves', 14, 13)
       doc.setTextColor(0, 0, 0)
@@ -731,7 +738,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         startY: 25,
         styles: {
           font: pdfFont,
-          fontSize: 11,
+          fontSize: 12,
           cellPadding: 3,
           lineColor: [200, 200, 200],
           lineWidth: 0.1
@@ -803,7 +810,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.setFillColor(45, 55, 72)
         doc.rect(0, 0, 297, 20, 'F')
         doc.setTextColor(255, 255, 255)
-        doc.setFontSize(14)
+        doc.setFontSize(16)
         doc.setFont(pdfFont, 'bold')
         doc.text('Annexe - Commentaires des seances precedentes', 14, 13)
         doc.setTextColor(0, 0, 0)
@@ -818,7 +825,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           }
 
           // Member name header
-          doc.setFontSize(11)
+          doc.setFontSize(12)
           doc.setFont(pdfFont, 'bold')
           doc.setFillColor(226, 232, 240)
           doc.rect(10, annexeY - 4, 277, 6, 'F')
@@ -831,7 +838,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             startY: annexeY,
             styles: {
               font: pdfFont,
-              fontSize: 9,
+              fontSize: 10,
               cellPadding: 2,
               lineColor: [200, 200, 200],
               lineWidth: 0.1
@@ -840,11 +847,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               fillColor: [71, 85, 105],
               textColor: [255, 255, 255],
               fontStyle: 'bold',
-              fontSize: 9
+              fontSize: 10
             },
             columnStyles: {
               0: { cellWidth: 25 },
-              1: { cellWidth: 50 },
+              1: { cellWidth: 55 },
               2: { cellWidth: 'auto' }
             },
             alternateRowStyles: {
@@ -963,11 +970,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.setFontSize(18)
       doc.setFont(pdfFont, 'bold')
       doc.text(`Grille de suivi`, 14, 12)
-      doc.setFontSize(12)
+      doc.setFontSize(13)
       doc.setFont(pdfFont, 'normal')
       doc.text(data.group.name, 14, 19)
-      doc.setFontSize(11)
-      doc.text(new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }), 250, 15)
+      doc.setFontSize(12)
+      doc.text(new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }), 245, 15)
 
       // Reset text color
       doc.setTextColor(0, 0, 0)
@@ -1012,7 +1019,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         startY: 30,
         styles: {
           font: pdfFont,
-          fontSize: 9,
+          fontSize: 10,
           cellPadding: 2,
           halign: 'center',
           valign: 'middle',
@@ -1022,12 +1029,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         headStyles: {
           fillColor: [71, 85, 105],
           textColor: [255, 255, 255],
-          fontSize: 9,
+          fontSize: 10,
           fontStyle: 'bold',
           halign: 'center'
         },
         columnStyles: {
-          0: { cellWidth: 55, halign: 'left', fontStyle: 'bold' }
+          0: { cellWidth: 60, halign: 'left', fontStyle: 'bold' }
         },
         alternateRowStyles: {
           fillColor: [248, 250, 252]
@@ -1052,12 +1059,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.addPage()
         fullLegendY = 15
       }
-      doc.setFontSize(9)
+      doc.setFontSize(11)
       doc.setFont(pdfFont, 'bold')
       doc.text('Legende :', 14, fullLegendY)
       fullLegendY += 5
       doc.setFont(pdfFont, 'normal')
-      doc.setFontSize(8)
+      doc.setFontSize(10)
       const fullLegendItems = [
         { code: 'V', color: [34, 197, 94], label: 'V = Valide', textWhite: true },
         { code: 'C', color: [59, 130, 246], label: 'C = Suppose connu, a valider', textWhite: true },
@@ -1111,19 +1118,19 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.setFillColor(45, 55, 72)
         doc.rect(0, 0, 297, 20, 'F')
         doc.setTextColor(255, 255, 255)
-        doc.setFontSize(14)
+        doc.setFontSize(16)
         doc.setFont(pdfFont, 'bold')
         doc.text('Commentaires', 14, 13)
         doc.setTextColor(0, 0, 0)
 
         // Comments table
         autoTable(doc, {
-          head: [['Élève', 'Sourate', 'Séance', 'Commentaire']],
+          head: [['Eleve', 'Sourate', 'Seance', 'Commentaire']],
           body: allComments.map(c => [c.member, c.surah, c.session, c.comment]),
           startY: 25,
           styles: {
             font: pdfFont,
-            fontSize: 11,
+            fontSize: 12,
             cellPadding: 3,
             lineColor: [200, 200, 200],
             lineWidth: 0.1
@@ -1135,8 +1142,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           },
           columnStyles: {
             0: { cellWidth: 30 },
-            1: { cellWidth: 55 },
-            2: { cellWidth: 15, halign: 'center' },
+            1: { cellWidth: 60 },
+            2: { cellWidth: 18, halign: 'center' },
             3: { cellWidth: 'auto' }
           },
           alternateRowStyles: {
