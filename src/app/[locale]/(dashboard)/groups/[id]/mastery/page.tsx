@@ -375,7 +375,13 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
     try {
       const mod = await import('arabic-reshaper')
-      reshaper = mod.default || mod
+      const lib: any = mod.default || mod
+      // arabic-reshaper exports { convertArabic, convertArabicBack }
+      if (lib.convertArabic) {
+        reshaper = (text: string) => lib.convertArabic(text)
+      } else if (typeof lib === 'function') {
+        reshaper = lib
+      }
     } catch (err) {
       console.error('Error loading arabic-reshaper:', err)
     }
@@ -492,19 +498,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         yPos += 3
       }
 
-      // 2. Next surah
+      // 2. Next surah (single doc.text() call to avoid Arabic encoding issues)
       if (reportNextSurah && reportNextSurah !== 'none') {
         const surahInfo = reportSurahs.find(s => s.number === parseInt(reportNextSurah))
         if (surahInfo) {
           doc.setFontSize(13)
           doc.setFont(pdfFont, 'bold')
-          const arName = reshapeAr(surahInfo.nameAr || '')
-          const frPart = `Prochaine sourate : ${surahInfo.number}. ${stripAccents(surahInfo.nameFr)} ${surahInfo.totalVerses}v.`
-          doc.text(frPart, 14, yPos)
-          if (arName) {
-            const frWidth = doc.getTextWidth(frPart)
-            doc.text(`  ${arName}`, 14 + frWidth, yPos)
-          }
+          const nextSurahLbl = surahLabel(surahInfo.number, { nameAr: surahInfo.nameAr, nameFr: surahInfo.nameFr, totalVerses: surahInfo.totalVerses }, reshapeAr)
+          doc.text(`Prochaine sourate : ${nextSurahLbl}`, 14, yPos)
           yPos += 8
         }
       }
