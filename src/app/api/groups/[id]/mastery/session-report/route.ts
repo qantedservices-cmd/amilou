@@ -75,14 +75,14 @@ export async function GET(
 
     // Default homework text
     const defaultHomework = group.defaultHomework ||
-      '• Lire quotidiennement de tête les sourates mémorisées\n• Écouter quotidiennement les sourates en cours\n• Répéter 20 fois la partie à mémoriser\n• Écouter 10 fois par jour la partie à mémoriser'
+      '- Lire quotidiennement de tete les sourates memorisees\n- Ecouter quotidiennement les sourates en cours\n- Repeter 20 fois la partie a memoriser\n- Ecouter 10 fois par jour la partie a memoriser'
 
     // Default checklist items
     const defaultTopics = [
-      { label: 'Suivi individuel de mémorisation', checked: true },
-      { label: 'Préparation de la prochaine sourate en groupe', checked: true },
+      { label: 'Suivi individuel de memorisation', checked: true },
+      { label: 'Preparation de la prochaine sourate en groupe', checked: true },
       { label: 'Lecture arc-en-ciel', checked: false },
-      { label: 'Échanges ouverts', checked: false },
+      { label: 'Echanges ouverts', checked: false },
       { label: 'Sujets de recherche', checked: false },
     ]
 

@@ -347,6 +347,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     setReportTopics(prev => prev.filter((_, i) => i !== index))
   }
 
+  // Strip accents for jsPDF (Helvetica doesn't support them)
+  function stripAccents(str: string): string {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  }
+
   async function handleGenerateSessionPDF() {
     if (!data) return
     setExporting(true)
@@ -406,10 +411,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.setTextColor(255, 255, 255)
       doc.setFontSize(16)
       doc.setFont('helvetica', 'bold')
-      doc.text(`Seance N${targetSessionNumber}${sessionWeekNumber ? ` — Semaine ${sessionWeekNumber}` : ''}`, 14, 12)
+      doc.text(stripAccents(`Seance N${targetSessionNumber}${sessionWeekNumber ? ` - Semaine ${sessionWeekNumber}` : ''}`), 14, 12)
       doc.setFontSize(11)
       doc.setFont('helvetica', 'normal')
-      doc.text(`${data.group.name} — ${sessionDate}`, 14, 19)
+      doc.text(stripAccents(`${data.group.name} - ${sessionDate}`), 14, 19)
 
       doc.setTextColor(0, 0, 0)
       let yPos = 32
@@ -424,7 +429,9 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(10)
         for (const topic of checkedTopics) {
-          doc.text(`  \u2713  ${topic.label}`, 14, yPos)
+          doc.setFillColor(34, 197, 94)
+          doc.rect(14, yPos - 3, 3, 3, 'F')
+          doc.text(`  ${stripAccents(topic.label)}`, 18, yPos)
           yPos += 5
         }
         yPos += 3
@@ -436,7 +443,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         if (surahInfo) {
           doc.setFontSize(11)
           doc.setFont('helvetica', 'bold')
-          doc.text(`Prochaine sourate : ${surahInfo.number}. ${surahInfo.nameFr}`, 14, yPos)
+          doc.text(stripAccents(`Prochaine sourate : ${surahInfo.number}. ${surahInfo.nameFr}`), 14, yPos)
           yPos += 8
         }
       }
@@ -453,14 +460,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           for (const c of comments) {
             if (c.sessionNumber === targetSessionNumber) {
               const surahInfo = data.allSurahsMap[parseInt(surahNum)]
-              const surahLabel = `${surahNum}. ${surahInfo?.nameAr || ''}`
+              const surahLabel = stripAccents(`${surahNum}. ${surahInfo?.nameFr || ''}`)
               const statusDisplay = getCellDisplay(member.id, parseInt(surahNum))
               sessionRows.push([
-                firstName,
+                stripAccents(firstName),
                 surahLabel,
                 `1-${surahInfo?.totalVerses || '?'}`,
                 statusDisplay,
-                stripHtmlTags(c.comment)
+                stripAccents(stripHtmlTags(c.comment))
               ])
             }
           }
@@ -517,7 +524,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             doc.addPage()
             yPos = 15
           }
-          doc.text(line, 14, yPos)
+          doc.text(stripAccents(line), 14, yPos)
           yPos += 5
         }
       }
@@ -538,14 +545,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         const parts = m.name.split(' ')
         const lastName = parts.slice(0, -1).join(' ')
         const firstName = parts[parts.length - 1]
-        gridHeaders.push(`${lastName}\n${firstName}`)
+        gridHeaders.push(stripAccents(`${lastName}\n${firstName}`))
       }
 
       const gridRows: string[][] = []
       for (const group of data.surahGroups) {
         if (group.type === 'surah' && group.number) {
           const surahInfo = data.allSurahsMap[group.number]
-          const row = [`${group.number}. ${surahInfo?.nameAr || ''}\n${surahInfo?.nameFr || ''}`]
+          const row = [stripAccents(`${group.number}. ${surahInfo?.nameFr || ''}`)]
           for (const member of data.members) {
             row.push(getCellDisplay(member.id, group.number!))
           }
@@ -620,8 +627,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       a.download = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-')}.pdf`
       document.body.appendChild(a)
       a.click()
-      window.URL.revokeObjectURL(blobUrl)
-      document.body.removeChild(a)
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl)
+        document.body.removeChild(a)
+      }, 500)
 
       setSessionReportOpen(false)
     } catch (err) {
