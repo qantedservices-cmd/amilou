@@ -23,7 +23,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Download, FileText, MessageSquare, Plus, Trash2, Users } from 'lucide-react'
-import { Textarea } from '@/components/ui/textarea'
+import { RichTextEditor, stripHtmlTags } from '@/components/ui/rich-text-editor'
 import Link from 'next/link'
 
 interface Member {
@@ -415,7 +415,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               member: firstName,
               surah: `${surahNum}. ${surahInfo?.nameAr || ''} - ${surahInfo?.nameFr || ''}`,
               week: c.weekNumber ? `S${c.weekNumber}` : '-',
-              comment: c.comment
+              comment: stripHtmlTags(c.comment)
             })
           }
         }
@@ -848,7 +848,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                               {c.weekNumber && (
                                 <span className="font-medium text-primary">S{c.weekNumber}: </span>
                               )}
-                              <span>{c.comment}</span>
+                              <span dangerouslySetInnerHTML={{ __html: c.comment }} />
                             </div>
                             <Button
                               variant="ghost"
@@ -900,11 +900,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                     placeholder="S?"
                     className="w-16"
                   />
-                  <Textarea
+                  <RichTextEditor
                     value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
+                    onChange={setNewComment}
                     placeholder="Ex: Hésitation v.8"
-                    className="flex-1 min-h-[60px]"
+                    className="flex-1"
                   />
                 </div>
                 <Button

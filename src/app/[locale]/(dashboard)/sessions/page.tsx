@@ -691,9 +691,10 @@ export default function SessionsPage() {
                                           )}
                                         </div>
                                         {entry.comment && (
-                                          <p className="text-sm mt-2 text-muted-foreground italic">
-                                            "{entry.comment}"
-                                          </p>
+                                          <div
+                                            className="text-sm mt-2 text-muted-foreground italic"
+                                            dangerouslySetInnerHTML={{ __html: `"${entry.comment}"` }}
+                                          />
                                         )}
                                         {entry.program && (
                                           <p className="text-xs mt-1 text-muted-foreground">

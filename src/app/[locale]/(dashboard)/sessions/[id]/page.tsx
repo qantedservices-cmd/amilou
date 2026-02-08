@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Users, BookOpen, Check, X, Plus, Trash2, ArrowLeft, Save, HelpCircle } from 'lucide-react'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import {
   Tooltip,
   TooltipContent,
@@ -663,10 +664,10 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
                             <div className="flex gap-2">
                               <div className="flex-1">
                                 <Label className="text-xs">Commentaire</Label>
-                                <Input
+                                <RichTextEditor
                                   placeholder="Note sur la récitation..."
                                   value={rec.odComment}
-                                  onChange={(e) => updateRecitation(globalIdx, 'odComment', e.target.value)}
+                                  onChange={(value) => updateRecitation(globalIdx, 'odComment', value)}
                                   disabled={!canEdit}
                                 />
                               </div>

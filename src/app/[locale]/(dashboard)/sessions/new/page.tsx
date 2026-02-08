@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
@@ -522,12 +522,11 @@ export default function NewSessionPage() {
                         {/* Comment */}
                         <div className="space-y-1">
                           <Label className="text-xs">Commentaire</Label>
-                          <Textarea
+                          <RichTextEditor
                             placeholder="Remarques sur la récitation..."
-                            className="min-h-[60px]"
                             value={entry.comment}
-                            onChange={(e) => updateRecitation(
-                              activeStudentId, entry.id, 'comment', e.target.value
+                            onChange={(value) => updateRecitation(
+                              activeStudentId, entry.id, 'comment', value
                             )}
                           />
                         </div>
