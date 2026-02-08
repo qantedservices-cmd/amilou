@@ -348,12 +348,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     setReportTopics(prev => prev.filter((_, i) => i !== index))
   }
 
-  // Strip accents for jsPDF (Helvetica doesn't support them)
-  function stripAccents(str: string): string {
-    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  }
-
-  // Load Amiri font + Arabic reshaper for jsPDF
+  // Load Amiri font for jsPDF (supports Arabic + accented Latin)
   async function loadPdfArabicSupport(doc: any): Promise<{ hasFont: boolean; reshape: (text: string) => string }> {
     let hasFont = false
 
@@ -388,7 +383,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   // Format surah label for PDF: "الكوثر 108. L'Abondance 3v."
   // Arabic name first as requested
   function surahLabel(num: number, info: SurahInfo | undefined, reshape: (s: string) => string): string {
-    const fr = stripAccents(info?.nameFr || '')
+    const fr = info?.nameFr || ''
     const ar = reshape(info?.nameAr || '')
     const v = info?.totalVerses || '?'
     if (ar) return `${ar}  ${num}. ${fr} ${v}v.`
@@ -456,10 +451,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.setTextColor(255, 255, 255)
       doc.setFontSize(18)
       doc.setFont(pdfFont, 'bold')
-      doc.text(stripAccents(`Seance N${targetSessionNumber}${sessionWeekNumber ? ` - Semaine ${sessionWeekNumber}` : ''}`), 14, 12)
+      doc.text(`Séance N°${targetSessionNumber}${sessionWeekNumber ? ` - Semaine ${sessionWeekNumber}` : ''}`, 14, 12)
       doc.setFontSize(13)
       doc.setFont(pdfFont, 'normal')
-      doc.text(stripAccents(`${data.group.name} - ${sessionDate}`), 14, 19)
+      doc.text(`${data.group.name} - ${sessionDate}`, 14, 19)
 
       doc.setTextColor(0, 0, 0)
       let yPos = 32
@@ -468,7 +463,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       if (reportTopics.length > 0) {
         doc.setFontSize(13)
         doc.setFont(pdfFont, 'bold')
-        doc.text('Points abordes :', 14, yPos)
+        doc.text('Points abordés :', 14, yPos)
         yPos += 6
         doc.setFont(pdfFont, 'normal')
         doc.setFontSize(12)
@@ -479,7 +474,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             doc.setFillColor(200, 200, 200)
           }
           doc.rect(14, yPos - 3, 3, 3, 'F')
-          doc.text(`  ${stripAccents(topic.label)}`, 18, yPos)
+          doc.text(`  ${topic.label}`, 18, yPos)
           yPos += 5
         }
         yPos += 3
@@ -512,11 +507,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               const surahLbl = surahLabel(parseInt(surahNum), surahInfo, reshapeAr)
               const statusDisplay = getCellDisplay(member.id, parseInt(surahNum))
               sessionRows.push([
-                stripAccents(firstName),
+                firstName,
                 surahLbl,
                 `1-${surahInfo?.totalVerses || '?'}`,
                 statusDisplay,
-                stripAccents(stripHtmlTags(c.comment))
+                stripHtmlTags(c.comment)
               ])
             }
           }
@@ -525,7 +520,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
       if (sessionRows.length > 0) {
         autoTable(doc, {
-          head: [['Eleve', 'Sourate', 'Versets', 'Statut', 'Commentaire']],
+          head: [['Élève', 'Sourate', 'Versets', 'Statut', 'Commentaire']],
           body: sessionRows,
           startY: yPos,
           styles: {
@@ -575,7 +570,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             doc.addPage()
             yPos = 15
           }
-          doc.text(stripAccents(line), 14, yPos)
+          doc.text(line, 14, yPos)
           yPos += 5
         }
       }
@@ -596,7 +591,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         const parts = m.name.split(' ')
         const lastName = parts.slice(0, -1).join(' ')
         const firstName = parts[parts.length - 1]
-        gridHeaders.push(stripAccents(`${lastName}\n${firstName}`))
+        gridHeaders.push(`${lastName}\n${firstName}`)
       }
 
       const gridRows: string[][] = []
@@ -669,17 +664,17 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
       doc.setFontSize(12)
       doc.setFont(pdfFont, 'bold')
-      doc.text('Legende :', 14, legendY)
+      doc.text('Légende :', 14, legendY)
       legendY += 6
       doc.setFont(pdfFont, 'normal')
       doc.setFontSize(11)
       const legendItems = [
-        { code: 'V', color: [34, 197, 94], label: 'V = Valide', textWhite: true },
-        { code: 'C', color: [59, 130, 246], label: 'C = Suppose connu, a valider', textWhite: true },
-        { code: '90%', color: [134, 239, 172], label: '90% = Presque maitrise', textWhite: false },
-        { code: '51%', color: [250, 204, 21], label: '51%/50% = Moitie acquise', textWhite: false },
-        { code: 'AM', color: [251, 146, 60], label: 'AM = A memoriser', textWhite: false },
-        { code: 'S', color: [167, 139, 250], label: 'S = Recite a un eleve', textWhite: true },
+        { code: 'V', color: [34, 197, 94], label: 'V = Validé', textWhite: true },
+        { code: 'C', color: [59, 130, 246], label: 'C = Supposé connu, à valider', textWhite: true },
+        { code: '90%', color: [134, 239, 172], label: '90% = Presque maîtrisé', textWhite: false },
+        { code: '51%', color: [250, 204, 21], label: '51%/50% = Moitié acquise', textWhite: false },
+        { code: 'AM', color: [251, 146, 60], label: 'AM = À mémoriser', textWhite: false },
+        { code: 'S', color: [167, 139, 250], label: 'S = Récité à un élève', textWhite: true },
       ]
       let legendX = 14
       for (const item of legendItems) {
@@ -704,7 +699,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.setTextColor(255, 255, 255)
       doc.setFontSize(16)
       doc.setFont(pdfFont, 'bold')
-      doc.text('Classement des eleves', 14, 13)
+      doc.text('Classement des élèves', 14, 13)
       doc.setTextColor(0, 0, 0)
 
       // Count validated surahs per member
@@ -717,11 +712,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         const nameParts = m.name.split(' ')
         const firstName = nameParts[nameParts.length - 1]
         const lastName = nameParts.slice(0, -1).join(' ')
-        return { name: stripAccents(`${lastName} ${firstName}`), validated: validatedCount }
+        return { name: `${lastName} ${firstName}`, validated: validatedCount }
       }).sort((a, b) => b.validated - a.validated)
 
       autoTable(doc, {
-        head: [['#', 'Eleve', 'Sourates validees']],
+        head: [['#', 'Élève', 'Sourates validées']],
         body: rankingData.map((r, i) => [(i + 1).toString(), r.name, r.validated.toString()]),
         startY: 25,
         styles: {
@@ -764,7 +759,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         const nameParts = member.name.split(' ')
         const firstName = nameParts[nameParts.length - 1]
         const lastName = nameParts.slice(0, -1).join(' ')
-        const fullName = stripAccents(`${lastName} ${firstName}`)
+        const fullName = `${lastName} ${firstName}`
 
         for (const [surahNum, comments] of Object.entries(memberComments)) {
           const surahInfo = data.allSurahsMap[parseInt(surahNum)]
@@ -778,7 +773,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 sessionNum: c.sessionNumber,
                 session: `S${c.sessionNumber}${dateStr ? ` (${dateStr})` : ''}`,
                 surah: surahLabel(parseInt(surahNum), surahInfo, reshapeAr),
-                comment: stripAccents(stripHtmlTags(c.comment))
+                comment: stripHtmlTags(c.comment)
               })
             }
           }
@@ -800,7 +795,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.setTextColor(255, 255, 255)
         doc.setFontSize(16)
         doc.setFont(pdfFont, 'bold')
-        doc.text('Annexe - Commentaires des seances precedentes', 14, 13)
+        doc.text('Annexe - Commentaires des séances précédentes', 14, 13)
         doc.setTextColor(0, 0, 0)
 
         let annexeY = 25
@@ -821,7 +816,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           annexeY += 4
 
           autoTable(doc, {
-            head: [['Seance', 'Sourate', 'Commentaire']],
+            head: [['Séance', 'Sourate', 'Commentaire']],
             body: entry.comments.map(c => [c.session, c.surah, c.comment]),
             startY: annexeY,
             styles: {
@@ -865,7 +860,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       const pdfWindow = window.open('')
       if (pdfWindow) {
         pdfWindow.document.write(
-          `<html><head><title>Seance ${targetSessionNumber} - ${stripAccents(data.group.name)}</title></head>` +
+          `<html><head><title>Séance ${targetSessionNumber} - ${data.group.name}</title></head>` +
           `<body style="margin:0"><embed src="${pdfBase64}" type="application/pdf" width="100%" height="100%" /></body></html>`
         )
         pdfWindow.document.close()
@@ -1049,17 +1044,17 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
       doc.setFontSize(11)
       doc.setFont(pdfFont, 'bold')
-      doc.text('Legende :', 14, fullLegendY)
+      doc.text('Légende :', 14, fullLegendY)
       fullLegendY += 5
       doc.setFont(pdfFont, 'normal')
       doc.setFontSize(10)
       const fullLegendItems = [
-        { code: 'V', color: [34, 197, 94], label: 'V = Valide', textWhite: true },
-        { code: 'C', color: [59, 130, 246], label: 'C = Suppose connu, a valider', textWhite: true },
-        { code: '90%', color: [134, 239, 172], label: '90% = Presque maitrise', textWhite: false },
-        { code: '51%', color: [250, 204, 21], label: '51%/50% = Moitie acquise', textWhite: false },
-        { code: 'AM', color: [251, 146, 60], label: 'AM = A memoriser', textWhite: false },
-        { code: 'S', color: [167, 139, 250], label: 'S = Recite a un eleve', textWhite: true },
+        { code: 'V', color: [34, 197, 94], label: 'V = Validé', textWhite: true },
+        { code: 'C', color: [59, 130, 246], label: 'C = Supposé connu, à valider', textWhite: true },
+        { code: '90%', color: [134, 239, 172], label: '90% = Presque maîtrisé', textWhite: false },
+        { code: '51%', color: [250, 204, 21], label: '51%/50% = Moitié acquise', textWhite: false },
+        { code: 'AM', color: [251, 146, 60], label: 'AM = À mémoriser', textWhite: false },
+        { code: 'S', color: [167, 139, 250], label: 'S = Récité à un élève', textWhite: true },
       ]
       let fullLegendX = 14
       for (const item of fullLegendItems) {
@@ -1113,7 +1108,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
         // Comments table
         autoTable(doc, {
-          head: [['Eleve', 'Sourate', 'Seance', 'Commentaire']],
+          head: [['Élève', 'Sourate', 'Séance', 'Commentaire']],
           body: allComments.map(c => [c.member, c.surah, c.session, c.comment]),
           startY: 25,
           styles: {
@@ -1155,7 +1150,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       const pdfWindow = window.open('')
       if (pdfWindow) {
         pdfWindow.document.write(
-          `<html><head><title>Grille - ${stripAccents(data.group.name)}</title></head>` +
+          `<html><head><title>Grille - ${data.group.name}</title></head>` +
           `<body style="margin:0"><embed src="${pdfBase64}" type="application/pdf" width="100%" height="100%" /></body></html>`
         )
         pdfWindow.document.close()
