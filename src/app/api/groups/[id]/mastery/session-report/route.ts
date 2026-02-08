@@ -12,6 +12,15 @@ function getWeekStart(date: Date): Date {
   return d
 }
 
+// Helper: ISO 8601 week number
+function getISOWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dayNum = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+}
+
 // Helper: find or create session for the current week (Sunday-Saturday)
 async function findOrCreateWeekSession(groupId: string, createdBy: string) {
   const today = new Date()
@@ -29,15 +38,11 @@ async function findOrCreateWeekSession(groupId: string, createdBy: string) {
 
   if (existing) return existing
 
-  const startOfYear = new Date(today.getFullYear(), 0, 1)
-  const diffDays = Math.floor((today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24))
-  const autoWeekNumber = Math.ceil((diffDays + startOfYear.getDay() + 1) / 7)
-
   return prisma.groupSession.create({
     data: {
       groupId,
       date: today,
-      weekNumber: autoWeekNumber,
+      weekNumber: getISOWeekNumber(today),
       createdBy
     }
   })
