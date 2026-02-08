@@ -618,14 +618,16 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.text(`Page ${i}/${pageCount}`, 280, 205)
       }
 
-      // Download via data URI (blob URLs blocked on HTTP)
-      const pdfDataUri = doc.output('datauristring')
-      const link = document.createElement('a')
-      link.href = pdfDataUri
-      link.download = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-')}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      // Open PDF in new tab (blob/data URI downloads blocked on HTTP)
+      const pdfBase64 = doc.output('datauristring')
+      const pdfWindow = window.open('')
+      if (pdfWindow) {
+        pdfWindow.document.write(
+          `<html><head><title>Seance ${targetSessionNumber} - ${stripAccents(data.group.name)}</title></head>` +
+          `<body style="margin:0"><embed src="${pdfBase64}" type="application/pdf" width="100%" height="100%" /></body></html>`
+        )
+        pdfWindow.document.close()
+      }
 
       setSessionReportOpen(false)
     } catch (err) {
@@ -867,14 +869,16 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.text(`Page ${i}/${pageCount}`, 280, 205)
       }
 
-      // Download via data URI (blob URLs blocked on HTTP)
-      const pdfDataUri = doc.output('datauristring')
-      const link = document.createElement('a')
-      link.href = pdfDataUri
-      link.download = `grille-${data.group.name.replace(/\s+/g, '-')}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      // Open PDF in new tab (blob/data URI downloads blocked on HTTP)
+      const pdfBase64 = doc.output('datauristring')
+      const pdfWindow = window.open('')
+      if (pdfWindow) {
+        pdfWindow.document.write(
+          `<html><head><title>Grille - ${stripAccents(data.group.name)}</title></head>` +
+          `<body style="margin:0"><embed src="${pdfBase64}" type="application/pdf" width="100%" height="100%" /></body></html>`
+        )
+        pdfWindow.document.close()
+      }
     } catch (err) {
       console.error('Error exporting PDF:', err)
       alert('Erreur PDF: ' + (err instanceof Error ? err.message : 'Erreur'))
