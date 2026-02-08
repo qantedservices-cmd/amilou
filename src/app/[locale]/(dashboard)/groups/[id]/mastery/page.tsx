@@ -477,7 +477,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.text('Points abordes :', 14, yPos)
         yPos += 6
         doc.setFont(pdfFont, 'normal')
-        doc.setFontSize(10)
+        doc.setFontSize(11)
         for (const topic of reportTopics) {
           if (topic.checked) {
             doc.setFillColor(34, 197, 94)
@@ -535,7 +535,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           startY: yPos,
           styles: {
             font: pdfFont,
-            fontSize: 9,
+            fontSize: 11,
             cellPadding: 3,
             lineColor: [200, 200, 200],
             lineWidth: 0.1
@@ -572,7 +572,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.text('Devoirs :', 14, yPos)
         yPos += 6
         doc.setFont(pdfFont, 'normal')
-        doc.setFontSize(10)
+        doc.setFontSize(11)
         const homeworkLines = reportHomework.split('\n')
         for (const line of homeworkLines) {
           if (yPos > 195) {
@@ -631,7 +631,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         startY: 25,
         styles: {
           font: pdfFont,
-          fontSize: 7,
+          fontSize: 9,
           cellPadding: 2,
           halign: 'center',
           valign: 'middle',
@@ -641,7 +641,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         headStyles: {
           fillColor: [71, 85, 105],
           textColor: [255, 255, 255],
-          fontSize: 7,
+          fontSize: 9,
           fontStyle: 'bold',
           halign: 'center'
         },
@@ -671,12 +671,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.addPage()
         legendY = 15
       }
-      doc.setFontSize(9)
+      doc.setFontSize(11)
       doc.setFont(pdfFont, 'bold')
       doc.text('Legende :', 14, legendY)
-      legendY += 5
+      legendY += 6
       doc.setFont(pdfFont, 'normal')
-      doc.setFontSize(8)
+      doc.setFontSize(11)
       const legendItems = [
         { code: 'V', color: [34, 197, 94], label: 'V = Valide', textWhite: true },
         { code: 'C', color: [59, 130, 246], label: 'C = Suppose connu, a valider', textWhite: true },
@@ -730,7 +730,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         startY: 25,
         styles: {
           font: pdfFont,
-          fontSize: 10,
+          fontSize: 11,
           cellPadding: 3,
           lineColor: [200, 200, 200],
           lineWidth: 0.1
@@ -817,7 +817,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           }
 
           // Member name header
-          doc.setFontSize(10)
+          doc.setFontSize(11)
           doc.setFont(pdfFont, 'bold')
           doc.setFillColor(226, 232, 240)
           doc.rect(10, annexeY - 4, 277, 6, 'F')
@@ -830,7 +830,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             startY: annexeY,
             styles: {
               font: pdfFont,
-              fontSize: 7,
+              fontSize: 9,
               cellPadding: 2,
               lineColor: [200, 200, 200],
               lineWidth: 0.1
@@ -839,7 +839,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               fillColor: [71, 85, 105],
               textColor: [255, 255, 255],
               fontStyle: 'bold',
-              fontSize: 7
+              fontSize: 9
             },
             columnStyles: {
               0: { cellWidth: 25 },
@@ -965,7 +965,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.setFontSize(12)
       doc.setFont(pdfFont, 'normal')
       doc.text(data.group.name, 14, 19)
-      doc.setFontSize(10)
+      doc.setFontSize(11)
       doc.text(new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }), 250, 15)
 
       // Reset text color
@@ -1011,7 +1011,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         startY: 30,
         styles: {
           font: pdfFont,
-          fontSize: 7,
+          fontSize: 9,
           cellPadding: 2,
           halign: 'center',
           valign: 'middle',
@@ -1021,7 +1021,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         headStyles: {
           fillColor: [71, 85, 105],
           textColor: [255, 255, 255],
-          fontSize: 7,
+          fontSize: 9,
           fontStyle: 'bold',
           halign: 'center'
         },
@@ -1122,7 +1122,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           startY: 25,
           styles: {
             font: pdfFont,
-            fontSize: 9,
+            fontSize: 11,
             cellPadding: 3,
             lineColor: [200, 200, 200],
             lineWidth: 0.1
