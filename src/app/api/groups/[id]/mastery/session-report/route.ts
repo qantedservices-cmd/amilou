@@ -115,7 +115,7 @@ export async function GET(
     // Get all surahs for the selector
     const surahs = await prisma.surah.findMany({
       orderBy: { number: 'asc' },
-      select: { number: true, nameAr: true, nameFr: true }
+      select: { number: true, nameAr: true, nameFr: true, totalVerses: true }
     })
 
     // Default homework text

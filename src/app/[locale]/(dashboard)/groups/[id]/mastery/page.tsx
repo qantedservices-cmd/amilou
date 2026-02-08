@@ -71,6 +71,7 @@ interface SurahOption {
   number: number
   nameAr: string
   nameFr: string
+  totalVerses: number
 }
 
 interface MasteryData {
@@ -443,7 +444,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         if (surahInfo) {
           doc.setFontSize(11)
           doc.setFont('helvetica', 'bold')
-          doc.text(stripAccents(`Prochaine sourate : ${surahInfo.number}. ${surahInfo.nameFr}`), 14, yPos)
+          doc.text(stripAccents(`Prochaine sourate : ${surahInfo.number}. ${surahInfo.nameFr} - ${surahInfo.totalVerses} v.`), 14, yPos)
           yPos += 8
         }
       }
@@ -460,7 +461,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           for (const c of comments) {
             if (c.sessionNumber === targetSessionNumber) {
               const surahInfo = data.allSurahsMap[parseInt(surahNum)]
-              const surahLabel = stripAccents(`${surahNum}. ${surahInfo?.nameFr || ''}`)
+              const surahLabel = stripAccents(`${surahNum}. ${surahInfo?.nameFr || ''} - ${surahInfo?.totalVerses || '?'} v.`)
               const statusDisplay = getCellDisplay(member.id, parseInt(surahNum))
               sessionRows.push([
                 stripAccents(firstName),
@@ -552,7 +553,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       for (const group of data.surahGroups) {
         if (group.type === 'surah' && group.number) {
           const surahInfo = data.allSurahsMap[group.number]
-          const row = [stripAccents(`${group.number}. ${surahInfo?.nameFr || ''}`)]
+          const row = [stripAccents(`${group.number}. ${surahInfo?.nameFr || ''} - ${surahInfo?.totalVerses || '?'} v.`)]
           for (const member of data.members) {
             row.push(getCellDisplay(member.id, group.number!))
           }
@@ -608,6 +609,41 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         },
         margin: { left: 10, right: 10 }
       })
+
+      // 5b. Légende des statuts
+      let legendY = (doc as any).lastAutoTable?.finalY + 8 || 180
+      if (legendY > 180) {
+        doc.addPage()
+        legendY = 15
+      }
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Legende :', 14, legendY)
+      legendY += 5
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      const legendItems = [
+        { code: 'V', color: [34, 197, 94], label: 'V = Valide', textWhite: true },
+        { code: 'C', color: [59, 130, 246], label: 'C = Suppose connu, a valider', textWhite: true },
+        { code: '90%', color: [134, 239, 172], label: '90% = Presque maitrise', textWhite: false },
+        { code: '51%', color: [250, 204, 21], label: '51%/50% = Moitie acquise', textWhite: false },
+        { code: 'AM', color: [251, 146, 60], label: 'AM = A memoriser', textWhite: false },
+        { code: 'S', color: [167, 139, 250], label: 'S = Recite a un eleve', textWhite: true },
+      ]
+      let legendX = 14
+      for (const item of legendItems) {
+        doc.setFillColor(item.color[0], item.color[1], item.color[2])
+        doc.rect(legendX, legendY - 3, 8, 4, 'F')
+        doc.setTextColor(item.textWhite ? 255 : 0, item.textWhite ? 255 : 0, item.textWhite ? 255 : 0)
+        doc.text(item.code, legendX + 4, legendY, { align: 'center' })
+        doc.setTextColor(0, 0, 0)
+        doc.text(item.label, legendX + 10, legendY)
+        legendX += 48
+        if (legendX > 250) {
+          legendX = 14
+          legendY += 6
+        }
+      }
 
       // 6. Classement des élèves (par sourates validées)
       doc.addPage()
@@ -668,23 +704,28 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         margin: { left: 60, right: 60 }
       })
 
-      // 7. Annexe - Commentaires des séances précédentes
-      const allPastComments: { session: string; member: string; surah: string; comment: string }[] = []
+      // 7. Annexe - Commentaires des séances précédentes (regroupés par élève, séances décroissantes)
+      const pastCommentsByMember: Record<string, { memberName: string; comments: { sessionNum: number; session: string; surah: string; comment: string }[] }> = {}
       for (const member of data.members) {
         const memberComments = data.commentsMap[member.id]
         if (!memberComments) continue
         const nameParts = member.name.split(' ')
         const firstName = nameParts[nameParts.length - 1]
+        const lastName = nameParts.slice(0, -1).join(' ')
+        const fullName = stripAccents(`${lastName} ${firstName}`)
 
         for (const [surahNum, comments] of Object.entries(memberComments)) {
           const surahInfo = data.allSurahsMap[parseInt(surahNum)]
           for (const c of comments) {
             if (c.sessionNumber && c.sessionNumber < targetSessionNumber) {
+              if (!pastCommentsByMember[member.id]) {
+                pastCommentsByMember[member.id] = { memberName: fullName, comments: [] }
+              }
               const dateStr = c.sessionDate ? new Date(c.sessionDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''
-              allPastComments.push({
+              pastCommentsByMember[member.id].comments.push({
+                sessionNum: c.sessionNumber,
                 session: `S${c.sessionNumber}${dateStr ? ` (${dateStr})` : ''}`,
-                member: stripAccents(firstName),
-                surah: stripAccents(`${surahNum}. ${surahInfo?.nameFr || ''}`),
+                surah: stripAccents(`${surahNum}. ${surahInfo?.nameFr || ''} - ${surahInfo?.totalVerses || '?'} v.`),
                 comment: stripAccents(stripHtmlTags(c.comment))
               })
             }
@@ -692,14 +733,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         }
       }
 
-      // Sort by session number
-      allPastComments.sort((a, b) => {
-        const numA = parseInt(a.session.replace(/\D/g, ''))
-        const numB = parseInt(b.session.replace(/\D/g, ''))
-        return numA - numB
-      })
+      // Sort each member's comments by session number descending
+      for (const entry of Object.values(pastCommentsByMember)) {
+        entry.comments.sort((a, b) => b.sessionNum - a.sessionNum)
+      }
 
-      if (allPastComments.length > 0) {
+      const membersWithComments = Object.values(pastCommentsByMember).filter(e => e.comments.length > 0)
+
+      if (membersWithComments.length > 0) {
         doc.addPage()
 
         doc.setFillColor(45, 55, 72)
@@ -710,32 +751,51 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.text('Annexe - Commentaires des seances precedentes', 14, 13)
         doc.setTextColor(0, 0, 0)
 
-        autoTable(doc, {
-          head: [['Seance', 'Eleve', 'Sourate', 'Commentaire']],
-          body: allPastComments.map(c => [c.session, c.member, c.surah, c.comment]),
-          startY: 25,
-          styles: {
-            fontSize: 7,
-            cellPadding: 2,
-            lineColor: [200, 200, 200],
-            lineWidth: 0.1
-          },
-          headStyles: {
-            fillColor: [71, 85, 105],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold'
-          },
-          columnStyles: {
-            0: { cellWidth: 25 },
-            1: { cellWidth: 25 },
-            2: { cellWidth: 35 },
-            3: { cellWidth: 'auto' }
-          },
-          alternateRowStyles: {
-            fillColor: [248, 250, 252]
-          },
-          margin: { left: 10, right: 10 }
-        })
+        let annexeY = 25
+
+        for (const entry of membersWithComments) {
+          // Check if we need a new page
+          if (annexeY > 180) {
+            doc.addPage()
+            annexeY = 15
+          }
+
+          // Member name header
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'bold')
+          doc.setFillColor(226, 232, 240)
+          doc.rect(10, annexeY - 4, 277, 6, 'F')
+          doc.text(entry.memberName, 14, annexeY)
+          annexeY += 4
+
+          autoTable(doc, {
+            head: [['Seance', 'Sourate', 'Commentaire']],
+            body: entry.comments.map(c => [c.session, c.surah, c.comment]),
+            startY: annexeY,
+            styles: {
+              fontSize: 7,
+              cellPadding: 2,
+              lineColor: [200, 200, 200],
+              lineWidth: 0.1
+            },
+            headStyles: {
+              fillColor: [71, 85, 105],
+              textColor: [255, 255, 255],
+              fontStyle: 'bold',
+              fontSize: 7
+            },
+            columnStyles: {
+              0: { cellWidth: 25 },
+              1: { cellWidth: 50 },
+              2: { cellWidth: 'auto' }
+            },
+            alternateRowStyles: {
+              fillColor: [248, 250, 252]
+            },
+            margin: { left: 10, right: 10 }
+          })
+          annexeY = (doc as any).lastAutoTable.finalY + 6
+        }
       }
 
       // Footer on all pages
@@ -866,7 +926,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       for (const group of data.surahGroups) {
         if (group.type === 'surah' && group.number) {
           const surahInfo = data.allSurahsMap[group.number]
-          const row = [`${group.number}. ${surahInfo?.nameAr || ''}\n${surahInfo?.nameFr || ''}`]
+          const row = [`${group.number}. ${surahInfo?.nameAr || ''}\n${surahInfo?.nameFr || ''} - ${surahInfo?.totalVerses || '?'} v.`]
           for (const member of data.members) {
             row.push(getCellDisplay(member.id, group.number!))
           }
@@ -925,6 +985,41 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         margin: { left: 10, right: 10 }
       })
 
+      // Légende des statuts
+      let fullLegendY = (doc as any).lastAutoTable?.finalY + 8 || 180
+      if (fullLegendY > 185) {
+        doc.addPage()
+        fullLegendY = 15
+      }
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Legende :', 14, fullLegendY)
+      fullLegendY += 5
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      const fullLegendItems = [
+        { code: 'V', color: [34, 197, 94], label: 'V = Valide', textWhite: true },
+        { code: 'C', color: [59, 130, 246], label: 'C = Suppose connu, a valider', textWhite: true },
+        { code: '90%', color: [134, 239, 172], label: '90% = Presque maitrise', textWhite: false },
+        { code: '51%', color: [250, 204, 21], label: '51%/50% = Moitie acquise', textWhite: false },
+        { code: 'AM', color: [251, 146, 60], label: 'AM = A memoriser', textWhite: false },
+        { code: 'S', color: [167, 139, 250], label: 'S = Recite a un eleve', textWhite: true },
+      ]
+      let fullLegendX = 14
+      for (const item of fullLegendItems) {
+        doc.setFillColor(item.color[0], item.color[1], item.color[2])
+        doc.rect(fullLegendX, fullLegendY - 3, 8, 4, 'F')
+        doc.setTextColor(item.textWhite ? 255 : 0, item.textWhite ? 255 : 0, item.textWhite ? 255 : 0)
+        doc.text(item.code, fullLegendX + 4, fullLegendY, { align: 'center' })
+        doc.setTextColor(0, 0, 0)
+        doc.text(item.label, fullLegendX + 10, fullLegendY)
+        fullLegendX += 48
+        if (fullLegendX > 250) {
+          fullLegendX = 14
+          fullLegendY += 6
+        }
+      }
+
       // Collect comments
       const allComments: { member: string; surah: string; session: string; comment: string }[] = []
       for (const member of data.members) {
@@ -939,7 +1034,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             const dateStr = c.sessionDate ? new Date(c.sessionDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''
             allComments.push({
               member: firstName,
-              surah: `${surahNum}. ${surahInfo?.nameAr || ''} - ${surahInfo?.nameFr || ''}`,
+              surah: `${surahNum}. ${surahInfo?.nameFr || ''} (${surahInfo?.nameAr || ''}) - ${surahInfo?.totalVerses || '?'} v.`,
               session: c.sessionNumber ? `S${c.sessionNumber}${dateStr ? ` (${dateStr})` : ''}` : '-',
               comment: stripHtmlTags(c.comment)
             })
@@ -1239,7 +1334,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                             <td
                               key={member.id}
                               className={`p-1 text-center border-l ${data.isReferent ? 'cursor-pointer hover:ring-2 hover:ring-primary' : ''}`}
-                              onClick={() => openEditDialog(member.id, member.name, surahNum, `Sourate ${surahNum}`)}
+                              onClick={() => {
+                                const si = data.allSurahsMap[surahNum]
+                                openEditDialog(member.id, member.name, surahNum, `${surahNum}. ${si?.nameFr || ''} (${si?.nameAr || ''}) - ${si?.totalVerses || '?'} v.`)
+                              }}
                             >
                               <div className="relative inline-block">
                                 <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getCellColor(member.id, surahNum)}`}>
@@ -1296,7 +1394,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                         <td
                           key={member.id}
                           className={`p-1 text-center border-l ${data.isReferent ? 'cursor-pointer hover:ring-2 hover:ring-primary' : ''}`}
-                          onClick={() => openEditDialog(member.id, member.name, group.number!, `${group.number} - ${group.nameAr}`)}
+                          onClick={() => openEditDialog(member.id, member.name, group.number!, `${group.number}. ${group.nameFr || ''} (${group.nameAr || ''}) - ${group.totalVerses || '?'} v.`)}
                         >
                           <div className="relative inline-block">
                             <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getCellColor(member.id, group.number!)}`}>
@@ -1636,7 +1734,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                     <SelectItem value="none">— Aucune —</SelectItem>
                     {reportSurahs.map(s => (
                       <SelectItem key={s.number} value={s.number.toString()}>
-                        {s.number}. {s.nameFr} - {s.nameAr}
+                        {s.number}. {s.nameFr} ({s.nameAr}) - {s.totalVerses} v.
                       </SelectItem>
                     ))}
                   </SelectContent>
