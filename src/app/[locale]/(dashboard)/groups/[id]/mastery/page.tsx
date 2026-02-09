@@ -479,7 +479,54 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         const json = await reportRes.json()
         const sessionNum = json.sessionNumber || data.nextSessionNumber
         setReportSessionNumber(sessionNum)
-        setReportTopics(json.sessionTopics || [])
+
+        // Default topics structure (source of truth for labels and children)
+        const defaultTopics: TopicItem[] = [
+          { label: 'Suivi individuel de la mémorisation', checked: true },
+          { label: 'Préparation de la prochaine sourate en groupe', checked: true, children: [
+            { label: 'Récitation', checked: false },
+            { label: 'Lecture sens des versets', checked: false },
+            { label: 'Tafsir', checked: false },
+          ]},
+          { label: 'Étude leçon du livre Arc en Ciel', checked: false },
+          { label: 'Sujets de recherches', checked: false },
+          { label: 'Échanges ouverts', checked: false },
+        ]
+
+        // Merge saved topics with defaults: preserve checked state, add missing children
+        const savedTopics: TopicItem[] = json.sessionTopics || []
+        let mergedTopics: TopicItem[]
+        if (savedTopics.length > 0) {
+          // Start with defaults, overlay saved checked state
+          mergedTopics = defaultTopics.map(dt => {
+            // Find matching saved topic by label similarity
+            const saved = savedTopics.find(st =>
+              st.label === dt.label ||
+              dt.label.toLowerCase().includes(st.label.toLowerCase().slice(0, 15)) ||
+              st.label.toLowerCase().includes(dt.label.toLowerCase().slice(0, 15))
+            )
+            const topic: TopicItem = {
+              label: dt.label,
+              checked: saved ? saved.checked : dt.checked,
+            }
+            if (dt.children) {
+              topic.children = dt.children.map(dc => {
+                const savedChild = saved?.children?.find(sc => sc.label === dc.label)
+                return { label: dc.label, checked: savedChild ? savedChild.checked : dc.checked }
+              })
+            }
+            return topic
+          })
+          // Add any custom topics (not in defaults)
+          const defaultLabels = defaultTopics.map(d => d.label.toLowerCase())
+          const customTopics = savedTopics.filter(st =>
+            !defaultLabels.some(dl => dl.includes(st.label.toLowerCase().slice(0, 15)) || st.label.toLowerCase().includes(dl.slice(0, 15)))
+          )
+          mergedTopics = [...mergedTopics, ...customTopics]
+        } else {
+          mergedTopics = defaultTopics
+        }
+        setReportTopics(mergedTopics)
         setReportNextSurah(json.nextSurahNumber?.toString() || '')
         setReportHomework(json.homework || '')
         setReportSurahs(json.surahs || [])
