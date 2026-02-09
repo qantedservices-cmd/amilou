@@ -22,7 +22,16 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Download, FileText, MessageSquare, Pencil, Plus, Trash2, Users, Check, X } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { ArrowLeft, BookOpen, ChevronDown, ChevronRight, ChevronUp, Download, FileText, MessageSquare, Pencil, Plus, Trash2, Users, Check, X } from 'lucide-react'
 import { RichTextEditor, stripHtmlTags } from '@/components/ui/rich-text-editor'
 import Link from 'next/link'
 
@@ -72,6 +81,16 @@ interface SurahOption {
   nameAr: string
   nameFr: string
   totalVerses: number
+}
+
+interface ResearchTopic {
+  id: string
+  sessionNumber: number | null
+  assignedTo: string
+  question: string
+  answer: string | null
+  isValidated: boolean
+  createdAt: string
 }
 
 interface MasteryData {
@@ -157,6 +176,26 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [reportHomework, setReportHomework] = useState('')
   const [reportSurahs, setReportSurahs] = useState<SurahOption[]>([])
   const [newTopicLabel, setNewTopicLabel] = useState('')
+  const [reportResearchTopics, setReportResearchTopics] = useState<(ResearchTopic & { checked: boolean })[]>([])
+
+  // Research topics state
+  const [researchTopicsOpen, setResearchTopicsOpen] = useState(false)
+  const [researchTopics, setResearchTopics] = useState<ResearchTopic[]>([])
+  const [researchLoading, setResearchLoading] = useState(false)
+  const [newResearchSession, setNewResearchSession] = useState('')
+  const [newResearchAssignedTo, setNewResearchAssignedTo] = useState('')
+  const [newResearchQuestion, setNewResearchQuestion] = useState('')
+  const [newResearchAnswer, setNewResearchAnswer] = useState('')
+  const [newResearchValidated, setNewResearchValidated] = useState(false)
+  const [addingResearch, setAddingResearch] = useState(false)
+  const [editingResearchId, setEditingResearchId] = useState<string | null>(null)
+  const [editResearchSession, setEditResearchSession] = useState('')
+  const [editResearchAssignedTo, setEditResearchAssignedTo] = useState('')
+  const [editResearchQuestion, setEditResearchQuestion] = useState('')
+  const [editResearchAnswer, setEditResearchAnswer] = useState('')
+  const [editResearchValidated, setEditResearchValidated] = useState(false)
+  const [savingResearch, setSavingResearch] = useState(false)
+  const [deletingResearchId, setDeletingResearchId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchMastery()
@@ -312,20 +351,147 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     }
   }
 
+  async function fetchResearchTopics() {
+    setResearchLoading(true)
+    try {
+      const res = await fetch(`/api/groups/${groupId}/research-topics`)
+      if (res.ok) {
+        const json = await res.json()
+        setResearchTopics(json.topics || [])
+        // Pre-fill session number with latest
+        if (json.totalSessions > 0) {
+          setNewResearchSession(json.totalSessions.toString())
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching research topics:', err)
+    } finally {
+      setResearchLoading(false)
+    }
+  }
+
+  function openResearchTopics() {
+    setResearchTopicsOpen(true)
+    fetchResearchTopics()
+  }
+
+  async function handleAddResearchTopic() {
+    if (!newResearchAssignedTo.trim() || !newResearchQuestion.trim()) return
+    setAddingResearch(true)
+    try {
+      const res = await fetch(`/api/groups/${groupId}/research-topics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionNumber: newResearchSession ? parseInt(newResearchSession) : null,
+          assignedTo: newResearchAssignedTo.trim(),
+          question: newResearchQuestion.trim(),
+          answer: newResearchAnswer.trim() || null,
+          isValidated: newResearchValidated
+        })
+      })
+      if (res.ok) {
+        await fetchResearchTopics()
+        setNewResearchAssignedTo('')
+        setNewResearchQuestion('')
+        setNewResearchAnswer('')
+        setNewResearchValidated(false)
+      } else {
+        const errorData = await res.json()
+        alert('Erreur: ' + (errorData.error || 'Impossible d\'ajouter'))
+      }
+    } catch (err) {
+      console.error('Error adding research topic:', err)
+      alert('Erreur de connexion')
+    } finally {
+      setAddingResearch(false)
+    }
+  }
+
+  function startEditResearch(topic: ResearchTopic) {
+    setEditingResearchId(topic.id)
+    setEditResearchSession(topic.sessionNumber?.toString() || '')
+    setEditResearchAssignedTo(topic.assignedTo)
+    setEditResearchQuestion(topic.question)
+    setEditResearchAnswer(topic.answer || '')
+    setEditResearchValidated(topic.isValidated)
+  }
+
+  async function handleSaveResearch() {
+    if (!editingResearchId) return
+    setSavingResearch(true)
+    try {
+      const res = await fetch(`/api/groups/${groupId}/research-topics`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingResearchId,
+          sessionNumber: editResearchSession ? parseInt(editResearchSession) : null,
+          assignedTo: editResearchAssignedTo.trim(),
+          question: editResearchQuestion.trim(),
+          answer: editResearchAnswer.trim() || null,
+          isValidated: editResearchValidated
+        })
+      })
+      if (res.ok) {
+        await fetchResearchTopics()
+        setEditingResearchId(null)
+      } else {
+        const errorData = await res.json()
+        alert('Erreur: ' + (errorData.error || 'Impossible de modifier'))
+      }
+    } catch (err) {
+      console.error('Error updating research topic:', err)
+      alert('Erreur de connexion')
+    } finally {
+      setSavingResearch(false)
+    }
+  }
+
+  async function handleDeleteResearch(id: string) {
+    setDeletingResearchId(id)
+    try {
+      const res = await fetch(`/api/groups/${groupId}/research-topics?id=${id}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        await fetchResearchTopics()
+      }
+    } catch (err) {
+      console.error('Error deleting research topic:', err)
+    } finally {
+      setDeletingResearchId(null)
+    }
+  }
+
   async function openSessionReportDialog() {
     if (!data) return
     setSessionReportOpen(true)
     setReportLoading(true)
     try {
       const targetNum = data.nextSessionNumber - 1
-      const res = await fetch(`/api/groups/${groupId}/mastery/session-report${targetNum > 0 ? `?sessionNumber=${targetNum}` : ''}`)
-      if (res.ok) {
-        const json = await res.json()
-        setReportSessionNumber(json.sessionNumber || data.nextSessionNumber)
+      const [reportRes, researchRes] = await Promise.all([
+        fetch(`/api/groups/${groupId}/mastery/session-report${targetNum > 0 ? `?sessionNumber=${targetNum}` : ''}`),
+        fetch(`/api/groups/${groupId}/research-topics`)
+      ])
+      if (reportRes.ok) {
+        const json = await reportRes.json()
+        const sessionNum = json.sessionNumber || data.nextSessionNumber
+        setReportSessionNumber(sessionNum)
         setReportTopics(json.sessionTopics || [])
         setReportNextSurah(json.nextSurahNumber?.toString() || '')
         setReportHomework(json.homework || '')
         setReportSurahs(json.surahs || [])
+
+        // Load research topics for this session
+        if (researchRes.ok) {
+          const researchJson = await researchRes.json()
+          const allTopics: ResearchTopic[] = researchJson.topics || []
+          const sessionTopics = allTopics
+            .filter(t => t.sessionNumber === sessionNum)
+            .map(t => ({ ...t, checked: true }))
+          setReportResearchTopics(sessionTopics)
+        }
       }
     } catch (err) {
       console.error('Error loading session report:', err)
@@ -571,14 +737,34 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
       const membersWithComments = Object.values(pastCommentsByMember).filter(e => e.comments.length > 0)
 
+      // Get checked research topics for this session
+      const checkedSessionResearch = reportResearchTopics.filter(t => t.checked)
+
+      // Fetch ALL research topics for Annexe 2
+      let allResearchTopics: ResearchTopic[] = []
+      try {
+        const researchRes = await fetch(`/api/groups/${groupId}/research-topics`)
+        if (researchRes.ok) {
+          const json = await researchRes.json()
+          allResearchTopics = json.topics || []
+        }
+      } catch (err) {
+        console.error('Error fetching research topics for PDF:', err)
+      }
+
       // Build table of contents entries
       const tocEntries: string[] = []
       tocEntries.push('Points abordés de la séance')
       tocEntries.push('Classement des élèves')
       if (sessionRows.length > 0) tocEntries.push('Suivi individuel de mémorisation')
       if (reportHomework.trim()) tocEntries.push('Devoirs')
+      if (checkedSessionResearch.length > 0) tocEntries.push('Sujets de recherche de la séance')
       tocEntries.push('Grille de suivi')
-      if (membersWithComments.length > 0) tocEntries.push('Annexe - Commentaires des séances précédentes')
+      if (membersWithComments.length > 0) tocEntries.push('Annexe 1 - Commentaires des séances précédentes')
+      if (allResearchTopics.length > 0) tocEntries.push('Annexe 2 - Sujets de recherche')
+
+      // Track section page numbers for clickable TOC
+      const sectionPages: Record<string, number> = {}
 
       // ===== PAGE 1: Cover + Table of contents =====
       doc.setFillColor(45, 55, 72)
@@ -594,13 +780,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.setTextColor(0, 0, 0)
       let yPos = 42
 
-      // Table of contents
+      // Table of contents (placeholder - links added at the end)
       doc.setFontSize(14)
       doc.setFont(pdfFont, 'bold')
       doc.text('Table des matières', 14, yPos)
       yPos += 8
       doc.setFont(pdfFont, 'normal')
       doc.setFontSize(12)
+      const tocStartY = yPos
       for (let i = 0; i < tocEntries.length; i++) {
         doc.text(`${i + 1}.  ${tocEntries[i]}`, 20, yPos)
         yPos += 7
@@ -608,6 +795,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
       // ===== PAGE 2: Points abordés + Prochaine sourate =====
       doc.addPage()
+      sectionPages['Points abordés de la séance'] = doc.getNumberOfPages()
       drawSectionHeader('Points abordés de la séance')
       yPos = 28
 
@@ -640,6 +828,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
       // ===== PAGE 3: Classement des élèves =====
       doc.addPage()
+      sectionPages['Classement des élèves'] = doc.getNumberOfPages()
       drawSectionHeader('Classement des élèves')
 
       autoTable(doc, {
@@ -680,6 +869,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       // ===== PAGE 4: Suivi individuel (Recitations) =====
       if (sessionRows.length > 0) {
         doc.addPage()
+        sectionPages['Suivi individuel de mémorisation'] = doc.getNumberOfPages()
         drawSectionHeader('Suivi individuel de mémorisation')
 
         autoTable(doc, {
@@ -719,6 +909,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             doc.addPage()
             yPos = 15
           }
+          sectionPages['Devoirs'] = doc.getNumberOfPages()
           doc.setFontSize(13)
           doc.setFont(pdfFont, 'bold')
           doc.text('Devoirs :', 14, yPos)
@@ -738,6 +929,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       } else if (reportHomework.trim()) {
         // No recitations but has homework
         doc.addPage()
+        sectionPages['Devoirs'] = doc.getNumberOfPages()
         drawSectionHeader('Devoirs')
         yPos = 28
         doc.setFont(pdfFont, 'normal')
@@ -753,8 +945,61 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         }
       }
 
+      // ===== Sujets de recherche de la séance =====
+      if (checkedSessionResearch.length > 0) {
+        doc.addPage()
+        sectionPages['Sujets de recherche de la séance'] = doc.getNumberOfPages()
+        drawSectionHeader('Sujets de recherche de la séance')
+
+        const researchSessionRows = checkedSessionResearch.map(t => [
+          t.assignedTo,
+          t.question,
+          t.answer || '',
+          t.isValidated ? 'Oui' : ''
+        ])
+
+        autoTable(doc, {
+          head: [['Élève', 'Question', 'Réponse', 'Validé']],
+          body: researchSessionRows,
+          startY: 25,
+          styles: {
+            font: pdfFont,
+            fontSize: 11,
+            cellPadding: 3,
+            lineColor: [200, 200, 200],
+            lineWidth: 0.1
+          },
+          headStyles: {
+            fillColor: [71, 85, 105],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 11
+          },
+          columnStyles: {
+            0: { cellWidth: 35 },
+            1: { cellWidth: 'auto' },
+            2: { cellWidth: 'auto' },
+            3: { cellWidth: 15, halign: 'center' }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 250, 252]
+          },
+          didParseCell: (hookData: any) => {
+            if (hookData.section === 'body' && hookData.column.index === 3) {
+              if (hookData.cell.text.join('') === 'Oui') {
+                hookData.cell.styles.fillColor = [34, 197, 94]
+                hookData.cell.styles.textColor = [255, 255, 255]
+                hookData.cell.styles.fontStyle = 'bold'
+              }
+            }
+          },
+          margin: { left: 10, right: 10 }
+        })
+      }
+
       // ===== Grille de suivi =====
       doc.addPage()
+      sectionPages['Grille de suivi'] = doc.getNumberOfPages()
       drawSectionHeader('Grille de suivi')
 
       const gridHeaders = ['Sourate']
@@ -783,7 +1028,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         startY: 25,
         styles: {
           font: pdfFont,
-          fontSize: 10,
+          fontSize: 11,
           cellPadding: 2,
           halign: 'center',
           valign: 'middle',
@@ -793,7 +1038,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         headStyles: {
           fillColor: [71, 85, 105],
           textColor: [255, 255, 255],
-          fontSize: 10,
+          fontSize: 11,
           fontStyle: 'bold',
           halign: 'center'
         },
@@ -825,10 +1070,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
       drawLegend(legendY)
 
-      // ===== Annexe =====
+      // ===== Annexe 1 =====
       if (membersWithComments.length > 0) {
         doc.addPage()
-        drawSectionHeader('Annexe - Commentaires des séances précédentes')
+        sectionPages['Annexe 1 - Commentaires des séances précédentes'] = doc.getNumberOfPages()
+        drawSectionHeader('Annexe 1 - Commentaires des séances précédentes')
 
         let annexeY = 25
 
@@ -851,7 +1097,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             startY: annexeY,
             styles: {
               font: pdfFont,
-              fontSize: 10,
+              fontSize: 11,
               cellPadding: 2,
               lineColor: [200, 200, 200],
               lineWidth: 0.1
@@ -860,11 +1106,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               fillColor: [71, 85, 105],
               textColor: [255, 255, 255],
               fontStyle: 'bold',
-              fontSize: 10
+              fontSize: 11
             },
             columnStyles: {
               0: { cellWidth: 25 },
-              1: { cellWidth: 55 },
+              1: { cellWidth: 60 },
               2: { cellWidth: 'auto' }
             },
             alternateRowStyles: {
@@ -875,6 +1121,98 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           annexeY = (doc as any).lastAutoTable.finalY + 6
         }
       }
+
+      // ===== Annexe 2 - Sujets de recherche =====
+      {
+        if (allResearchTopics.length > 0) {
+          doc.addPage()
+          sectionPages['Annexe 2 - Sujets de recherche'] = doc.getNumberOfPages()
+          drawSectionHeader('Annexe 2 - Sujets de recherche')
+
+          // Sort by session number descending
+          const sortedTopics = [...allResearchTopics].sort((a, b) => {
+            if (a.sessionNumber === null) return 1
+            if (b.sessionNumber === null) return -1
+            return b.sessionNumber - a.sessionNumber
+          })
+
+          const researchRows = sortedTopics.map(t => [
+            t.sessionNumber ? `S${t.sessionNumber}` : '-',
+            t.assignedTo,
+            t.question,
+            t.answer || '',
+            t.isValidated ? 'Oui' : ''
+          ])
+
+          autoTable(doc, {
+            head: [['Séance', 'Élève', 'Question', 'Réponse', 'Validé']],
+            body: researchRows,
+            startY: 25,
+            styles: {
+              font: pdfFont,
+              fontSize: 11,
+              cellPadding: 2,
+              lineColor: [200, 200, 200],
+              lineWidth: 0.1
+            },
+            headStyles: {
+              fillColor: [71, 85, 105],
+              textColor: [255, 255, 255],
+              fontStyle: 'bold',
+              fontSize: 11
+            },
+            columnStyles: {
+              0: { cellWidth: 18, halign: 'center' },
+              1: { cellWidth: 30 },
+              2: { cellWidth: 'auto' },
+              3: { cellWidth: 'auto' },
+              4: { cellWidth: 15, halign: 'center' }
+            },
+            alternateRowStyles: {
+              fillColor: [248, 250, 252]
+            },
+            didParseCell: (hookData: any) => {
+              if (hookData.section === 'body' && hookData.column.index === 4) {
+                if (hookData.cell.text.join('') === 'Oui') {
+                  hookData.cell.styles.fillColor = [34, 197, 94]
+                  hookData.cell.styles.textColor = [255, 255, 255]
+                  hookData.cell.styles.fontStyle = 'bold'
+                }
+              }
+            },
+            margin: { left: 10, right: 10 }
+          })
+        }
+      }
+
+      // Add clickable TOC links on page 1
+      doc.setPage(1)
+      doc.setTextColor(30, 64, 175) // Blue for links
+      doc.setFontSize(12)
+      doc.setFont(pdfFont, 'normal')
+      for (let i = 0; i < tocEntries.length; i++) {
+        const entry = tocEntries[i]
+        const entryY = tocStartY + i * 7
+        const targetPage = sectionPages[entry]
+        if (targetPage) {
+          // Add internal link (x, y, w, h, {pageNumber})
+          doc.link(18, entryY - 5, 200, 7, { pageNumber: targetPage })
+        }
+      }
+      // Re-render TOC text in blue with page numbers
+      for (let i = 0; i < tocEntries.length; i++) {
+        const entry = tocEntries[i]
+        const entryY = tocStartY + i * 7
+        const targetPage = sectionPages[entry]
+        // White rect to clear previous text
+        doc.setFillColor(255, 255, 255)
+        doc.rect(18, entryY - 5, 260, 7, 'F')
+        // Re-draw in blue
+        doc.setTextColor(30, 64, 175)
+        const pageStr = targetPage ? `  (p.${targetPage})` : ''
+        doc.text(`${i + 1}.  ${entry}${pageStr}`, 20, entryY)
+      }
+      doc.setTextColor(0, 0, 0)
 
       // Footer on all pages
       const pageCount = doc.getNumberOfPages()
@@ -1032,7 +1370,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         startY: 30,
         styles: {
           font: pdfFont,
-          fontSize: 10,
+          fontSize: 11,
           cellPadding: 2,
           halign: 'center',
           valign: 'middle',
@@ -1042,7 +1380,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         headStyles: {
           fillColor: [71, 85, 105],
           textColor: [255, 255, 255],
-          fontSize: 10,
+          fontSize: 11,
           fontStyle: 'bold',
           halign: 'center'
         },
@@ -1314,6 +1652,16 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             <FileText className="h-4 w-4 mr-2" />
             PDF Séance
           </Button>
+          {data.isReferent && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openResearchTopics}
+            >
+              <BookOpen className="h-4 w-4 mr-2" />
+              Recherches
+            </Button>
+          )}
           {data.referent && (
             <Badge variant="outline">Référent: {data.referent.name}</Badge>
           )}
@@ -1743,6 +2091,223 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         </DialogContent>
       </Dialog>
 
+      {/* Research Topics Sheet */}
+      <Sheet open={researchTopicsOpen} onOpenChange={setResearchTopicsOpen}>
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Sujets de recherche</SheetTitle>
+            <SheetDescription>{data.group.name}</SheetDescription>
+          </SheetHeader>
+
+          {researchLoading ? (
+            <div className="py-8 text-center text-muted-foreground">Chargement...</div>
+          ) : (
+            <div className="space-y-4 mt-4">
+              {/* Add new topic form */}
+              <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+                <Label className="text-sm font-medium">Nouveau sujet</Label>
+                <div className="flex gap-2">
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs">Séance</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={newResearchSession}
+                      onChange={(e) => setNewResearchSession(e.target.value)}
+                      className="w-20 h-8 text-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 flex-1">
+                    <Label className="text-xs">Élève(s)</Label>
+                    <Input
+                      value={newResearchAssignedTo}
+                      onChange={(e) => setNewResearchAssignedTo(e.target.value)}
+                      placeholder="Nom ou 'Tous'"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Question</Label>
+                  <Textarea
+                    value={newResearchQuestion}
+                    onChange={(e) => setNewResearchQuestion(e.target.value)}
+                    placeholder="Question de recherche..."
+                    rows={2}
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Réponse (optionnel)</Label>
+                  <Textarea
+                    value={newResearchAnswer}
+                    onChange={(e) => setNewResearchAnswer(e.target.value)}
+                    placeholder="Éléments de réponse..."
+                    rows={2}
+                    className="text-sm"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="new-research-validated"
+                      checked={newResearchValidated}
+                      onCheckedChange={(checked) => setNewResearchValidated(checked === true)}
+                    />
+                    <Label htmlFor="new-research-validated" className="text-xs">Validé</Label>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={handleAddResearchTopic}
+                    disabled={addingResearch || !newResearchAssignedTo.trim() || !newResearchQuestion.trim()}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    {addingResearch ? 'Ajout...' : 'Ajouter'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* List of existing topics grouped by session */}
+              {(() => {
+                // Group by session number (descending)
+                const grouped = new Map<number | null, ResearchTopic[]>()
+                for (const t of researchTopics) {
+                  const key = t.sessionNumber
+                  if (!grouped.has(key)) grouped.set(key, [])
+                  grouped.get(key)!.push(t)
+                }
+                // Sort groups: descending session number, null at end
+                const sortedKeys = Array.from(grouped.keys()).sort((a, b) => {
+                  if (a === null) return 1
+                  if (b === null) return -1
+                  return b - a
+                })
+
+                return sortedKeys.map(sessionNum => (
+                  <div key={sessionNum ?? 'none'} className="space-y-2">
+                    <h3 className="text-sm font-medium text-muted-foreground border-b pb-1">
+                      {sessionNum ? `Séance ${sessionNum}` : 'Sans séance'}
+                    </h3>
+                    {grouped.get(sessionNum)!.map(topic => (
+                      <div key={topic.id} className="border rounded p-2 text-sm space-y-1">
+                        {editingResearchId === topic.id ? (
+                          // Edit mode
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <div className="flex flex-col gap-1">
+                                <Label className="text-xs">Séance</Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={editResearchSession}
+                                  onChange={(e) => setEditResearchSession(e.target.value)}
+                                  className="w-20 h-7 text-xs"
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1 flex-1">
+                                <Label className="text-xs">Élève(s)</Label>
+                                <Input
+                                  value={editResearchAssignedTo}
+                                  onChange={(e) => setEditResearchAssignedTo(e.target.value)}
+                                  className="h-7 text-xs"
+                                />
+                              </div>
+                            </div>
+                            <Textarea
+                              value={editResearchQuestion}
+                              onChange={(e) => setEditResearchQuestion(e.target.value)}
+                              rows={2}
+                              className="text-xs"
+                              placeholder="Question"
+                            />
+                            <Textarea
+                              value={editResearchAnswer}
+                              onChange={(e) => setEditResearchAnswer(e.target.value)}
+                              rows={2}
+                              className="text-xs"
+                              placeholder="Réponse"
+                            />
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={`edit-validated-${topic.id}`}
+                                checked={editResearchValidated}
+                                onCheckedChange={(checked) => setEditResearchValidated(checked === true)}
+                              />
+                              <Label htmlFor={`edit-validated-${topic.id}`} className="text-xs">Validé</Label>
+                            </div>
+                            <div className="flex gap-1 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => setEditingResearchId(null)}
+                                disabled={savingResearch}
+                              >
+                                <X className="h-3 w-3 mr-1" />
+                                Annuler
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={handleSaveResearch}
+                                disabled={savingResearch}
+                              >
+                                <Check className="h-3 w-3 mr-1" />
+                                {savingResearch ? 'Sauvegarde...' : 'Sauvegarder'}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          // Display mode
+                          <div className="flex items-start gap-2">
+                            <div className="flex-1 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline" className="text-xs">{topic.assignedTo}</Badge>
+                                {topic.isValidated && (
+                                  <Badge className="bg-green-500 text-white text-xs">Validé</Badge>
+                                )}
+                              </div>
+                              <p className="font-medium">{topic.question}</p>
+                              {topic.answer && (
+                                <p className="text-muted-foreground text-xs">{topic.answer.length > 120 ? topic.answer.slice(0, 120) + '...' : topic.answer}</p>
+                              )}
+                            </div>
+                            <div className="flex shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground hover:text-primary"
+                                onClick={() => startEditResearch(topic)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteResearch(topic.id)}
+                                disabled={deletingResearchId === topic.id}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))
+              })()}
+
+              {researchTopics.length === 0 && (
+                <p className="text-center text-muted-foreground text-sm py-4">Aucun sujet de recherche</p>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
       {/* Session Report Dialog */}
       <Dialog open={sessionReportOpen} onOpenChange={setSessionReportOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -1835,6 +2400,39 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                   placeholder="Devoirs pour les élèves..."
                 />
               </div>
+
+              {/* Research topics for this session */}
+              {reportResearchTopics.length > 0 && (
+                <div className="space-y-2 border-t pt-4">
+                  <Label className="text-sm font-medium">
+                    Sujets de recherche — Séance {reportSessionNumber}
+                  </Label>
+                  <div className="space-y-1">
+                    {reportResearchTopics.map((topic, idx) => (
+                      <div key={topic.id} className="flex items-start gap-2 p-1.5 rounded hover:bg-muted/50">
+                        <Checkbox
+                          id={`report-research-${topic.id}`}
+                          checked={topic.checked}
+                          onCheckedChange={(checked) => {
+                            setReportResearchTopics(prev =>
+                              prev.map((t, i) => i === idx ? { ...t, checked: checked === true } : t)
+                            )
+                          }}
+                          className="mt-0.5"
+                        />
+                        <label htmlFor={`report-research-${topic.id}`} className="text-sm flex-1 cursor-pointer">
+                          <span className="font-medium">{topic.assignedTo}</span>
+                          <span className="text-muted-foreground"> — </span>
+                          <span>{topic.question}</span>
+                          {topic.isValidated && (
+                            <Badge className="bg-green-500 text-white text-[10px] ml-1 py-0">Validé</Badge>
+                          )}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

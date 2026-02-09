@@ -115,8 +115,9 @@ model Group {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  members  GroupMember[]
-  sessions GroupSession[]
+  members        GroupMember[]
+  sessions       GroupSession[]
+  researchTopics ResearchTopic[]
 }
 
 model GroupMember {
@@ -261,9 +262,10 @@ model GroupSession {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  group       Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  attendance  SessionAttendance[]
-  recitations SurahRecitation[]
+  group          Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  attendance     SessionAttendance[]
+  recitations    SurahRecitation[]
+  researchTopics ResearchTopic[]
 }
 
 model SessionAttendance {
@@ -507,4 +509,25 @@ model RecitationStatus {
   updatedAt   DateTime @updatedAt
 
   @@index([sortOrder])
+}
+
+// ============================================
+// Research Topics (Sujets de recherche)
+// ============================================
+
+model ResearchTopic {
+  id          String       @id @default(cuid())
+  groupId     String
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sessionId   String?
+  session     GroupSession? @relation(fields: [sessionId], references: [id])
+  assignedTo  String       // Nom(s) de l'élève ou "Tous"
+  question    String
+  answer      String?      // Réponse (peut être vide)
+  isValidated Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([groupId])
+  @@index([sessionId])
 }
