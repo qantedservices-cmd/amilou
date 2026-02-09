@@ -794,7 +794,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       doc.text('Table des matières', 14, yPos)
       yPos += 8
       doc.setFont(pdfFont, 'normal')
-      doc.setFontSize(12)
+      doc.setFontSize(13)
       const tocStartY = yPos
       for (let i = 0; i < tocEntries.length; i++) {
         doc.text(`${i + 1}.  ${tocEntries[i]}`, 20, yPos)
@@ -808,7 +808,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       yPos = 28
 
       if (reportTopics.length > 0) {
-        doc.setFontSize(12)
+        doc.setFontSize(13)
         doc.setFont(pdfFont, 'normal')
         for (const topic of reportTopics) {
           if (topic.checked) {
@@ -821,7 +821,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           yPos += 6
           // Render sub-items
           if (topic.children && topic.children.length > 0) {
-            doc.setFontSize(10)
+            doc.setFontSize(11)
             for (const child of topic.children) {
               if (child.checked) {
                 doc.setFillColor(34, 197, 94)
@@ -832,7 +832,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               doc.text(`  ${child.label}`, 26, yPos)
               yPos += 5
             }
-            doc.setFontSize(12)
+            doc.setFontSize(13)
           }
         }
         yPos += 4
@@ -1211,7 +1211,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       // Add clickable TOC links on page 1
       doc.setPage(1)
       doc.setTextColor(30, 64, 175) // Blue for links
-      doc.setFontSize(12)
+      doc.setFontSize(13)
       doc.setFont(pdfFont, 'normal')
       for (let i = 0; i < tocEntries.length; i++) {
         const entry = tocEntries[i]
