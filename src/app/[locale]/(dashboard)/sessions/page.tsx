@@ -17,7 +17,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { Calendar, ChevronLeft, ChevronRight, Users, Check, X, BookOpen, Plus, Pencil, ChevronDown } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Users, Check, X, BookOpen, Plus, Pencil, ChevronDown, LayoutGrid } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface SessionEntry {
@@ -612,16 +612,28 @@ export default function SessionsPage() {
                           </Badge>
                         )}
                       </div>
-                      {session.type === 'group' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/${locale}/sessions/${session.id}`)}
-                        >
-                          <Pencil className="h-4 w-4 mr-1" />
-                          Modifier
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {session.groupId && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/${locale}/groups/${session.groupId}/mastery`)}
+                          >
+                            <LayoutGrid className="h-4 w-4 mr-1" />
+                            Grille
+                          </Button>
+                        )}
+                        {session.type === 'group' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/${locale}/sessions/${session.id}`)}
+                          >
+                            <Pencil className="h-4 w-4 mr-1" />
+                            Modifier
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Présents - Cliquables */}
