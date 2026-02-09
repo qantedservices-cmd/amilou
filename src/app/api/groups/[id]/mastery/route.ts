@@ -215,10 +215,64 @@ export async function GET(
       }
     }
 
+    // Auto-fill mastery from Progress (MEMORIZATION) for surahs fully memorized but not yet in SurahMastery
+    const memorizationProgram = await prisma.program.findFirst({
+      where: { code: 'MEMORIZATION' }
+    })
+
+    if (memorizationProgram) {
+      const progressEntries = await prisma.progress.findMany({
+        where: {
+          userId: { in: memberIds },
+          programId: memorizationProgram.id,
+        },
+        select: {
+          userId: true,
+          surahNumber: true,
+          verseStart: true,
+          verseEnd: true,
+        }
+      })
+
+      // Build coverage: userId -> surahNumber -> Set<verseNumber>
+      const coverage: Record<string, Record<number, Set<number>>> = {}
+      for (const entry of progressEntries) {
+        if (!coverage[entry.userId]) coverage[entry.userId] = {}
+        if (!coverage[entry.userId][entry.surahNumber]) coverage[entry.userId][entry.surahNumber] = new Set()
+        for (let v = entry.verseStart; v <= entry.verseEnd; v++) {
+          coverage[entry.userId][entry.surahNumber].add(v)
+        }
+      }
+
+      // Build surah total verses map
+      const surahTotalMap = new Map(surahs.map(s => [s.number, s.totalVerses]))
+
+      // Inject virtual "X" (displayed as "C") status for fully memorized surahs without existing mastery
+      for (const userId of memberIds) {
+        if (!coverage[userId]) continue
+        for (const [surahNumStr, verses] of Object.entries(coverage[userId])) {
+          const surahNum = parseInt(surahNumStr)
+          const totalVerses = surahTotalMap.get(surahNum) || 0
+          if (verses.size >= totalVerses && totalVerses > 0) {
+            if (!masteryMap[userId]?.[surahNum]) {
+              if (!masteryMap[userId]) masteryMap[userId] = {}
+              masteryMap[userId][surahNum] = { status: 'X', validatedWeek: null }
+            }
+          }
+        }
+      }
+    }
+
     // Determine which surahs have data
     const surahsWithData = new Set<number>()
     for (const m of masteryData) {
       surahsWithData.add(m.surahNumber)
+    }
+    // Also add surahs from auto-filled mastery
+    for (const userId of Object.keys(masteryMap)) {
+      for (const surahNum of Object.keys(masteryMap[userId])) {
+        surahsWithData.add(parseInt(surahNum))
+      }
     }
 
     // Group consecutive surahs without data

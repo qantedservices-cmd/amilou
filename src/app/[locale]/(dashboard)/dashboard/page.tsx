@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock } from 'lucide-react'
+import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import {
@@ -1478,7 +1478,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-1">
                   <User className="h-4 w-4 text-muted-foreground" />
                   <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                    <SelectTrigger className="w-40 h-9">
+                    <SelectTrigger className="w-52 h-9">
                       <SelectValue placeholder="Sélectionner" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1505,6 +1505,9 @@ export default function DashboardPage() {
                 </div>
               )}
               {/* Week Navigation with Calendar */}
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => changeWeekOffset(-1)} disabled={loadingWeek}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -1548,6 +1551,9 @@ export default function DashboardPage() {
                   </div>
                 </PopoverContent>
               </Popover>
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => changeWeekOffset(1)} disabled={loadingWeek || !canGoForward}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
               {loadingWeek && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
             </div>
           </div>

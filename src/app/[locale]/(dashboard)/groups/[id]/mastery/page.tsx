@@ -178,17 +178,18 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [reportSurahs, setReportSurahs] = useState<SurahOption[]>([])
   const [newTopicLabel, setNewTopicLabel] = useState('')
   const [reportResearchTopics, setReportResearchTopics] = useState<(ResearchTopic & { checked: boolean })[]>([])
-  const [pdfSections, setPdfSections] = useState({
-    pointsAbordes: true,
-    prochaineSourate: true,
-    classement: true,
-    suiviIndividuel: true,
-    devoirs: true,
-    rechercheSeance: true,
-    grille: true,
-    annexeCommentaires: true,
-    annexeRecherche: true,
-  })
+  const [pdfSectionOrder, setPdfSectionOrder] = useState([
+    { key: 'pointsAbordes', label: 'Points abordés', enabled: true },
+    { key: 'prochaineSourate', label: 'Prochaine sourate', enabled: true },
+    { key: 'classement', label: 'Classement élèves', enabled: true },
+    { key: 'suiviIndividuel', label: 'Suivi individuel', enabled: true },
+    { key: 'devoirs', label: 'Devoirs', enabled: true },
+    { key: 'rechercheSeance', label: 'Recherche (séance)', enabled: true },
+    { key: 'grille', label: 'Grille de suivi', enabled: true },
+    { key: 'annexeCommentaires', label: 'Annexe commentaires', enabled: true },
+    { key: 'annexeRecherche', label: 'Annexe recherche', enabled: true },
+  ])
+  const pdfSections = Object.fromEntries(pdfSectionOrder.map(s => [s.key, s.enabled])) as Record<string, boolean>
 
   // Research topics state
   const [researchTopicsOpen, setResearchTopicsOpen] = useState(false)
@@ -818,16 +819,39 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         console.error('Error fetching research topics for PDF:', err)
       }
 
-      // Build table of contents entries based on selected sections
+      // Map section keys to TOC labels and availability conditions
+      const sectionTocLabel: Record<string, string> = {
+        pointsAbordes: 'Points abordés de la séance',
+        prochaineSourate: 'Prochaine sourate',
+        classement: 'Classement des élèves',
+        suiviIndividuel: 'Suivi individuel de mémorisation',
+        devoirs: 'Devoirs',
+        rechercheSeance: 'Sujets de recherche de la séance',
+        grille: 'Grille de suivi',
+        annexeCommentaires: 'Annexe 1 - Commentaires des séances précédentes',
+        annexeRecherche: 'Annexe 2 - Sujets de recherche',
+      }
+      const sectionHasContent: Record<string, boolean> = {
+        pointsAbordes: true,
+        prochaineSourate: !!(reportNextSurah && reportNextSurah !== 'none'),
+        classement: true,
+        suiviIndividuel: sessionRows.length > 0,
+        devoirs: !!reportHomework.trim(),
+        rechercheSeance: checkedSessionResearch.length > 0,
+        grille: true,
+        annexeCommentaires: membersWithComments.length > 0,
+        annexeRecherche: allResearchTopics.length > 0,
+      }
+
+      // Build ordered TOC entries following user-defined order
       const tocEntries: string[] = []
-      if (pdfSections.pointsAbordes) tocEntries.push('Points abordés de la séance')
-      if (pdfSections.classement) tocEntries.push('Classement des élèves')
-      if (pdfSections.suiviIndividuel && sessionRows.length > 0) tocEntries.push('Suivi individuel de mémorisation')
-      if (pdfSections.devoirs && reportHomework.trim()) tocEntries.push('Devoirs')
-      if (pdfSections.rechercheSeance && checkedSessionResearch.length > 0) tocEntries.push('Sujets de recherche de la séance')
-      if (pdfSections.grille) tocEntries.push('Grille de suivi')
-      if (pdfSections.annexeCommentaires && membersWithComments.length > 0) tocEntries.push('Annexe 1 - Commentaires des séances précédentes')
-      if (pdfSections.annexeRecherche && allResearchTopics.length > 0) tocEntries.push('Annexe 2 - Sujets de recherche')
+      for (const sec of pdfSectionOrder) {
+        if (sec.enabled && sectionHasContent[sec.key] && sectionTocLabel[sec.key]) {
+          // prochaineSourate shares a page with pointsAbordes, don't add separate TOC entry
+          if (sec.key === 'prochaineSourate') continue
+          tocEntries.push(sectionTocLabel[sec.key])
+        }
+      }
 
       // Track section page numbers for clickable TOC
       const sectionPages: Record<string, number> = {}
@@ -859,10 +883,16 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         yPos += 7
       }
 
-      // ===== PAGE 2: Points abordés + Prochaine sourate =====
-      if (pdfSections.pointsAbordes || pdfSections.prochaineSourate) {
-        doc.addPage()
-        if (pdfSections.pointsAbordes) {
+      // Track whether devoirs was already rendered (when it follows suiviIndividuel on same page)
+      let devoirsRendered = false
+
+      // Generate sections in user-defined order
+      for (const sec of pdfSectionOrder) {
+        if (!sec.enabled || !sectionHasContent[sec.key]) continue
+
+        if (sec.key === 'pointsAbordes') {
+          // Points abordés (+ prochaine sourate if it immediately follows or is enabled)
+          doc.addPage()
           sectionPages['Points abordés de la séance'] = doc.getNumberOfPages()
           drawSectionHeader('Points abordés de la séance')
           yPos = 28
@@ -879,7 +909,6 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               doc.rect(14, yPos - 3, 3, 3, 'F')
               doc.text(`  ${topic.label}`, 18, yPos)
               yPos += 6
-              // Render sub-items
               if (topic.children && topic.children.length > 0) {
                 doc.setFontSize(11)
                 for (const child of topic.children) {
@@ -897,110 +926,146 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             }
             yPos += 4
           }
-        }
 
-        if (pdfSections.prochaineSourate && reportNextSurah && reportNextSurah !== 'none') {
-          const surahInfo = reportSurahs.find(s => s.number === parseInt(reportNextSurah))
-          if (surahInfo) {
+          // Render prochaineSourate on same page if enabled
+          if (pdfSections.prochaineSourate && reportNextSurah && reportNextSurah !== 'none') {
+            const surahInfo = reportSurahs.find(s => s.number === parseInt(reportNextSurah))
+            if (surahInfo) {
+              doc.setFontSize(13)
+              doc.setFont(pdfFont, 'bold')
+              const nextSurahLbl = surahLabel(surahInfo.number, { nameAr: surahInfo.nameAr, nameFr: surahInfo.nameFr, totalVerses: surahInfo.totalVerses }, reshapeAr)
+              doc.text(`Prochaine sourate : ${nextSurahLbl}`, 14, yPos)
+              yPos += 8
+            }
+          }
+        } else if (sec.key === 'prochaineSourate') {
+          // If pointsAbordes was before this in the order, it was already rendered on that page
+          // If pointsAbordes is disabled or comes after, render prochaineSourate standalone
+          const pointsAbIdx = pdfSectionOrder.findIndex(s => s.key === 'pointsAbordes')
+          const prochaineIdx = pdfSectionOrder.findIndex(s => s.key === 'prochaineSourate')
+          const pointsAbEnabled = pdfSections.pointsAbordes
+          if (!pointsAbEnabled || pointsAbIdx > prochaineIdx) {
+            // Render standalone
+            doc.addPage()
+            sectionPages['Prochaine sourate'] = doc.getNumberOfPages()
+            drawSectionHeader('Prochaine sourate')
+            yPos = 28
+            const surahInfo = reportSurahs.find(s => s.number === parseInt(reportNextSurah))
+            if (surahInfo) {
+              doc.setFontSize(13)
+              doc.setFont(pdfFont, 'bold')
+              const nextSurahLbl = surahLabel(surahInfo.number, { nameAr: surahInfo.nameAr, nameFr: surahInfo.nameFr, totalVerses: surahInfo.totalVerses }, reshapeAr)
+              doc.text(`Prochaine sourate : ${nextSurahLbl}`, 14, yPos)
+            }
+          }
+          // else: already rendered with pointsAbordes
+        } else if (sec.key === 'classement') {
+          doc.addPage()
+          sectionPages['Classement des élèves'] = doc.getNumberOfPages()
+          drawSectionHeader('Classement des élèves')
+
+          autoTable(doc, {
+            head: [['#', 'Élève', 'Sourates validées']],
+            body: rankingData.map((r, i) => [(i + 1).toString(), r.name, r.validated.toString()]),
+            startY: 25,
+            styles: {
+              font: pdfFont,
+              fontSize: 12,
+              cellPadding: 3,
+              lineColor: [200, 200, 200],
+              lineWidth: 0.1
+            },
+            headStyles: {
+              fillColor: [71, 85, 105],
+              textColor: [255, 255, 255],
+              fontStyle: 'bold'
+            },
+            columnStyles: {
+              0: { cellWidth: 15, halign: 'center' },
+              1: { cellWidth: 80 },
+              2: { cellWidth: 40, halign: 'center' }
+            },
+            alternateRowStyles: {
+              fillColor: [248, 250, 252]
+            },
+            didParseCell: (hookData: any) => {
+              if (hookData.section === 'body' && hookData.column.index === 0) {
+                const rank = parseInt(hookData.cell.text[0])
+                if (rank === 1) { hookData.cell.styles.fillColor = [255, 215, 0]; hookData.cell.styles.fontStyle = 'bold' }
+                else if (rank === 2) { hookData.cell.styles.fillColor = [192, 192, 192]; hookData.cell.styles.fontStyle = 'bold' }
+                else if (rank === 3) { hookData.cell.styles.fillColor = [205, 127, 50]; hookData.cell.styles.textColor = [255, 255, 255]; hookData.cell.styles.fontStyle = 'bold' }
+              }
+            },
+            margin: { left: 60, right: 60 }
+          })
+        } else if (sec.key === 'suiviIndividuel') {
+          doc.addPage()
+          sectionPages['Suivi individuel de mémorisation'] = doc.getNumberOfPages()
+          drawSectionHeader('Suivi individuel de mémorisation')
+
+          autoTable(doc, {
+            head: [['Élève', 'Sourate', 'Versets', 'Statut', 'Commentaire']],
+            body: sessionRows,
+            startY: 25,
+            styles: {
+              font: pdfFont,
+              fontSize: 12,
+              cellPadding: 3,
+              lineColor: [200, 200, 200],
+              lineWidth: 0.1
+            },
+            headStyles: {
+              fillColor: [71, 85, 105],
+              textColor: [255, 255, 255],
+              fontStyle: 'bold',
+              fontSize: 12
+            },
+            columnStyles: {
+              0: { cellWidth: 28 },
+              1: { cellWidth: 60 },
+              2: { cellWidth: 18, halign: 'center' },
+              3: { cellWidth: 18, halign: 'center' },
+              4: { cellWidth: 'auto' }
+            },
+            alternateRowStyles: {
+              fillColor: [248, 250, 252]
+            },
+            margin: { left: 10, right: 10 }
+          })
+          yPos = (doc as any).lastAutoTable.finalY + 8
+
+          // If devoirs is the next enabled section, render it on same page if it fits
+          const suiviIdx = pdfSectionOrder.findIndex(s => s.key === 'suiviIndividuel')
+          const nextEnabled = pdfSectionOrder.slice(suiviIdx + 1).find(s => s.enabled && sectionHasContent[s.key])
+          if (nextEnabled?.key === 'devoirs' && reportHomework.trim()) {
+            if (yPos > 170) {
+              doc.addPage()
+              yPos = 15
+            }
+            sectionPages['Devoirs'] = doc.getNumberOfPages()
             doc.setFontSize(13)
             doc.setFont(pdfFont, 'bold')
-            const nextSurahLbl = surahLabel(surahInfo.number, { nameAr: surahInfo.nameAr, nameFr: surahInfo.nameFr, totalVerses: surahInfo.totalVerses }, reshapeAr)
-            doc.text(`Prochaine sourate : ${nextSurahLbl}`, 14, yPos)
-            yPos += 8
+            doc.text('Devoirs :', 14, yPos)
+            yPos += 6
+            doc.setFont(pdfFont, 'normal')
+            doc.setFontSize(12)
+            const homeworkLines = reportHomework.split('\n')
+            for (const line of homeworkLines) {
+              if (yPos > 195) {
+                doc.addPage()
+                yPos = 15
+              }
+              doc.text(line, 14, yPos)
+              yPos += 5
+            }
+            devoirsRendered = true
           }
-        }
-      }
-
-      // ===== PAGE 3: Classement des élèves =====
-      if (pdfSections.classement) {
-      doc.addPage()
-      sectionPages['Classement des élèves'] = doc.getNumberOfPages()
-      drawSectionHeader('Classement des élèves')
-
-      autoTable(doc, {
-        head: [['#', 'Élève', 'Sourates validées']],
-        body: rankingData.map((r, i) => [(i + 1).toString(), r.name, r.validated.toString()]),
-        startY: 25,
-        styles: {
-          font: pdfFont,
-          fontSize: 12,
-          cellPadding: 3,
-          lineColor: [200, 200, 200],
-          lineWidth: 0.1
-        },
-        headStyles: {
-          fillColor: [71, 85, 105],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold'
-        },
-        columnStyles: {
-          0: { cellWidth: 15, halign: 'center' },
-          1: { cellWidth: 80 },
-          2: { cellWidth: 40, halign: 'center' }
-        },
-        alternateRowStyles: {
-          fillColor: [248, 250, 252]
-        },
-        didParseCell: (hookData: any) => {
-          if (hookData.section === 'body' && hookData.column.index === 0) {
-            const rank = parseInt(hookData.cell.text[0])
-            if (rank === 1) { hookData.cell.styles.fillColor = [255, 215, 0]; hookData.cell.styles.fontStyle = 'bold' }
-            else if (rank === 2) { hookData.cell.styles.fillColor = [192, 192, 192]; hookData.cell.styles.fontStyle = 'bold' }
-            else if (rank === 3) { hookData.cell.styles.fillColor = [205, 127, 50]; hookData.cell.styles.textColor = [255, 255, 255]; hookData.cell.styles.fontStyle = 'bold' }
-          }
-        },
-        margin: { left: 60, right: 60 }
-      })
-      } // end classement
-
-      // ===== PAGE 4: Suivi individuel (Recitations) =====
-      if (pdfSections.suiviIndividuel && sessionRows.length > 0) {
-        doc.addPage()
-        sectionPages['Suivi individuel de mémorisation'] = doc.getNumberOfPages()
-        drawSectionHeader('Suivi individuel de mémorisation')
-
-        autoTable(doc, {
-          head: [['Élève', 'Sourate', 'Versets', 'Statut', 'Commentaire']],
-          body: sessionRows,
-          startY: 25,
-          styles: {
-            font: pdfFont,
-            fontSize: 12,
-            cellPadding: 3,
-            lineColor: [200, 200, 200],
-            lineWidth: 0.1
-          },
-          headStyles: {
-            fillColor: [71, 85, 105],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-            fontSize: 12
-          },
-          columnStyles: {
-            0: { cellWidth: 28 },
-            1: { cellWidth: 60 },
-            2: { cellWidth: 18, halign: 'center' },
-            3: { cellWidth: 18, halign: 'center' },
-            4: { cellWidth: 'auto' }
-          },
-          alternateRowStyles: {
-            fillColor: [248, 250, 252]
-          },
-          margin: { left: 10, right: 10 }
-        })
-        yPos = (doc as any).lastAutoTable.finalY + 8
-
-        // Homework after recitations on same page if fits
-        if (pdfSections.devoirs && reportHomework.trim()) {
-          if (yPos > 170) {
-            doc.addPage()
-            yPos = 15
-          }
+        } else if (sec.key === 'devoirs') {
+          if (devoirsRendered) continue
+          doc.addPage()
           sectionPages['Devoirs'] = doc.getNumberOfPages()
-          doc.setFontSize(13)
-          doc.setFont(pdfFont, 'bold')
-          doc.text('Devoirs :', 14, yPos)
-          yPos += 6
+          drawSectionHeader('Devoirs')
+          yPos = 28
           doc.setFont(pdfFont, 'normal')
           doc.setFontSize(12)
           const homeworkLines = reportHomework.split('\n')
@@ -1012,182 +1077,26 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             doc.text(line, 14, yPos)
             yPos += 5
           }
-        }
-      } else if (pdfSections.devoirs && reportHomework.trim()) {
-        // No recitations but has homework
-        doc.addPage()
-        sectionPages['Devoirs'] = doc.getNumberOfPages()
-        drawSectionHeader('Devoirs')
-        yPos = 28
-        doc.setFont(pdfFont, 'normal')
-        doc.setFontSize(12)
-        const homeworkLines = reportHomework.split('\n')
-        for (const line of homeworkLines) {
-          if (yPos > 195) {
-            doc.addPage()
-            yPos = 15
-          }
-          doc.text(line, 14, yPos)
-          yPos += 5
-        }
-      }
+        } else if (sec.key === 'rechercheSeance') {
+          doc.addPage()
+          sectionPages['Sujets de recherche de la séance'] = doc.getNumberOfPages()
+          drawSectionHeader('Sujets de recherche de la séance')
 
-      // ===== Sujets de recherche de la séance =====
-      if (pdfSections.rechercheSeance && checkedSessionResearch.length > 0) {
-        doc.addPage()
-        sectionPages['Sujets de recherche de la séance'] = doc.getNumberOfPages()
-        drawSectionHeader('Sujets de recherche de la séance')
-
-        const researchSessionRows = checkedSessionResearch.map(t => [
-          t.assignedTo,
-          t.question,
-          t.answer || '',
-          t.isValidated ? 'Oui' : ''
-        ])
-
-        autoTable(doc, {
-          head: [['Élève', 'Question', 'Réponse', 'Validé']],
-          body: researchSessionRows,
-          startY: 25,
-          styles: {
-            font: pdfFont,
-            fontSize: 11,
-            cellPadding: 3,
-            lineColor: [200, 200, 200],
-            lineWidth: 0.1
-          },
-          headStyles: {
-            fillColor: [71, 85, 105],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-            fontSize: 11
-          },
-          columnStyles: {
-            0: { cellWidth: 30 },
-            1: { cellWidth: 'auto' },
-            2: { cellWidth: 70 },
-            3: { cellWidth: 15, halign: 'center' }
-          },
-          alternateRowStyles: {
-            fillColor: [248, 250, 252]
-          },
-          didParseCell: (hookData: any) => {
-            if (hookData.section === 'body' && hookData.column.index === 3) {
-              if (hookData.cell.text.join('') === 'Oui') {
-                hookData.cell.styles.fillColor = [34, 197, 94]
-                hookData.cell.styles.textColor = [255, 255, 255]
-                hookData.cell.styles.fontStyle = 'bold'
-              }
-            }
-          },
-          margin: { left: 10, right: 10 }
-        })
-      }
-
-      // ===== Grille de suivi =====
-      if (pdfSections.grille) {
-      doc.addPage()
-      sectionPages['Grille de suivi'] = doc.getNumberOfPages()
-      drawSectionHeader('Grille de suivi')
-
-      const gridHeaders = ['Sourate']
-      for (const m of data.members) {
-        const parts = m.name.split(' ')
-        const lastName = parts.slice(0, -1).join(' ')
-        const firstName = parts[parts.length - 1]
-        gridHeaders.push(`${lastName}\n${firstName}`)
-      }
-
-      const gridRows: string[][] = []
-      for (const group of data.surahGroups) {
-        if (group.type === 'surah' && group.number) {
-          const surahInfo = data.allSurahsMap[group.number]
-          const row = [surahLabel(group.number!, surahInfo, reshapeAr)]
-          for (const member of data.members) {
-            row.push(getCellDisplay(member.id, group.number!))
-          }
-          gridRows.push(row)
-        }
-      }
-
-      autoTable(doc, {
-        head: [gridHeaders],
-        body: gridRows,
-        startY: 25,
-        styles: {
-          font: pdfFont,
-          fontSize: 11,
-          cellPadding: 2,
-          halign: 'center',
-          valign: 'middle',
-          lineColor: [200, 200, 200],
-          lineWidth: 0.1
-        },
-        headStyles: {
-          fillColor: [71, 85, 105],
-          textColor: [255, 255, 255],
-          fontSize: 11,
-          fontStyle: 'bold',
-          halign: 'center'
-        },
-        columnStyles: {
-          0: { cellWidth: 60, halign: 'left', fontStyle: 'bold' }
-        },
-        alternateRowStyles: {
-          fillColor: [248, 250, 252]
-        },
-        didParseCell: (hookData: any) => {
-          if (hookData.section === 'body' && hookData.column.index > 0) {
-            const text = hookData.cell.text.join('')
-            const color = getStatusColor(text)
-            if (color) {
-              hookData.cell.styles.fillColor = color
-              hookData.cell.styles.textColor = text === '90%' || text.includes('50') ? [0, 0, 0] : [255, 255, 255]
-              hookData.cell.styles.fontStyle = 'bold'
-            }
-          }
-        },
-        margin: { left: 10, right: 10 }
-      })
-
-      // Légende after grid
-      let legendY = (doc as any).lastAutoTable?.finalY + 8 || 180
-      if (legendY > 180) {
-        doc.addPage()
-        legendY = 15
-      }
-      drawLegend(legendY)
-      } // end grille
-
-      // ===== Annexe 1 =====
-      if (pdfSections.annexeCommentaires && membersWithComments.length > 0) {
-        doc.addPage()
-        sectionPages['Annexe 1 - Commentaires des séances précédentes'] = doc.getNumberOfPages()
-        drawSectionHeader('Annexe 1 - Commentaires des séances précédentes')
-
-        let annexeY = 25
-
-        for (const entry of membersWithComments) {
-          if (annexeY > 180) {
-            doc.addPage()
-            annexeY = 15
-          }
-
-          doc.setFontSize(12)
-          doc.setFont(pdfFont, 'bold')
-          doc.setFillColor(226, 232, 240)
-          doc.rect(10, annexeY - 4, 277, 6, 'F')
-          doc.text(entry.memberName, 14, annexeY)
-          annexeY += 4
+          const researchSessionRows = checkedSessionResearch.map(t => [
+            t.assignedTo,
+            t.question,
+            t.answer || '',
+            t.isValidated ? 'Oui' : ''
+          ])
 
           autoTable(doc, {
-            head: [['Séance', 'Sourate', 'Commentaire']],
-            body: entry.comments.map(c => [c.session, c.surah, c.comment]),
-            startY: annexeY,
+            head: [['Élève', 'Question', 'Réponse', 'Validé']],
+            body: researchSessionRows,
+            startY: 25,
             styles: {
               font: pdfFont,
               fontSize: 11,
-              cellPadding: 2,
+              cellPadding: 3,
               lineColor: [200, 200, 200],
               lineWidth: 0.1
             },
@@ -1198,27 +1107,150 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               fontSize: 11
             },
             columnStyles: {
-              0: { cellWidth: 25 },
-              1: { cellWidth: 60 },
-              2: { cellWidth: 'auto' }
+              0: { cellWidth: 30 },
+              1: { cellWidth: 'auto' },
+              2: { cellWidth: 70 },
+              3: { cellWidth: 15, halign: 'center' }
             },
             alternateRowStyles: {
               fillColor: [248, 250, 252]
             },
+            didParseCell: (hookData: any) => {
+              if (hookData.section === 'body' && hookData.column.index === 3) {
+                if (hookData.cell.text.join('') === 'Oui') {
+                  hookData.cell.styles.fillColor = [34, 197, 94]
+                  hookData.cell.styles.textColor = [255, 255, 255]
+                  hookData.cell.styles.fontStyle = 'bold'
+                }
+              }
+            },
             margin: { left: 10, right: 10 }
           })
-          annexeY = (doc as any).lastAutoTable.finalY + 6
-        }
-      }
+        } else if (sec.key === 'grille') {
+          doc.addPage()
+          sectionPages['Grille de suivi'] = doc.getNumberOfPages()
+          drawSectionHeader('Grille de suivi')
 
-      // ===== Annexe 2 - Sujets de recherche =====
-      {
-        if (pdfSections.annexeRecherche && allResearchTopics.length > 0) {
+          const gridHeaders = ['Sourate']
+          for (const m of data.members) {
+            const parts = m.name.split(' ')
+            const lastName = parts.slice(0, -1).join(' ')
+            const firstName = parts[parts.length - 1]
+            gridHeaders.push(`${lastName}\n${firstName}`)
+          }
+
+          const gridRows: string[][] = []
+          for (const group of data.surahGroups) {
+            if (group.type === 'surah' && group.number) {
+              const surahInfo = data.allSurahsMap[group.number]
+              const row = [surahLabel(group.number!, surahInfo, reshapeAr)]
+              for (const member of data.members) {
+                row.push(getCellDisplay(member.id, group.number!))
+              }
+              gridRows.push(row)
+            }
+          }
+
+          autoTable(doc, {
+            head: [gridHeaders],
+            body: gridRows,
+            startY: 25,
+            styles: {
+              font: pdfFont,
+              fontSize: 11,
+              cellPadding: 2,
+              halign: 'center',
+              valign: 'middle',
+              lineColor: [200, 200, 200],
+              lineWidth: 0.1
+            },
+            headStyles: {
+              fillColor: [71, 85, 105],
+              textColor: [255, 255, 255],
+              fontSize: 11,
+              fontStyle: 'bold',
+              halign: 'center'
+            },
+            columnStyles: {
+              0: { cellWidth: 60, halign: 'left', fontStyle: 'bold' }
+            },
+            alternateRowStyles: {
+              fillColor: [248, 250, 252]
+            },
+            didParseCell: (hookData: any) => {
+              if (hookData.section === 'body' && hookData.column.index > 0) {
+                const text = hookData.cell.text.join('')
+                const color = getStatusColor(text)
+                if (color) {
+                  hookData.cell.styles.fillColor = color
+                  hookData.cell.styles.textColor = text === '90%' || text.includes('50') ? [0, 0, 0] : [255, 255, 255]
+                  hookData.cell.styles.fontStyle = 'bold'
+                }
+              }
+            },
+            margin: { left: 10, right: 10 }
+          })
+
+          let legendY = (doc as any).lastAutoTable?.finalY + 8 || 180
+          if (legendY > 180) {
+            doc.addPage()
+            legendY = 15
+          }
+          drawLegend(legendY)
+        } else if (sec.key === 'annexeCommentaires') {
+          doc.addPage()
+          sectionPages['Annexe 1 - Commentaires des séances précédentes'] = doc.getNumberOfPages()
+          drawSectionHeader('Annexe 1 - Commentaires des séances précédentes')
+
+          let annexeY = 25
+
+          for (const entry of membersWithComments) {
+            if (annexeY > 180) {
+              doc.addPage()
+              annexeY = 15
+            }
+
+            doc.setFontSize(12)
+            doc.setFont(pdfFont, 'bold')
+            doc.setFillColor(226, 232, 240)
+            doc.rect(10, annexeY - 4, 277, 6, 'F')
+            doc.text(entry.memberName, 14, annexeY)
+            annexeY += 4
+
+            autoTable(doc, {
+              head: [['Séance', 'Sourate', 'Commentaire']],
+              body: entry.comments.map(c => [c.session, c.surah, c.comment]),
+              startY: annexeY,
+              styles: {
+                font: pdfFont,
+                fontSize: 11,
+                cellPadding: 2,
+                lineColor: [200, 200, 200],
+                lineWidth: 0.1
+              },
+              headStyles: {
+                fillColor: [71, 85, 105],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 11
+              },
+              columnStyles: {
+                0: { cellWidth: 25 },
+                1: { cellWidth: 60 },
+                2: { cellWidth: 'auto' }
+              },
+              alternateRowStyles: {
+                fillColor: [248, 250, 252]
+              },
+              margin: { left: 10, right: 10 }
+            })
+            annexeY = (doc as any).lastAutoTable.finalY + 6
+          }
+        } else if (sec.key === 'annexeRecherche') {
           doc.addPage()
           sectionPages['Annexe 2 - Sujets de recherche'] = doc.getNumberOfPages()
           drawSectionHeader('Annexe 2 - Sujets de recherche')
 
-          // Sort by session number descending
           const sortedTopics = [...allResearchTopics].sort((a, b) => {
             if (a.sessionNumber === null) return 1
             if (b.sessionNumber === null) return -1
@@ -2543,30 +2575,46 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             </div>
           )}
 
-          {/* PDF sections selector */}
+          {/* PDF sections selector with reorder */}
           {!reportLoading && (
             <div className="space-y-2 border-t pt-4">
               <Label className="text-sm font-medium">Sections à inclure dans le PDF</Label>
-              <div className="grid grid-cols-2 gap-1">
-                {([
-                  ['pointsAbordes', 'Points abordés'],
-                  ['prochaineSourate', 'Prochaine sourate'],
-                  ['classement', 'Classement élèves'],
-                  ['suiviIndividuel', 'Suivi individuel'],
-                  ['devoirs', 'Devoirs'],
-                  ['rechercheSeance', 'Recherche (séance)'],
-                  ['grille', 'Grille de suivi'],
-                  ['annexeCommentaires', 'Annexe commentaires'],
-                  ['annexeRecherche', 'Annexe recherche'],
-                ] as const).map(([key, label]) => (
-                  <div key={key} className="flex items-center gap-1.5">
+              <div className="space-y-0.5">
+                {pdfSectionOrder.map((section, idx) => (
+                  <div key={section.key} className="flex items-center gap-1.5 py-0.5">
                     <input
                       type="checkbox"
-                      checked={pdfSections[key]}
-                      onChange={() => setPdfSections(prev => ({ ...prev, [key]: !prev[key] }))}
+                      checked={section.enabled}
+                      onChange={() => setPdfSectionOrder(prev =>
+                        prev.map((s, i) => i === idx ? { ...s, enabled: !s.enabled } : s)
+                      )}
                       className="h-3.5 w-3.5 rounded border-gray-300"
                     />
-                    <span className="text-xs">{label}</span>
+                    <span className="text-xs flex-1">{section.label}</span>
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={() => setPdfSectionOrder(prev => {
+                        const arr = [...prev]
+                        ;[arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]]
+                        return arr
+                      })}
+                      className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === pdfSectionOrder.length - 1}
+                      onClick={() => setPdfSectionOrder(prev => {
+                        const arr = [...prev]
+                        ;[arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]]
+                        return arr
+                      })}
+                      className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 ))}
               </div>
