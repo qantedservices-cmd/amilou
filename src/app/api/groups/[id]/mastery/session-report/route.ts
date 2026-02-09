@@ -124,15 +124,15 @@ export async function GET(
 
     // Default checklist items
     const defaultTopics = [
-      { label: 'Suivi individuel de mémorisation', checked: true },
+      { label: 'Suivi individuel de la mémorisation', checked: true },
       { label: 'Préparation de la prochaine sourate en groupe', checked: true, children: [
         { label: 'Récitation', checked: false },
-        { label: 'Traduction des sens des versets', checked: false },
-        { label: 'Lecture du tafsir', checked: false },
+        { label: 'Lecture sens des versets', checked: false },
+        { label: 'Tafsir', checked: false },
       ]},
-      { label: 'Lecture arc-en-ciel', checked: false },
+      { label: 'Étude leçon du livre Arc en Ciel', checked: false },
+      { label: 'Sujets de recherches', checked: false },
       { label: 'Échanges ouverts', checked: false },
-      { label: 'Sujets de recherche', checked: false },
     ]
 
     return NextResponse.json({
