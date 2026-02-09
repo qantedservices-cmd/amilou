@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check } from 'lucide-react'
+import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import {
@@ -214,6 +214,16 @@ interface Stats {
   }
 }
 
+interface ManageableUser {
+  id: string
+  name: string | null
+  email: string
+  isSelf: boolean
+  isPrivate: boolean
+  canEdit: boolean
+  canView: boolean
+}
+
 type PeriodType = 'year' | 'month' | 'global'
 
 const MONTHS = [
@@ -297,6 +307,12 @@ export default function DashboardPage() {
   const [canGoForward, setCanGoForward] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+
+  // User selector for Programmes Journaliers
+  const [manageableUsers, setManageableUsers] = useState<ManageableUser[]>([])
+  const [selectedUserId, setSelectedUserId] = useState<string>('')
+  const [viewingOtherUser, setViewingOtherUser] = useState(false)
+  const [weekGridCanEdit, setWeekGridCanEdit] = useState(true)
 
   // Interactive weekly objectives
   const [localWeeklyObjectives, setLocalWeeklyObjectives] = useState<WeeklyObjectiveStatus[]>([])
@@ -389,7 +405,10 @@ export default function DashboardPage() {
         setWeekNumber(data.weekNumber)
         setWeekYear(data.weekYear)
         setWeekStartDate(data.weekStartDate)
-        setLocalWeekGrid(data.weekGrid || {})
+        // Only update week grid if viewing self
+        if (!viewingOtherUser) {
+          setLocalWeekGrid(data.weekGrid || {})
+        }
         setCanGoForward(data.canGoForward || false)
         // Update selected date to match the week
         if (data.weekStartDate) {
@@ -427,11 +446,37 @@ export default function DashboardPage() {
         setWeekNumber(data.weekNumber)
         setWeekYear(data.weekYear)
         setWeekStartDate(data.weekStartDate)
-        setLocalWeekGrid(data.weekGrid || {})
         setCanGoForward(data.canGoForward || false)
         // Update selected date to match the week
         if (data.weekStartDate) {
           setSelectedDate(new Date(data.weekStartDate))
+        }
+        // If viewing another user, fetch their grid for this week
+        const selfUser = manageableUsers.find(u => u.isSelf)
+        if (selectedUserId && selfUser && selectedUserId !== selfUser.id) {
+          const otherParams = new URLSearchParams()
+          if (data.weekStartDate) {
+            otherParams.set('weekStart', data.weekStartDate)
+          }
+          otherParams.set('userId', selectedUserId)
+          const otherRes = await fetch(`/api/attendance/programs?${otherParams.toString()}`)
+          if (otherRes.ok) {
+            const otherData = await otherRes.json()
+            const programs: Array<{ id: string; code: string }> = otherData.programs || []
+            const completions: Record<string, Record<number, boolean>> = otherData.completions || {}
+            const grid: Record<string, boolean[]> = {}
+            for (const prog of programs) {
+              grid[prog.code] = [false, false, false, false, false, false, false]
+              if (completions[prog.id]) {
+                for (let i = 0; i < 7; i++) {
+                  grid[prog.code][i] = completions[prog.id][i] || false
+                }
+              }
+            }
+            setLocalWeekGrid(grid)
+          }
+        } else {
+          setLocalWeekGrid(data.weekGrid || {})
         }
       }
     } catch (error) {
@@ -526,6 +571,26 @@ export default function DashboardPage() {
     fetchGroupRanking()
   }, [])
 
+  // Fetch manageable users for Programmes Journaliers selector
+  useEffect(() => {
+    async function fetchManageableUsers() {
+      try {
+        const res = await fetch('/api/users/manageable')
+        if (res.ok) {
+          const users = await res.json()
+          setManageableUsers(Array.isArray(users) ? users : [])
+          const selfUser = users.find((u: ManageableUser) => u.isSelf)
+          if (selfUser) {
+            setSelectedUserId(selfUser.id)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching manageable users:', error)
+      }
+    }
+    fetchManageableUsers()
+  }, [])
+
   // Fetch program IDs for today's toggle
   useEffect(() => {
     async function fetchProgramIds() {
@@ -553,9 +618,9 @@ export default function DashboardPage() {
     }
   }, [stats?.todayPrograms])
 
-  // Sync local week grid with stats
+  // Sync local week grid with stats (only when viewing self)
   useEffect(() => {
-    if (stats?.weekGrid) {
+    if (stats?.weekGrid && !viewingOtherUser) {
       setLocalWeekGrid(stats.weekGrid)
     }
   }, [stats?.weekGrid])
@@ -566,6 +631,59 @@ export default function DashboardPage() {
       setLocalWeeklyObjectives(stats.weeklyObjectivesStatus)
     }
   }, [stats?.weeklyObjectivesStatus])
+
+  // Handle user selector change for Programmes Journaliers
+  useEffect(() => {
+    if (!selectedUserId) return
+    const selfUser = manageableUsers.find(u => u.isSelf)
+    const isSelf = selfUser?.id === selectedUserId
+    setViewingOtherUser(!isSelf)
+    const selected = manageableUsers.find(u => u.id === selectedUserId)
+    setWeekGridCanEdit(selected?.canEdit ?? true)
+
+    if (isSelf) {
+      // Restore self data from stats
+      if (stats?.weekGrid) {
+        setLocalWeekGrid(stats.weekGrid)
+      }
+    } else {
+      // Fetch other user's week grid
+      fetchOtherUserWeekGrid(selectedUserId)
+    }
+  }, [selectedUserId])
+
+  async function fetchOtherUserWeekGrid(userId: string) {
+    setLoadingWeek(true)
+    try {
+      const currentWeekStart = weekStartDate || stats?.weekStartDate
+      const params = new URLSearchParams()
+      if (currentWeekStart) {
+        params.set('weekStart', currentWeekStart)
+      }
+      params.set('userId', userId)
+      const res = await fetch(`/api/attendance/programs?${params.toString()}`)
+      if (res.ok) {
+        const data = await res.json()
+        // Convert completions matrix {programId: {dayIndex: bool}} to weekGrid {code: bool[]}
+        const programs: Array<{ id: string; code: string }> = data.programs || []
+        const completions: Record<string, Record<number, boolean>> = data.completions || {}
+        const grid: Record<string, boolean[]> = {}
+        for (const prog of programs) {
+          grid[prog.code] = [false, false, false, false, false, false, false]
+          if (completions[prog.id]) {
+            for (let i = 0; i < 7; i++) {
+              grid[prog.code][i] = completions[prog.id][i] || false
+            }
+          }
+        }
+        setLocalWeekGrid(grid)
+      }
+    } catch (error) {
+      console.error('Error fetching other user week grid:', error)
+    } finally {
+      setLoadingWeek(false)
+    }
+  }
 
   // Helper to format date as YYYY-MM-DD (timezone-safe)
   function formatDateLocal(date: Date): string {
@@ -627,6 +745,8 @@ export default function DashboardPage() {
   async function toggleWeekGridCell(code: string, dayIndex: number) {
     const programId = programsMap[code]
     if (!programId || togglingWeekCell) return
+    // Block if viewing another user without edit permission
+    if (viewingOtherUser && !weekGridCanEdit) return
 
     const cellKey = `${code}-${dayIndex}`
     setTogglingWeekCell(cellKey)
@@ -640,8 +760,8 @@ export default function DashboardPage() {
       [code]: prev[code]?.map((v, i) => i === dayIndex ? newCompleted : v) || []
     }))
 
-    // Also update today programs if it's today
-    if (dayIndex === new Date().getDay()) {
+    // Also update today programs if it's today and viewing self
+    if (!viewingOtherUser && dayIndex === new Date().getDay()) {
       setLocalTodayPrograms(prev =>
         prev.map(p => p.code === code ? { ...p, completed: newCompleted } : p)
       )
@@ -654,19 +774,25 @@ export default function DashboardPage() {
       const targetDate = new Date(weekStartObj)
       targetDate.setDate(weekStartObj.getDate() + dayIndex)
 
+      const payload: Record<string, unknown> = {
+        completions: {
+          [programId]: {
+            [dayIndex]: {
+              date: formatDateLocal(targetDate),
+              completed: newCompleted
+            }
+          }
+        }
+      }
+      // Pass userId when editing another user's data
+      if (viewingOtherUser) {
+        payload.userId = selectedUserId
+      }
+
       const res = await fetch('/api/attendance/programs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          completions: {
-            [programId]: {
-              [dayIndex]: {
-                date: formatDateLocal(targetDate),
-                completed: newCompleted
-              }
-            }
-          }
-        })
+        body: JSON.stringify(payload)
       })
 
       if (res.ok) {
@@ -678,7 +804,7 @@ export default function DashboardPage() {
           ...prev,
           [code]: prev[code]?.map((v, i) => i === dayIndex ? currentCompleted : v) || []
         }))
-        if (dayIndex === new Date().getDay()) {
+        if (!viewingOtherUser && dayIndex === new Date().getDay()) {
           setLocalTodayPrograms(prev =>
             prev.map(p => p.code === code ? { ...p, completed: currentCompleted } : p)
           )
@@ -691,7 +817,7 @@ export default function DashboardPage() {
         ...prev,
         [code]: prev[code]?.map((v, i) => i === dayIndex ? currentCompleted : v) || []
       }))
-      if (dayIndex === new Date().getDay()) {
+      if (!viewingOtherUser && dayIndex === new Date().getDay()) {
         setLocalTodayPrograms(prev =>
           prev.map(p => p.code === code ? { ...p, completed: currentCompleted } : p)
         )
@@ -1335,13 +1461,50 @@ export default function DashboardPage() {
       {/* Cette Semaine - Grille Programmes */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-blue-600" />
               Programmes Journaliers
+              {viewingOtherUser && (
+                <Badge variant="outline" className="ml-1">{manageableUsers.find(u => u.id === selectedUserId)?.name || 'Autre'}</Badge>
+              )}
+              {viewingOtherUser && !weekGridCanEdit && (
+                <Badge variant="secondary" className="ml-1">Lecture seule</Badge>
+              )}
             </CardTitle>
-            {/* Week Navigation with Calendar */}
             <div className="flex items-center gap-2">
+              {/* User Selector */}
+              {manageableUsers.length > 1 && (
+                <div className="flex items-center gap-1">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                    <SelectTrigger className="w-40 h-9">
+                      <SelectValue placeholder="Sélectionner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {manageableUsers.map((user) => (
+                        <SelectItem
+                          key={user.id}
+                          value={user.id}
+                          disabled={user.isPrivate}
+                          className={user.isPrivate ? 'text-muted-foreground' : ''}
+                        >
+                          <span className="flex items-center gap-2">
+                            {user.isPrivate && <Lock className="h-3 w-3" />}
+                            {user.isSelf
+                              ? `Moi-même (${user.name || user.email})`
+                              : user.isPrivate
+                                ? `${user.name || user.email} - Privé`
+                                : (user.name || user.email)
+                            }
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {/* Week Navigation with Calendar */}
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -1389,7 +1552,10 @@ export default function DashboardPage() {
             </div>
           </div>
           <CardDescription>
-            Cliquez pour marquer comme complété
+            {viewingOtherUser && !weekGridCanEdit
+              ? 'Consultation des données en lecture seule'
+              : 'Cliquez pour marquer comme complété'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -1443,10 +1609,10 @@ export default function DashboardPage() {
                           }`}>
                             <button
                               onClick={() => toggleWeekGridCell(prog.code, dayIndex)}
-                              disabled={isToggling || !programsMap[prog.code]}
+                              disabled={isToggling || !programsMap[prog.code] || (viewingOtherUser && !weekGridCanEdit)}
                               className={`p-1 rounded transition-all duration-200 hover:bg-muted/50 ${
                                 isToggling ? 'opacity-50' : ''
-                              } ${!programsMap[prog.code] ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                              } ${(!programsMap[prog.code] || (viewingOtherUser && !weekGridCanEdit)) ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                             >
                               {isToggling ? (
                                 <Loader2 className="h-5 w-5 text-emerald-600 mx-auto animate-spin" />

@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Users, BookOpen, Check, X, Plus, Trash2, ArrowLeft, Save, HelpCircle } from 'lucide-react'
+import { Calendar, Users, BookOpen, Check, X, Plus, Trash2, ArrowLeft, Save, HelpCircle, LayoutGrid } from 'lucide-react'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import {
   Tooltip,
@@ -406,12 +406,18 @@ export default function SessionEditPage({ params }: { params: Promise<{ id: stri
             </p>
           </div>
         </div>
-        {canEdit && (
-          <Button onClick={handleSave} disabled={saving}>
-            <Save className="h-4 w-4 mr-2" />
-            {saving ? 'Enregistrement...' : 'Enregistrer'}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => router.push(`/${locale}/groups/${session.groupId}/mastery`)}>
+            <LayoutGrid className="h-4 w-4 mr-2" />
+            Grille de suivi
           </Button>
-        )}
+          {canEdit && (
+            <Button onClick={handleSave} disabled={saving}>
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {error && (
