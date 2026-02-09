@@ -74,6 +74,7 @@ interface SurahInfo {
 interface TopicItem {
   label: string
   checked: boolean
+  children?: TopicItem[]
 }
 
 interface SurahOption {
@@ -500,8 +501,15 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     }
   }
 
-  function toggleTopic(index: number) {
-    setReportTopics(prev => prev.map((t, i) => i === index ? { ...t, checked: !t.checked } : t))
+  function toggleTopic(index: number, childIndex?: number) {
+    setReportTopics(prev => prev.map((t, i) => {
+      if (i !== index) return t
+      if (childIndex !== undefined && t.children) {
+        const newChildren = t.children.map((c, ci) => ci === childIndex ? { ...c, checked: !c.checked } : c)
+        return { ...t, children: newChildren }
+      }
+      return { ...t, checked: !t.checked }
+    }))
   }
 
   function addCustomTopic() {
@@ -811,6 +819,21 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           doc.rect(14, yPos - 3, 3, 3, 'F')
           doc.text(`  ${topic.label}`, 18, yPos)
           yPos += 6
+          // Render sub-items
+          if (topic.children && topic.children.length > 0) {
+            doc.setFontSize(10)
+            for (const child of topic.children) {
+              if (child.checked) {
+                doc.setFillColor(34, 197, 94)
+              } else {
+                doc.setFillColor(200, 200, 200)
+              }
+              doc.rect(22, yPos - 3, 2.5, 2.5, 'F')
+              doc.text(`  ${child.label}`, 26, yPos)
+              yPos += 5
+            }
+            doc.setFontSize(12)
+          }
         }
         yPos += 4
       }
@@ -2327,24 +2350,42 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 <Label className="text-sm font-medium">Points abordés</Label>
                 <div className="space-y-1">
                   {reportTopics.map((topic, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={topic.checked}
-                        onChange={() => toggleTopic(idx)}
-                        className="h-4 w-4 rounded border-gray-300"
-                      />
-                      <span className="text-sm flex-1">{topic.label}</span>
-                      {/* Allow removing non-default items (index >= 5) */}
-                      {idx >= 5 && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-destructive hover:text-destructive"
-                          onClick={() => removeCustomTopic(idx)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
+                    <div key={idx}>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={topic.checked}
+                          onChange={() => toggleTopic(idx)}
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                        <span className="text-sm flex-1">{topic.label}</span>
+                        {/* Allow removing non-default items (index >= 5) */}
+                        {idx >= 5 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            onClick={() => removeCustomTopic(idx)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                      {/* Sub-items */}
+                      {topic.children && topic.children.length > 0 && (
+                        <div className="ml-6 mt-1 space-y-1">
+                          {topic.children.map((child, cidx) => (
+                            <div key={cidx} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={child.checked}
+                                onChange={() => toggleTopic(idx, cidx)}
+                                className="h-3.5 w-3.5 rounded border-gray-300"
+                              />
+                              <span className="text-xs text-muted-foreground">{child.label}</span>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   ))}

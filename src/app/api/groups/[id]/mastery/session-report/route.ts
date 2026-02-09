@@ -124,10 +124,14 @@ export async function GET(
 
     // Default checklist items
     const defaultTopics = [
-      { label: 'Suivi individuel de memorisation', checked: true },
-      { label: 'Preparation de la prochaine sourate en groupe', checked: true },
+      { label: 'Suivi individuel de mémorisation', checked: true },
+      { label: 'Préparation de la prochaine sourate en groupe', checked: true, children: [
+        { label: 'Récitation', checked: false },
+        { label: 'Traduction des sens des versets', checked: false },
+        { label: 'Lecture du tafsir', checked: false },
+      ]},
       { label: 'Lecture arc-en-ciel', checked: false },
-      { label: 'Echanges ouverts', checked: false },
+      { label: 'Échanges ouverts', checked: false },
       { label: 'Sujets de recherche', checked: false },
     ]
 
