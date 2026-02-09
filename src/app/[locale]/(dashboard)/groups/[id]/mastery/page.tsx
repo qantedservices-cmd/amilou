@@ -976,9 +976,9 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             fontSize: 11
           },
           columnStyles: {
-            0: { cellWidth: 35 },
+            0: { cellWidth: 30 },
             1: { cellWidth: 'auto' },
-            2: { cellWidth: 'auto' },
+            2: { cellWidth: 70 },
             3: { cellWidth: 15, halign: 'center' }
           },
           alternateRowStyles: {
@@ -1163,9 +1163,9 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             },
             columnStyles: {
               0: { cellWidth: 18, halign: 'center' },
-              1: { cellWidth: 30 },
+              1: { cellWidth: 28 },
               2: { cellWidth: 'auto' },
-              3: { cellWidth: 'auto' },
+              3: { cellWidth: 65 },
               4: { cellWidth: 15, halign: 'center' }
             },
             alternateRowStyles: {
