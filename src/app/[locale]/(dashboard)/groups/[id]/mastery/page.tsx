@@ -1187,8 +1187,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             columnStyles: {
               0: { cellWidth: 18, halign: 'center' },
               1: { cellWidth: 28 },
-              2: { cellWidth: 'auto' },
-              3: { cellWidth: 65 },
+              2: { cellWidth: 72 },
+              3: { cellWidth: 144 },
               4: { cellWidth: 15, halign: 'center' }
             },
             alternateRowStyles: {
