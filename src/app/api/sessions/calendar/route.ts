@@ -213,17 +213,29 @@ export async function GET(request: Request) {
       orderBy: { date: 'desc' }
     })
 
-    // Group Progress by date to create "sessions"
-    const progressByDate: Record<string, typeof progressEntries> = {}
-    for (const entry of progressEntries) {
-      const dateKey = new Date(entry.date).toISOString().split('T')[0]
-      if (!progressByDate[dateKey]) {
-        progressByDate[dateKey] = []
+    // Group Progress by date AND group to create "sessions"
+    // Build userId -> group mapping (prefer MEMBER role over REFERENT)
+    const userGroupMap: Record<string, { groupId: string; groupName: string }> = {}
+    for (const m of groupMembers) {
+      if (!userGroupMap[m.userId] || m.role === 'MEMBER') {
+        userGroupMap[m.userId] = { groupId: m.group.id, groupName: m.group.name }
       }
-      progressByDate[dateKey].push(entry)
     }
 
-    const sessionsFromProgress = Object.entries(progressByDate).map(([dateKey, entries]) => {
+    const progressByDateGroup: Record<string, typeof progressEntries> = {}
+    for (const entry of progressEntries) {
+      const dateKey = new Date(entry.date).toISOString().split('T')[0]
+      const userGrp = userGroupMap[entry.userId]
+      const grpId = userGrp?.groupId || 'unknown'
+      const key = `${dateKey}|${grpId}`
+      if (!progressByDateGroup[key]) {
+        progressByDateGroup[key] = []
+      }
+      progressByDateGroup[key].push(entry)
+    }
+
+    const sessionsFromProgress = Object.entries(progressByDateGroup).map(([key, entries]) => {
+      const [dateKey, grpId] = key.split('|')
       // Group by user
       const byUser: Record<string, typeof entries> = {}
       for (const e of entries) {
@@ -246,18 +258,17 @@ export async function GET(request: Request) {
         }))
       }))
 
-      // Determine group name from participants
-      const firstUserId = entries[0].userId
-      const userGroup = groupMembers.find(m => m.userId === firstUserId)
+      const userGrp = userGroupMap[entries[0].userId]
+      const groupName = userGrp?.groupName || 'Groupe Amilou'
+      const resolvedGroupId = grpId !== 'unknown' ? grpId : null
 
-      const groupName = userGroup?.group.name || 'Groupe Amilou'
       return {
-        id: `progress-${dateKey}`,
+        id: `progress-${dateKey}-${grpId}`,
         type: 'progress' as const,
         color: getGroupColor(groupName),
         date: dateKey,
         weekNumber: null,
-        groupId: userGroup?.groupId || null,
+        groupId: resolvedGroupId,
         groupName,
         notes: null,
         participants,
