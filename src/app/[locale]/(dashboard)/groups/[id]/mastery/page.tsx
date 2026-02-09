@@ -178,6 +178,17 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [reportSurahs, setReportSurahs] = useState<SurahOption[]>([])
   const [newTopicLabel, setNewTopicLabel] = useState('')
   const [reportResearchTopics, setReportResearchTopics] = useState<(ResearchTopic & { checked: boolean })[]>([])
+  const [pdfSections, setPdfSections] = useState({
+    pointsAbordes: true,
+    prochaineSourate: true,
+    classement: true,
+    suiviIndividuel: true,
+    devoirs: true,
+    rechercheSeance: true,
+    grille: true,
+    annexeCommentaires: true,
+    annexeRecherche: true,
+  })
 
   // Research topics state
   const [researchTopicsOpen, setResearchTopicsOpen] = useState(false)
@@ -807,16 +818,16 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         console.error('Error fetching research topics for PDF:', err)
       }
 
-      // Build table of contents entries
+      // Build table of contents entries based on selected sections
       const tocEntries: string[] = []
-      tocEntries.push('Points abordés de la séance')
-      tocEntries.push('Classement des élèves')
-      if (sessionRows.length > 0) tocEntries.push('Suivi individuel de mémorisation')
-      if (reportHomework.trim()) tocEntries.push('Devoirs')
-      if (checkedSessionResearch.length > 0) tocEntries.push('Sujets de recherche de la séance')
-      tocEntries.push('Grille de suivi')
-      if (membersWithComments.length > 0) tocEntries.push('Annexe 1 - Commentaires des séances précédentes')
-      if (allResearchTopics.length > 0) tocEntries.push('Annexe 2 - Sujets de recherche')
+      if (pdfSections.pointsAbordes) tocEntries.push('Points abordés de la séance')
+      if (pdfSections.classement) tocEntries.push('Classement des élèves')
+      if (pdfSections.suiviIndividuel && sessionRows.length > 0) tocEntries.push('Suivi individuel de mémorisation')
+      if (pdfSections.devoirs && reportHomework.trim()) tocEntries.push('Devoirs')
+      if (pdfSections.rechercheSeance && checkedSessionResearch.length > 0) tocEntries.push('Sujets de recherche de la séance')
+      if (pdfSections.grille) tocEntries.push('Grille de suivi')
+      if (pdfSections.annexeCommentaires && membersWithComments.length > 0) tocEntries.push('Annexe 1 - Commentaires des séances précédentes')
+      if (pdfSections.annexeRecherche && allResearchTopics.length > 0) tocEntries.push('Annexe 2 - Sujets de recherche')
 
       // Track section page numbers for clickable TOC
       const sectionPages: Record<string, number> = {}
@@ -849,54 +860,59 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
 
       // ===== PAGE 2: Points abordés + Prochaine sourate =====
-      doc.addPage()
-      sectionPages['Points abordés de la séance'] = doc.getNumberOfPages()
-      drawSectionHeader('Points abordés de la séance')
-      yPos = 28
+      if (pdfSections.pointsAbordes || pdfSections.prochaineSourate) {
+        doc.addPage()
+        if (pdfSections.pointsAbordes) {
+          sectionPages['Points abordés de la séance'] = doc.getNumberOfPages()
+          drawSectionHeader('Points abordés de la séance')
+          yPos = 28
 
-      if (reportTopics.length > 0) {
-        doc.setFontSize(13)
-        doc.setFont(pdfFont, 'normal')
-        for (const topic of reportTopics) {
-          if (topic.checked) {
-            doc.setFillColor(34, 197, 94)
-          } else {
-            doc.setFillColor(200, 200, 200)
-          }
-          doc.rect(14, yPos - 3, 3, 3, 'F')
-          doc.text(`  ${topic.label}`, 18, yPos)
-          yPos += 6
-          // Render sub-items
-          if (topic.children && topic.children.length > 0) {
-            doc.setFontSize(11)
-            for (const child of topic.children) {
-              if (child.checked) {
+          if (reportTopics.length > 0) {
+            doc.setFontSize(13)
+            doc.setFont(pdfFont, 'normal')
+            for (const topic of reportTopics) {
+              if (topic.checked) {
                 doc.setFillColor(34, 197, 94)
               } else {
                 doc.setFillColor(200, 200, 200)
               }
-              doc.rect(22, yPos - 3, 2.5, 2.5, 'F')
-              doc.text(`  ${child.label}`, 26, yPos)
-              yPos += 5
+              doc.rect(14, yPos - 3, 3, 3, 'F')
+              doc.text(`  ${topic.label}`, 18, yPos)
+              yPos += 6
+              // Render sub-items
+              if (topic.children && topic.children.length > 0) {
+                doc.setFontSize(11)
+                for (const child of topic.children) {
+                  if (child.checked) {
+                    doc.setFillColor(34, 197, 94)
+                  } else {
+                    doc.setFillColor(200, 200, 200)
+                  }
+                  doc.rect(22, yPos - 3, 2.5, 2.5, 'F')
+                  doc.text(`  ${child.label}`, 26, yPos)
+                  yPos += 5
+                }
+                doc.setFontSize(13)
+              }
             }
-            doc.setFontSize(13)
+            yPos += 4
           }
         }
-        yPos += 4
-      }
 
-      if (reportNextSurah && reportNextSurah !== 'none') {
-        const surahInfo = reportSurahs.find(s => s.number === parseInt(reportNextSurah))
-        if (surahInfo) {
-          doc.setFontSize(13)
-          doc.setFont(pdfFont, 'bold')
-          const nextSurahLbl = surahLabel(surahInfo.number, { nameAr: surahInfo.nameAr, nameFr: surahInfo.nameFr, totalVerses: surahInfo.totalVerses }, reshapeAr)
-          doc.text(`Prochaine sourate : ${nextSurahLbl}`, 14, yPos)
-          yPos += 8
+        if (pdfSections.prochaineSourate && reportNextSurah && reportNextSurah !== 'none') {
+          const surahInfo = reportSurahs.find(s => s.number === parseInt(reportNextSurah))
+          if (surahInfo) {
+            doc.setFontSize(13)
+            doc.setFont(pdfFont, 'bold')
+            const nextSurahLbl = surahLabel(surahInfo.number, { nameAr: surahInfo.nameAr, nameFr: surahInfo.nameFr, totalVerses: surahInfo.totalVerses }, reshapeAr)
+            doc.text(`Prochaine sourate : ${nextSurahLbl}`, 14, yPos)
+            yPos += 8
+          }
         }
       }
 
       // ===== PAGE 3: Classement des élèves =====
+      if (pdfSections.classement) {
       doc.addPage()
       sectionPages['Classement des élèves'] = doc.getNumberOfPages()
       drawSectionHeader('Classement des élèves')
@@ -935,9 +951,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         },
         margin: { left: 60, right: 60 }
       })
+      } // end classement
 
       // ===== PAGE 4: Suivi individuel (Recitations) =====
-      if (sessionRows.length > 0) {
+      if (pdfSections.suiviIndividuel && sessionRows.length > 0) {
         doc.addPage()
         sectionPages['Suivi individuel de mémorisation'] = doc.getNumberOfPages()
         drawSectionHeader('Suivi individuel de mémorisation')
@@ -974,7 +991,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         yPos = (doc as any).lastAutoTable.finalY + 8
 
         // Homework after recitations on same page if fits
-        if (reportHomework.trim()) {
+        if (pdfSections.devoirs && reportHomework.trim()) {
           if (yPos > 170) {
             doc.addPage()
             yPos = 15
@@ -996,7 +1013,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             yPos += 5
           }
         }
-      } else if (reportHomework.trim()) {
+      } else if (pdfSections.devoirs && reportHomework.trim()) {
         // No recitations but has homework
         doc.addPage()
         sectionPages['Devoirs'] = doc.getNumberOfPages()
@@ -1016,7 +1033,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
 
       // ===== Sujets de recherche de la séance =====
-      if (checkedSessionResearch.length > 0) {
+      if (pdfSections.rechercheSeance && checkedSessionResearch.length > 0) {
         doc.addPage()
         sectionPages['Sujets de recherche de la séance'] = doc.getNumberOfPages()
         drawSectionHeader('Sujets de recherche de la séance')
@@ -1068,6 +1085,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
 
       // ===== Grille de suivi =====
+      if (pdfSections.grille) {
       doc.addPage()
       sectionPages['Grille de suivi'] = doc.getNumberOfPages()
       drawSectionHeader('Grille de suivi')
@@ -1139,9 +1157,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         legendY = 15
       }
       drawLegend(legendY)
+      } // end grille
 
       // ===== Annexe 1 =====
-      if (membersWithComments.length > 0) {
+      if (pdfSections.annexeCommentaires && membersWithComments.length > 0) {
         doc.addPage()
         sectionPages['Annexe 1 - Commentaires des séances précédentes'] = doc.getNumberOfPages()
         drawSectionHeader('Annexe 1 - Commentaires des séances précédentes')
@@ -1194,7 +1213,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
       // ===== Annexe 2 - Sujets de recherche =====
       {
-        if (allResearchTopics.length > 0) {
+        if (pdfSections.annexeRecherche && allResearchTopics.length > 0) {
           doc.addPage()
           sectionPages['Annexe 2 - Sujets de recherche'] = doc.getNumberOfPages()
           drawSectionHeader('Annexe 2 - Sujets de recherche')
@@ -2521,6 +2540,36 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* PDF sections selector */}
+          {!reportLoading && (
+            <div className="space-y-2 border-t pt-4">
+              <Label className="text-sm font-medium">Sections à inclure dans le PDF</Label>
+              <div className="grid grid-cols-2 gap-1">
+                {([
+                  ['pointsAbordes', 'Points abordés'],
+                  ['prochaineSourate', 'Prochaine sourate'],
+                  ['classement', 'Classement élèves'],
+                  ['suiviIndividuel', 'Suivi individuel'],
+                  ['devoirs', 'Devoirs'],
+                  ['rechercheSeance', 'Recherche (séance)'],
+                  ['grille', 'Grille de suivi'],
+                  ['annexeCommentaires', 'Annexe commentaires'],
+                  ['annexeRecherche', 'Annexe recherche'],
+                ] as const).map(([key, label]) => (
+                  <div key={key} className="flex items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={pdfSections[key]}
+                      onChange={() => setPdfSections(prev => ({ ...prev, [key]: !prev[key] }))}
+                      className="h-3.5 w-3.5 rounded border-gray-300"
+                    />
+                    <span className="text-xs">{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
