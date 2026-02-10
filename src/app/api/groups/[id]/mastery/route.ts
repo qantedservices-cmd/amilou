@@ -247,7 +247,7 @@ export async function GET(
       // Build surah total verses map
       const surahTotalMap = new Map(surahs.map(s => [s.number, s.totalVerses]))
 
-      // Inject virtual "X" (displayed as "C") status for fully memorized surahs without existing mastery
+      // Inject virtual "V" (validé) status for fully memorized surahs without existing mastery
       for (const userId of memberIds) {
         if (!coverage[userId]) continue
         for (const [surahNumStr, verses] of Object.entries(coverage[userId])) {
@@ -256,7 +256,7 @@ export async function GET(
           if (verses.size >= totalVerses && totalVerses > 0) {
             if (!masteryMap[userId]?.[surahNum]) {
               if (!masteryMap[userId]) masteryMap[userId] = {}
-              masteryMap[userId][surahNum] = { status: 'X', validatedWeek: null }
+              masteryMap[userId][surahNum] = { status: 'V', validatedWeek: null }
             }
           }
         }
