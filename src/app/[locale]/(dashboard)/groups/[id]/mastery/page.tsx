@@ -874,8 +874,6 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       const tocEntries: string[] = []
       for (const sec of pdfSectionOrder) {
         if (sec.enabled && sectionHasContent[sec.key] && sectionTocLabel[sec.key]) {
-          // prochaineSourate shares a page with pointsAbordes, don't add separate TOC entry
-          if (sec.key === 'prochaineSourate') continue
           tocEntries.push(sectionTocLabel[sec.key])
         }
       }
@@ -956,12 +954,15 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
           // Render prochaineSourate on same page if enabled
           if (pdfSections.prochaineSourate && reportNextSurah && reportNextSurah !== 'none') {
+            sectionPages['Prochaine sourate'] = doc.getNumberOfPages()
             const surahInfo = reportSurahs.find(s => s.number === parseInt(reportNextSurah))
             if (surahInfo) {
               doc.setFontSize(13)
               doc.setFont(pdfFont, 'bold')
+              doc.setTextColor(220, 38, 38) // Red
               const nextSurahLbl = surahLabel(surahInfo.number, { nameAr: surahInfo.nameAr, nameFr: surahInfo.nameFr, totalVerses: surahInfo.totalVerses }, reshapeAr)
               doc.text(`Prochaine sourate : ${nextSurahLbl}`, 14, yPos)
+              doc.setTextColor(0, 0, 0) // Reset to black
               yPos += 8
             }
           }
@@ -981,8 +982,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             if (surahInfo) {
               doc.setFontSize(13)
               doc.setFont(pdfFont, 'bold')
+              doc.setTextColor(220, 38, 38) // Red
               const nextSurahLbl = surahLabel(surahInfo.number, { nameAr: surahInfo.nameAr, nameFr: surahInfo.nameFr, totalVerses: surahInfo.totalVerses }, reshapeAr)
               doc.text(`Prochaine sourate : ${nextSurahLbl}`, 14, yPos)
+              doc.setTextColor(0, 0, 0) // Reset to black
             }
           }
           // else: already rendered with pointsAbordes
