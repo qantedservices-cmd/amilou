@@ -182,7 +182,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [reportResearchTopics, setReportResearchTopics] = useState<(ResearchTopic & { checked: boolean })[]>([])
   const [pdfSectionOrder, setPdfSectionOrder] = useState([
     { key: 'pointsAbordes', label: 'Points abordés', enabled: true },
-    { key: 'prochaineSourate', label: 'Prochaine sourate', enabled: true },
+    { key: 'prochaineSourate', label: 'Sourate pour la prochaine séance', enabled: true },
     { key: 'classement', label: 'Classement élèves', enabled: true },
     { key: 'suiviIndividuel', label: 'Suivi individuel', enabled: true },
     { key: 'devoirs', label: 'Devoirs Quotidiens', enabled: true },
@@ -847,7 +847,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       // Map section keys to TOC labels and availability conditions
       const sectionTocLabel: Record<string, string> = {
         pointsAbordes: 'Points abordés de la séance',
-        prochaineSourate: 'Prochaine sourate',
+        prochaineSourate: 'Sourate pour la prochaine séance',
         classement: 'Classement des élèves',
         suiviIndividuel: 'Suivi individuel de mémorisation',
         devoirs: 'Devoirs Quotidiens',
@@ -954,14 +954,14 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
           // Render prochaineSourate on same page if enabled
           if (pdfSections.prochaineSourate && reportNextSurah && reportNextSurah !== 'none') {
-            sectionPages['Prochaine sourate'] = doc.getNumberOfPages()
+            sectionPages['Sourate pour la prochaine séance'] = doc.getNumberOfPages()
             const surahInfo = reportSurahs.find(s => s.number === parseInt(reportNextSurah))
             if (surahInfo) {
               doc.setFontSize(13)
               doc.setFont(pdfFont, 'bold')
               doc.setTextColor(220, 38, 38) // Red
               const nextSurahLbl = surahLabel(surahInfo.number, { nameAr: surahInfo.nameAr, nameFr: surahInfo.nameFr, totalVerses: surahInfo.totalVerses }, reshapeAr)
-              doc.text(`Prochaine sourate : ${nextSurahLbl}`, 14, yPos)
+              doc.text(`Sourate pour la prochaine séance : ${nextSurahLbl}`, 14, yPos)
               doc.setTextColor(0, 0, 0) // Reset to black
               yPos += 8
             }
@@ -975,8 +975,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           if (!pointsAbEnabled || pointsAbIdx > prochaineIdx) {
             // Render standalone
             doc.addPage()
-            sectionPages['Prochaine sourate'] = doc.getNumberOfPages()
-            drawSectionHeader('Prochaine sourate')
+            sectionPages['Sourate pour la prochaine séance'] = doc.getNumberOfPages()
+            drawSectionHeader('Sourate pour la prochaine séance')
             yPos = 28
             const surahInfo = reportSurahs.find(s => s.number === parseInt(reportNextSurah))
             if (surahInfo) {
@@ -984,7 +984,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               doc.setFont(pdfFont, 'bold')
               doc.setTextColor(220, 38, 38) // Red
               const nextSurahLbl = surahLabel(surahInfo.number, { nameAr: surahInfo.nameAr, nameFr: surahInfo.nameFr, totalVerses: surahInfo.totalVerses }, reshapeAr)
-              doc.text(`Prochaine sourate : ${nextSurahLbl}`, 14, yPos)
+              doc.text(`Sourate pour la prochaine séance : ${nextSurahLbl}`, 14, yPos)
               doc.setTextColor(0, 0, 0) // Reset to black
             }
           }
@@ -2316,7 +2316,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
               {/* Next surah */}
               <div className="space-y-2 border-t pt-4">
-                <Label className="text-sm font-medium">Prochaine sourate à mémoriser</Label>
+                <Label className="text-sm font-medium">Sourate pour la prochaine séance</Label>
                 <Select value={reportNextSurah} onValueChange={setReportNextSurah}>
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner une sourate" />
