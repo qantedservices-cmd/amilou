@@ -185,7 +185,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     { key: 'prochaineSourate', label: 'Prochaine sourate', enabled: true },
     { key: 'classement', label: 'Classement élèves', enabled: true },
     { key: 'suiviIndividuel', label: 'Suivi individuel', enabled: true },
-    { key: 'devoirs', label: 'Devoirs', enabled: true },
+    { key: 'devoirs', label: 'Devoirs Quotidiens', enabled: true },
     { key: 'rechercheSeance', label: 'Recherche (séance)', enabled: true },
     { key: 'grille', label: 'Grille de suivi', enabled: true },
     { key: 'annexeCommentaires', label: 'Annexe commentaires', enabled: true },
@@ -849,7 +849,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         prochaineSourate: 'Prochaine sourate',
         classement: 'Classement des élèves',
         suiviIndividuel: 'Suivi individuel de mémorisation',
-        devoirs: 'Devoirs',
+        devoirs: 'Devoirs Quotidiens',
         rechercheSeance: 'Sujets de recherche de la séance',
         grille: 'Grille de suivi',
         annexeCommentaires: 'Annexe 1 - Commentaires des séances précédentes',
@@ -1066,10 +1066,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               doc.addPage()
               yPos = 15
             }
-            sectionPages['Devoirs'] = doc.getNumberOfPages()
+            sectionPages['Devoirs Quotidiens'] = doc.getNumberOfPages()
             doc.setFontSize(13)
             doc.setFont(pdfFont, 'bold')
-            doc.text('Devoirs :', 14, yPos)
+            doc.text('Devoirs Quotidiens :', 14, yPos)
             yPos += 6
             doc.setFont(pdfFont, 'normal')
             doc.setFontSize(12)
@@ -1087,8 +1087,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         } else if (sec.key === 'devoirs') {
           if (devoirsRendered) continue
           doc.addPage()
-          sectionPages['Devoirs'] = doc.getNumberOfPages()
-          drawSectionHeader('Devoirs')
+          sectionPages['Devoirs Quotidiens'] = doc.getNumberOfPages()
+          drawSectionHeader('Devoirs Quotidiens')
           yPos = 28
           doc.setFont(pdfFont, 'normal')
           doc.setFontSize(12)
@@ -2271,13 +2271,13 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
               {/* Homework */}
               <div className="space-y-2 border-t pt-4">
-                <Label className="text-sm font-medium">Devoirs</Label>
+                <Label className="text-sm font-medium">Devoirs Quotidiens</Label>
                 <textarea
                   value={reportHomework}
                   onChange={(e) => setReportHomework(e.target.value)}
                   rows={5}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  placeholder="Devoirs pour les élèves..."
+                  placeholder="Devoirs quotidiens pour les élèves..."
                 />
               </div>
 
