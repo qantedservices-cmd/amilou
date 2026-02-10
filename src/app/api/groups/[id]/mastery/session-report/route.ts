@@ -120,7 +120,7 @@ export async function GET(
 
     // Default homework text
     const defaultHomework = group.defaultHomework ||
-      '- Lire quotidiennement de tête les sourates mémorisées\n- Écouter quotidiennement le dernier hizb'
+      '- Lire de tête les sourates mémorisées\n- Écouter le dernier hizb\n- Répéter 15 fois la partie à mémoriser\n- Écouter 15 fois la partie à mémoriser'
 
     // Default checklist items
     const defaultTopics = [
