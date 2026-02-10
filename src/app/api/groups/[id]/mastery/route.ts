@@ -266,8 +266,8 @@ export async function GET(
         }
       }
 
-      // For groups without sessions (e.g., Amilou), inject Progress as comments
-      if (sessionIds.length === 0) {
+      // For groups without SurahRecitation (e.g., Amilou), inject Progress as comments
+      if (recitations.length === 0) {
         const sortedProgress = [...progressEntries].sort(
           (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
         )
