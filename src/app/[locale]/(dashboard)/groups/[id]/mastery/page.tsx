@@ -188,9 +188,9 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     { key: 'devoirs', label: 'Devoirs Quotidiens', enabled: true },
     { key: 'rechercheSeance', label: 'Recherche (séance)', enabled: true },
     { key: 'grille', label: 'Grille de suivi', enabled: true },
-    { key: 'annexeCommentaires', label: 'Annexe 1 - Commentaires', enabled: true },
-    { key: 'annexeRecherche', label: 'Annexe 2 - Recherche', enabled: true },
-    { key: 'annexeArcEnCiel', label: 'Annexe 3 - Arc en Ciel', enabled: true },
+    { key: 'annexeCommentaires', label: 'Annexe 1 - Commentaires sur récitations', enabled: true },
+    { key: 'annexeRecherche', label: 'Annexe 2 - Sujets de recherche suite échanges suite échanges', enabled: true },
+    { key: 'annexeArcEnCiel', label: 'Annexe 3 - Lecture Livre Arc en Ciel', enabled: true },
   ])
   const pdfSections = Object.fromEntries(pdfSectionOrder.map(s => [s.key, s.enabled])) as Record<string, boolean>
 
@@ -853,9 +853,9 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         devoirs: 'Devoirs Quotidiens',
         rechercheSeance: 'Sujets de recherche de la séance',
         grille: 'Grille de suivi',
-        annexeCommentaires: 'Annexe 1 - Commentaires des séances précédentes',
-        annexeRecherche: 'Annexe 2 - Sujets de recherche',
-        annexeArcEnCiel: 'Annexe 3 - Arc en Ciel',
+        annexeCommentaires: 'Annexe 1 - Commentaires sur récitations',
+        annexeRecherche: 'Annexe 2 - Sujets de recherche suite échanges',
+        annexeArcEnCiel: 'Annexe 3 - Lecture Livre Arc en Ciel',
       }
       const sectionHasContent: Record<string, boolean> = {
         pointsAbordes: true,
@@ -1229,8 +1229,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           drawLegend(legendY)
         } else if (sec.key === 'annexeCommentaires') {
           doc.addPage()
-          sectionPages['Annexe 1 - Commentaires des séances précédentes'] = doc.getNumberOfPages()
-          drawSectionHeader('Annexe 1 - Commentaires des séances précédentes')
+          sectionPages['Annexe 1 - Commentaires sur récitations'] = doc.getNumberOfPages()
+          drawSectionHeader('Annexe 1 - Commentaires sur récitations')
 
           let annexeY = 25
 
@@ -1278,8 +1278,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           }
         } else if (sec.key === 'annexeRecherche') {
           doc.addPage()
-          sectionPages['Annexe 2 - Sujets de recherche'] = doc.getNumberOfPages()
-          drawSectionHeader('Annexe 2 - Sujets de recherche')
+          sectionPages['Annexe 2 - Sujets de recherche suite échanges'] = doc.getNumberOfPages()
+          drawSectionHeader('Annexe 2 - Sujets de recherche suite échanges')
 
           const sortedTopics = [...allResearchTopics].sort((a, b) => {
             if (a.sessionNumber === null) return 1
@@ -1335,8 +1335,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           })
         } else if (sec.key === 'annexeArcEnCiel') {
           doc.addPage()
-          sectionPages['Annexe 3 - Arc en Ciel'] = doc.getNumberOfPages()
-          drawSectionHeader('Annexe 3 - Arc en Ciel')
+          sectionPages['Annexe 3 - Lecture Livre Arc en Ciel'] = doc.getNumberOfPages()
+          drawSectionHeader('Annexe 3 - Lecture Livre Arc en Ciel')
 
           const arcEnCielData = [
             ['1', 'La croyance musulmane', '1', 'Noms et Attributs d\'Allah', 'S2', 'S2'],
