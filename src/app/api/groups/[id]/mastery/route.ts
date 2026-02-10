@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
+import { getWeekNumber } from '@/lib/week-utils'
 
 // Helper: get the Sunday (start of week) for a given date
 function getWeekStart(date: Date): Date {
@@ -231,6 +232,9 @@ export async function GET(
           surahNumber: true,
           verseStart: true,
           verseEnd: true,
+          date: true,
+          comment: true,
+          createdAt: true,
         }
       })
 
@@ -261,6 +265,46 @@ export async function GET(
           }
         }
       }
+
+      // For groups without sessions (e.g., Amilou), inject Progress as comments
+      if (sessionIds.length === 0) {
+        const sortedProgress = [...progressEntries].sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        )
+
+        // Unique dates = "séances" → session numbering
+        const uniqueDates = [...new Set(sortedProgress.map(p =>
+          new Date(p.date).toISOString().split('T')[0]
+        ))].sort()
+        const dateToSessionNum = new Map(uniqueDates.map((d, i) => [d, i + 1]))
+
+        for (const entry of sortedProgress) {
+          const dateStr = new Date(entry.date).toISOString().split('T')[0]
+          const weekNum = getWeekNumber(new Date(entry.date))
+          const sessionNum = dateToSessionNum.get(dateStr) || null
+
+          // Comment: "v.1-11 (9v)" + commentaire original
+          const verseCount = entry.verseEnd - entry.verseStart + 1
+          let commentText = `v.${entry.verseStart}-${entry.verseEnd} (${verseCount}v)`
+          if (entry.comment) {
+            commentText += ` — ${entry.comment}`
+          }
+
+          if (!commentsMap[entry.userId]) commentsMap[entry.userId] = {}
+          if (!commentsMap[entry.userId][entry.surahNumber])
+            commentsMap[entry.userId][entry.surahNumber] = []
+
+          commentsMap[entry.userId][entry.surahNumber].push({
+            id: `progress-${entry.userId}-${entry.surahNumber}-${dateStr}`,
+            comment: commentText,
+            weekNumber: weekNum,
+            sessionNumber: sessionNum,
+            sessionId: null,
+            sessionDate: new Date(entry.date).toISOString(),
+            createdAt: entry.createdAt.toISOString()
+          })
+        }
+      }
     }
 
     // Determine which surahs have data
@@ -271,6 +315,12 @@ export async function GET(
     // Also add surahs from auto-filled mastery
     for (const userId of Object.keys(masteryMap)) {
       for (const surahNum of Object.keys(masteryMap[userId])) {
+        surahsWithData.add(parseInt(surahNum))
+      }
+    }
+    // Also add surahs from Progress comments
+    for (const userId of Object.keys(commentsMap)) {
+      for (const surahNum of Object.keys(commentsMap[userId])) {
         surahsWithData.add(parseInt(surahNum))
       }
     }
