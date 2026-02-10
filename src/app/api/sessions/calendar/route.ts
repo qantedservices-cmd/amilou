@@ -288,10 +288,15 @@ export async function GET(request: Request) {
     // Filter out Progress-based sessions when a real GroupSession exists for the same WEEK/group
     // ============================================
     const groupSessionWeeks = new Set(
-      sessionsFromGroup.map(s => {
-        const weekNum = s.weekNumber || getWeekNumber(new Date(s.date))
+      sessionsFromGroup.flatMap(s => {
+        const calcWeek = getWeekNumber(new Date(s.date))
         const sessionYear = new Date(s.date).getFullYear()
-        return `${sessionYear}-W${weekNum}-${s.groupId}`
+        // Include both stored weekNumber and calculated ISO week to handle mismatches
+        const keys = [`${sessionYear}-W${calcWeek}-${s.groupId}`]
+        if (s.weekNumber && s.weekNumber !== calcWeek) {
+          keys.push(`${sessionYear}-W${s.weekNumber}-${s.groupId}`)
+        }
+        return keys
       })
     )
     const filteredProgressSessions = sessionsFromProgress.filter(s => {
