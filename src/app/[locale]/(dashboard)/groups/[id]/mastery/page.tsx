@@ -190,6 +190,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     { key: 'grille', label: 'Grille de suivi', enabled: true },
     { key: 'annexeCommentaires', label: 'Annexe commentaires', enabled: true },
     { key: 'annexeRecherche', label: 'Annexe recherche', enabled: true },
+    { key: 'annexeArcEnCiel', label: 'Annexe Arc en Ciel', enabled: true },
   ])
   const pdfSections = Object.fromEntries(pdfSectionOrder.map(s => [s.key, s.enabled])) as Record<string, boolean>
 
@@ -854,6 +855,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         grille: 'Grille de suivi',
         annexeCommentaires: 'Annexe 1 - Commentaires des séances précédentes',
         annexeRecherche: 'Annexe 2 - Sujets de recherche',
+        annexeArcEnCiel: 'Annexe 3 - Arc en Ciel',
       }
       const sectionHasContent: Record<string, boolean> = {
         pointsAbordes: true,
@@ -865,6 +867,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         grille: true,
         annexeCommentaires: membersWithComments.length > 0,
         annexeRecherche: allResearchTopics.length > 0,
+        annexeArcEnCiel: true,
       }
 
       // Build ordered TOC entries following user-defined order
@@ -1319,6 +1322,63 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             didParseCell: (hookData: any) => {
               if (hookData.section === 'body' && hookData.column.index === 4) {
                 if (hookData.cell.text.join('') === 'Oui') {
+                  hookData.cell.styles.fillColor = [34, 197, 94]
+                  hookData.cell.styles.textColor = [255, 255, 255]
+                  hookData.cell.styles.fontStyle = 'bold'
+                }
+              }
+            },
+            margin: { left: 10, right: 10 }
+          })
+        } else if (sec.key === 'annexeArcEnCiel') {
+          doc.addPage()
+          sectionPages['Annexe 3 - Arc en Ciel'] = doc.getNumberOfPages()
+          drawSectionHeader('Annexe 3 - Arc en Ciel')
+
+          const arcEnCielData = [
+            ['1', 'La croyance musulmane', '1', 'Noms et Attributs d\'Allah', 'S2', 'S2'],
+            ['1', 'La croyance musulmane', '2', 'Les Anges', 'S4', 'S4'],
+            ['1', 'La croyance musulmane', '3', 'Les Djinns', 'S6', 'S6'],
+            ['1', 'La croyance musulmane', '4', 'La naissance de Isa (Jésus) Qu\'Allah Le Très le Salue', 'S8', 'S8'],
+            ['1', 'La croyance musulmane', '5', 'Les Prophètes et Messagers', 'S10', 'S10'],
+          ]
+
+          // Highlight rows where session number matches current session
+          const currentSessionLabel = `S${reportSessionNumber}`
+
+          autoTable(doc, {
+            head: [['Ch.', 'Titre Chapitre', 'N°', 'Titre Cours', 'Lecture', 'Q/R']],
+            body: arcEnCielData,
+            startY: 25,
+            styles: {
+              font: pdfFont,
+              fontSize: 11,
+              cellPadding: 2,
+              lineColor: [200, 200, 200],
+              lineWidth: 0.1
+            },
+            headStyles: {
+              fillColor: [71, 85, 105],
+              textColor: [255, 255, 255],
+              fontStyle: 'bold',
+              fontSize: 11
+            },
+            columnStyles: {
+              0: { cellWidth: 14, halign: 'center' },
+              1: { cellWidth: 55 },
+              2: { cellWidth: 14, halign: 'center' },
+              3: { cellWidth: 120 },
+              4: { cellWidth: 30, halign: 'center' },
+              5: { cellWidth: 30, halign: 'center' }
+            },
+            alternateRowStyles: {
+              fillColor: [248, 250, 252]
+            },
+            didParseCell: (hookData: any) => {
+              if (hookData.section === 'body') {
+                const cellText = hookData.cell.text.join('')
+                // Highlight cells matching current session
+                if (cellText === currentSessionLabel && (hookData.column.index === 4 || hookData.column.index === 5)) {
                   hookData.cell.styles.fillColor = [34, 197, 94]
                   hookData.cell.styles.textColor = [255, 255, 255]
                   hookData.cell.styles.fontStyle = 'bold'
