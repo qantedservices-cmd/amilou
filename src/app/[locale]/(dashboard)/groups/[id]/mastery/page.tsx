@@ -188,9 +188,9 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     { key: 'devoirs', label: 'Devoirs Quotidiens', enabled: true },
     { key: 'rechercheSeance', label: 'Recherche (séance)', enabled: true },
     { key: 'grille', label: 'Grille de suivi', enabled: true },
-    { key: 'annexeCommentaires', label: 'Annexe commentaires', enabled: true },
-    { key: 'annexeRecherche', label: 'Annexe recherche', enabled: true },
-    { key: 'annexeArcEnCiel', label: 'Annexe Arc en Ciel', enabled: true },
+    { key: 'annexeCommentaires', label: 'Annexe 1 - Commentaires', enabled: true },
+    { key: 'annexeRecherche', label: 'Annexe 2 - Recherche', enabled: true },
+    { key: 'annexeArcEnCiel', label: 'Annexe 3 - Arc en Ciel', enabled: true },
   ])
   const pdfSections = Object.fromEntries(pdfSectionOrder.map(s => [s.key, s.enabled])) as Record<string, boolean>
 
