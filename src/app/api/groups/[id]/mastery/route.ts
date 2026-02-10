@@ -304,6 +304,32 @@ export async function GET(
             createdAt: entry.createdAt.toISOString()
           })
         }
+
+        // Auto-fill mastery for surahs with Progress but no existing status:
+        // - "C" (supposé connu) if the student has Progress on later surahs
+        // - "50%" if it's their latest surah (still in progress)
+        const userSurahs: Record<string, Set<number>> = {}
+        for (const entry of sortedProgress) {
+          if (!userSurahs[entry.userId]) userSurahs[entry.userId] = new Set()
+          userSurahs[entry.userId].add(entry.surahNumber)
+        }
+
+        for (const [userId, surahNums] of Object.entries(userSurahs)) {
+          const maxSurah = Math.max(...surahNums)
+          for (const surahNum of surahNums) {
+            // Skip if already has a mastery status (V, C, etc.)
+            if (masteryMap[userId]?.[surahNum]) continue
+
+            if (!masteryMap[userId]) masteryMap[userId] = {}
+            if (surahNum < maxSurah) {
+              // Student moved on → supposé connu
+              masteryMap[userId][surahNum] = { status: 'X', validatedWeek: null }
+            } else {
+              // Latest surah → en cours
+              masteryMap[userId][surahNum] = { status: '50%', validatedWeek: null }
+            }
+          }
+        }
       }
     }
 
