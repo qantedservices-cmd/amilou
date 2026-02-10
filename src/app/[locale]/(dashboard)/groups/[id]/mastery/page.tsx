@@ -31,7 +31,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { ArrowLeft, BookOpen, ChevronDown, ChevronRight, ChevronUp, FileText, MessageSquare, Pencil, Plus, Trash2, Users, Check, X } from 'lucide-react'
+import { ArrowLeft, ArrowUpDown, BookOpen, ChevronDown, ChevronRight, ChevronUp, FileText, MessageSquare, Pencil, Plus, Search, Trash2, Users, Check, X } from 'lucide-react'
 import { RichTextEditor, stripHtmlTags } from '@/components/ui/rich-text-editor'
 import Link from 'next/link'
 
@@ -157,6 +157,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [showAllComments, setShowAllComments] = useState(false)
   const [addingComment, setAddingComment] = useState(false)
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
+  const [commentSortAsc, setCommentSortAsc] = useState(false)
+  const [commentFilter, setCommentFilter] = useState('')
 
   // Inline editing state
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
@@ -279,12 +281,34 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     setVerseEnd(surahInfo?.totalVerses || 1)
     setShowAllComments(false)
     setEditingCommentId(null)
+    setCommentSortAsc(false)
+    setCommentFilter('')
     setEditDialogOpen(true)
   }
 
   function getComments(): Comment[] {
     if (!editingCell || !data?.commentsMap) return []
-    return data.commentsMap[editingCell.userId]?.[editingCell.surahNumber] || []
+    let comments = data.commentsMap[editingCell.userId]?.[editingCell.surahNumber] || []
+
+    // Filter by search text
+    if (commentFilter.trim()) {
+      const search = commentFilter.trim().toLowerCase()
+      comments = comments.filter(c =>
+        c.comment.toLowerCase().includes(search) ||
+        (c.sessionNumber && `s${c.sessionNumber}`.includes(search))
+      )
+    }
+
+    // Sort: newest first by default, toggle with commentSortAsc
+    comments = [...comments].sort((a, b) => {
+      const dateA = a.sessionDate || a.createdAt
+      const dateB = b.sessionDate || b.createdAt
+      return commentSortAsc
+        ? new Date(dateA).getTime() - new Date(dateB).getTime()
+        : new Date(dateB).getTime() - new Date(dateA).getTime()
+    })
+
+    return comments
   }
 
   async function handleAddComment() {
@@ -1706,6 +1730,30 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               <div className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
                 <Label className="text-sm font-medium">Commentaires</Label>
+              </div>
+
+              {/* Filter and sort controls */}
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Filtrer..."
+                    value={commentFilter}
+                    onChange={(e) => setCommentFilter(e.target.value)}
+                    className="h-7 text-xs pl-7"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs shrink-0"
+                  onClick={() => setCommentSortAsc(!commentSortAsc)}
+                  title={commentSortAsc ? 'Plus ancien → récent' : 'Plus récent → ancien'}
+                >
+                  <ArrowUpDown className="h-3 w-3 mr-1" />
+                  {commentSortAsc ? 'Ancien' : 'Récent'}
+                </Button>
               </div>
 
               {/* Existing comments */}
