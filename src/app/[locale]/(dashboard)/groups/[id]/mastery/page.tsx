@@ -179,20 +179,24 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [reportHomework, setReportHomework] = useState('')
   const [reportSurahs, setReportSurahs] = useState<SurahOption[]>([])
   const [newTopicLabel, setNewTopicLabel] = useState('')
-  const [reportResearchTopics, setReportResearchTopics] = useState<(ResearchTopic & { checked: boolean })[]>([])
   const [pdfSectionOrder, setPdfSectionOrder] = useState([
     { key: 'pointsAbordes', label: 'Points abordés', enabled: true },
     { key: 'prochaineSourate', label: 'Sourate pour la prochaine séance', enabled: true },
     { key: 'classement', label: 'Classement élèves', enabled: true },
     { key: 'suiviIndividuel', label: 'Suivi individuel', enabled: true },
     { key: 'devoirs', label: 'Devoirs Quotidiens', enabled: true },
-    { key: 'rechercheSeance', label: 'Recherche (séance)', enabled: true },
     { key: 'grille', label: 'Grille de suivi', enabled: true },
     { key: 'annexeCommentaires', label: 'Annexe 1 - Commentaires sur récitations', enabled: true },
-    { key: 'annexeRecherche', label: 'Annexe 2 - Sujets de recherche suite échanges suite échanges', enabled: true },
+    { key: 'annexeRecherche', label: 'Annexe 2 - Sujets de recherche suite échanges', enabled: true },
     { key: 'annexeArcEnCiel', label: 'Annexe 3 - Lecture Livre Arc en Ciel', enabled: true },
   ])
   const pdfSections = Object.fromEntries(pdfSectionOrder.map(s => [s.key, s.enabled])) as Record<string, boolean>
+
+  // Session range filters for annexes
+  const [annexeRechercheFrom, setAnnexeRechercheFrom] = useState(1)
+  const [annexeRechercheTo, setAnnexeRechercheTo] = useState(0) // 0 = will be set to reportSessionNumber
+  const [annexeArcEnCielFrom, setAnnexeArcEnCielFrom] = useState(1)
+  const [annexeArcEnCielTo, setAnnexeArcEnCielTo] = useState(0) // 0 = will be set to reportSessionNumber
 
   // Research topics state
   const [researchTopicsOpen, setResearchTopicsOpen] = useState(false)
@@ -508,14 +512,13 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     setReportLoading(true)
     try {
       const targetNum = data.nextSessionNumber - 1
-      const [reportRes, researchRes] = await Promise.all([
-        fetch(`/api/groups/${groupId}/mastery/session-report${targetNum > 0 ? `?sessionNumber=${targetNum}` : ''}`),
-        fetch(`/api/groups/${groupId}/research-topics`)
-      ])
+      const reportRes = await fetch(`/api/groups/${groupId}/mastery/session-report${targetNum > 0 ? `?sessionNumber=${targetNum}` : ''}`)
       if (reportRes.ok) {
         const json = await reportRes.json()
         const sessionNum = json.sessionNumber || data.nextSessionNumber
         setReportSessionNumber(sessionNum)
+        setAnnexeRechercheTo(sessionNum)
+        setAnnexeArcEnCielTo(sessionNum)
 
         // Default topics structure (source of truth for labels and children)
         const defaultTopics: TopicItem[] = [
@@ -568,15 +571,6 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         setReportHomework(json.homework || '')
         setReportSurahs(json.surahs || [])
 
-        // Load research topics for this session
-        if (researchRes.ok) {
-          const researchJson = await researchRes.json()
-          const allTopics: ResearchTopic[] = researchJson.topics || []
-          const sessionTopics = allTopics
-            .filter(t => t.sessionNumber === sessionNum)
-            .map(t => ({ ...t, checked: true }))
-          setReportResearchTopics(sessionTopics)
-        }
       }
     } catch (err) {
       console.error('Error loading session report:', err)
@@ -829,9 +823,6 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
       const membersWithComments = Object.values(pastCommentsByMember).filter(e => e.comments.length > 0)
 
-      // Get checked research topics for this session
-      const checkedSessionResearch = reportResearchTopics.filter(t => t.checked)
-
       // Fetch ALL research topics for Annexe 2
       let allResearchTopics: ResearchTopic[] = []
       try {
@@ -851,7 +842,6 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         classement: 'Classement des élèves',
         suiviIndividuel: 'Suivi individuel de mémorisation',
         devoirs: 'Devoirs Quotidiens',
-        rechercheSeance: 'Sujets de recherche de la séance',
         grille: 'Grille de suivi',
         annexeCommentaires: 'Annexe 1 - Commentaires sur récitations',
         annexeRecherche: 'Annexe 2 - Sujets de recherche suite échanges',
@@ -863,7 +853,6 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         classement: true,
         suiviIndividuel: sessionRows.length > 0,
         devoirs: !!reportHomework.trim(),
-        rechercheSeance: checkedSessionResearch.length > 0,
         grille: true,
         annexeCommentaires: membersWithComments.length > 0,
         annexeRecherche: allResearchTopics.length > 0,
@@ -1107,55 +1096,6 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             doc.text(line, 14, yPos)
             yPos += 5
           }
-        } else if (sec.key === 'rechercheSeance') {
-          doc.addPage()
-          sectionPages['Sujets de recherche de la séance'] = doc.getNumberOfPages()
-          drawSectionHeader('Sujets de recherche de la séance')
-
-          const researchSessionRows = checkedSessionResearch.map(t => [
-            t.assignedTo,
-            t.question,
-            t.answer || '',
-            t.isValidated ? 'Oui' : ''
-          ])
-
-          autoTable(doc, {
-            head: [['Élève', 'Question', 'Réponse', 'Validé']],
-            body: researchSessionRows,
-            startY: 25,
-            styles: {
-              font: pdfFont,
-              fontSize: 11,
-              cellPadding: 3,
-              lineColor: [200, 200, 200],
-              lineWidth: 0.1
-            },
-            headStyles: {
-              fillColor: [71, 85, 105],
-              textColor: [255, 255, 255],
-              fontStyle: 'bold',
-              fontSize: 11
-            },
-            columnStyles: {
-              0: { cellWidth: 30 },
-              1: { cellWidth: 'auto' },
-              2: { cellWidth: 70 },
-              3: { cellWidth: 15, halign: 'center' }
-            },
-            alternateRowStyles: {
-              fillColor: [248, 250, 252]
-            },
-            didParseCell: (hookData: any) => {
-              if (hookData.section === 'body' && hookData.column.index === 3) {
-                if (hookData.cell.text.join('') === 'Oui') {
-                  hookData.cell.styles.fillColor = [34, 197, 94]
-                  hookData.cell.styles.textColor = [255, 255, 255]
-                  hookData.cell.styles.fontStyle = 'bold'
-                }
-              }
-            },
-            margin: { left: 10, right: 10 }
-          })
         } else if (sec.key === 'grille') {
           doc.addPage()
           sectionPages['Grille de suivi'] = doc.getNumberOfPages()
@@ -1281,11 +1221,16 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           sectionPages['Annexe 2 - Sujets de recherche suite échanges'] = doc.getNumberOfPages()
           drawSectionHeader('Annexe 2 - Sujets de recherche suite échanges')
 
-          const sortedTopics = [...allResearchTopics].sort((a, b) => {
-            if (a.sessionNumber === null) return 1
-            if (b.sessionNumber === null) return -1
-            return b.sessionNumber - a.sessionNumber
-          })
+          const sortedTopics = [...allResearchTopics]
+            .filter(t => {
+              if (t.sessionNumber === null) return true
+              return t.sessionNumber >= annexeRechercheFrom && t.sessionNumber <= annexeRechercheTo
+            })
+            .sort((a, b) => {
+              if (a.sessionNumber === null) return 1
+              if (b.sessionNumber === null) return -1
+              return b.sessionNumber - a.sessionNumber
+            })
 
           const researchRows = sortedTopics.map(t => [
             t.sessionNumber ? `S${t.sessionNumber}` : '-',
@@ -1338,13 +1283,20 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           sectionPages['Annexe 3 - Lecture Livre Arc en Ciel'] = doc.getNumberOfPages()
           drawSectionHeader('Annexe 3 - Lecture Livre Arc en Ciel')
 
-          const arcEnCielData = [
+          const arcEnCielDataAll = [
             ['1', 'La croyance musulmane', '1', 'Noms et Attributs d\'Allah', 'S2', 'S2'],
             ['1', 'La croyance musulmane', '2', 'Les Anges', 'S4', 'S4'],
             ['1', 'La croyance musulmane', '3', 'Les Djinns', 'S6', 'S6'],
             ['1', 'La croyance musulmane', '4', 'La naissance de Isa (Jésus) Qu\'Allah Le Très le Salue', 'S8', 'S8'],
             ['1', 'La croyance musulmane', '5', 'Les Prophètes et Messagers', 'S10', 'S10'],
           ]
+
+          const arcEnCielData = arcEnCielDataAll.filter(row => {
+            const sMatch = row[4].match(/^S(\d+)$/)
+            if (!sMatch) return true
+            const sNum = parseInt(sMatch[1])
+            return sNum >= annexeArcEnCielFrom && sNum <= annexeArcEnCielTo
+          })
 
           // Highlight rows where session number matches current session
           const currentSessionLabel = `S${reportSessionNumber}`
@@ -2344,38 +2296,6 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 />
               </div>
 
-              {/* Research topics for this session */}
-              {reportResearchTopics.length > 0 && (
-                <div className="space-y-2 border-t pt-4">
-                  <Label className="text-sm font-medium">
-                    Sujets de recherche — Séance {reportSessionNumber}
-                  </Label>
-                  <div className="space-y-1">
-                    {reportResearchTopics.map((topic, idx) => (
-                      <div key={topic.id} className="flex items-start gap-2 p-1.5 rounded hover:bg-muted/50">
-                        <Checkbox
-                          id={`report-research-${topic.id}`}
-                          checked={topic.checked}
-                          onCheckedChange={(checked) => {
-                            setReportResearchTopics(prev =>
-                              prev.map((t, i) => i === idx ? { ...t, checked: checked === true } : t)
-                            )
-                          }}
-                          className="mt-0.5"
-                        />
-                        <label htmlFor={`report-research-${topic.id}`} className="text-sm flex-1 cursor-pointer">
-                          <span className="font-medium">{topic.assignedTo}</span>
-                          <span className="text-muted-foreground"> — </span>
-                          <span>{topic.question}</span>
-                          {topic.isValidated && (
-                            <Badge className="bg-green-500 text-white text-[10px] ml-1 py-0">Validé</Badge>
-                          )}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -2385,40 +2305,66 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               <Label className="text-sm font-medium">Sections à inclure dans le PDF</Label>
               <div className="space-y-0.5">
                 {pdfSectionOrder.map((section, idx) => (
-                  <div key={section.key} className="flex items-center gap-1.5 py-0.5">
-                    <input
-                      type="checkbox"
-                      checked={section.enabled}
-                      onChange={() => setPdfSectionOrder(prev =>
-                        prev.map((s, i) => i === idx ? { ...s, enabled: !s.enabled } : s)
-                      )}
-                      className="h-3.5 w-3.5 rounded border-gray-300"
-                    />
-                    <span className="text-xs flex-1">{section.label}</span>
-                    <button
-                      type="button"
-                      disabled={idx === 0}
-                      onClick={() => setPdfSectionOrder(prev => {
-                        const arr = [...prev]
-                        ;[arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]]
-                        return arr
-                      })}
-                      className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <ChevronUp className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={idx === pdfSectionOrder.length - 1}
-                      onClick={() => setPdfSectionOrder(prev => {
-                        const arr = [...prev]
-                        ;[arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]]
-                        return arr
-                      })}
-                      className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    </button>
+                  <div key={section.key}>
+                    <div className="flex items-center gap-1.5 py-0.5">
+                      <input
+                        type="checkbox"
+                        checked={section.enabled}
+                        onChange={() => setPdfSectionOrder(prev =>
+                          prev.map((s, i) => i === idx ? { ...s, enabled: !s.enabled } : s)
+                        )}
+                        className="h-3.5 w-3.5 rounded border-gray-300"
+                      />
+                      <span className="text-xs flex-1">{section.label}</span>
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={() => setPdfSectionOrder(prev => {
+                          const arr = [...prev]
+                          ;[arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]]
+                          return arr
+                        })}
+                        className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === pdfSectionOrder.length - 1}
+                        onClick={() => setPdfSectionOrder(prev => {
+                          const arr = [...prev]
+                          ;[arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]]
+                          return arr
+                        })}
+                        className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {section.key === 'annexeRecherche' && section.enabled && (
+                      <div className="flex items-center gap-2 pl-6 py-0.5">
+                        <span className="text-xs text-muted-foreground">Séances :</span>
+                        <Input type="number" min={1} max={annexeRechercheTo} value={annexeRechercheFrom}
+                          onChange={e => setAnnexeRechercheFrom(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-16 h-7 text-xs" />
+                        <span className="text-xs">à</span>
+                        <Input type="number" min={annexeRechercheFrom} value={annexeRechercheTo}
+                          onChange={e => setAnnexeRechercheTo(parseInt(e.target.value) || reportSessionNumber)}
+                          className="w-16 h-7 text-xs" />
+                      </div>
+                    )}
+                    {section.key === 'annexeArcEnCiel' && section.enabled && (
+                      <div className="flex items-center gap-2 pl-6 py-0.5">
+                        <span className="text-xs text-muted-foreground">Séances :</span>
+                        <Input type="number" min={1} max={annexeArcEnCielTo} value={annexeArcEnCielFrom}
+                          onChange={e => setAnnexeArcEnCielFrom(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-16 h-7 text-xs" />
+                        <span className="text-xs">à</span>
+                        <Input type="number" min={annexeArcEnCielFrom} value={annexeArcEnCielTo}
+                          onChange={e => setAnnexeArcEnCielTo(parseInt(e.target.value) || reportSessionNumber)}
+                          className="w-16 h-7 text-xs" />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
