@@ -47,7 +47,7 @@ export async function GET() {
       surahNameAr: string
       totalVerses: number
       coveredVerses: Set<number>
-      entries: { date: string; verseStart: number; verseEnd: number }[]
+      entries: { id: string; date: string; verseStart: number; verseEnd: number }[]
     }> = {}
 
     // Initialize all surahs
@@ -70,6 +70,7 @@ export async function GET() {
           surah.coveredVerses.add(v)
         }
         surah.entries.push({
+          id: entry.id,
           date: entry.date.toISOString().split('T')[0],
           verseStart: entry.verseStart,
           verseEnd: entry.verseEnd
