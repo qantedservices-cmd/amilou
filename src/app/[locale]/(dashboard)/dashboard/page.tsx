@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { SegmentedProgressBar, SegmentData } from '@/components/segmented-progress-bar'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -1128,6 +1129,70 @@ export default function DashboardPage() {
     TAFSIR: '#f43f5e',
   }
 
+  // Transform surahStats into SegmentData[] for memorization
+  const memorizationSegments: SegmentData[] = useMemo(() => {
+    if (!surahStats?.surahs) return []
+    return surahStats.surahs.map(s => ({
+      id: s.number.toString(),
+      label: `${s.number}. ${s.nameFr}`,
+      labelAr: s.nameAr,
+      status: s.programs.MEMORIZATION?.percentage >= 100
+        ? 'completed' as const
+        : s.programs.MEMORIZATION?.percentage > 0
+          ? 'in_progress' as const
+          : 'not_started' as const,
+      percentage: s.programs.MEMORIZATION?.percentage || 0,
+      totalItems: s.totalVerses,
+      completedItems: s.programs.MEMORIZATION?.covered || 0,
+    }))
+  }, [surahStats])
+
+  // Transform surahStats into SegmentData[] for tafsir
+  const tafsirSegments: SegmentData[] = useMemo(() => {
+    if (!surahStats?.surahs) return []
+    return surahStats.surahs.map(s => ({
+      id: s.number.toString(),
+      label: `${s.number}. ${s.nameFr}`,
+      labelAr: s.nameAr,
+      status: s.programs.TAFSIR?.percentage >= 100
+        ? 'completed' as const
+        : s.programs.TAFSIR?.percentage > 0
+          ? 'in_progress' as const
+          : 'not_started' as const,
+      percentage: s.programs.TAFSIR?.percentage || 0,
+      totalItems: s.totalVerses,
+      completedItems: s.programs.TAFSIR?.covered || 0,
+    }))
+  }, [surahStats])
+
+  // Calculate cursor position for memorization (last surah with data)
+  const memorizationCursor = useMemo(() => {
+    if (!memorizationSegments.length) return undefined
+    let lastIdx = -1
+    for (let i = memorizationSegments.length - 1; i >= 0; i--) {
+      if (memorizationSegments[i].status !== 'not_started') {
+        lastIdx = i
+        break
+      }
+    }
+    return lastIdx >= 0 ? lastIdx : undefined
+  }, [memorizationSegments])
+
+  // Fetch history for a surah
+  const fetchSurahHistory = useCallback(async (segmentId: string) => {
+    const res = await fetch(`/api/progress/history?surahNumber=${segmentId}&program=MEMORIZATION`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.entries
+  }, [])
+
+  const fetchTafsirHistory = useCallback(async (segmentId: string) => {
+    const res = await fetch(`/api/progress/history?surahNumber=${segmentId}&program=TAFSIR`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.entries
+  }, [])
+
   const statCards = [
     {
       title: t('dashboard.stats.totalVerses'),
@@ -1320,10 +1385,20 @@ export default function DashboardPage() {
                 {stats?.globalProgress?.percentage || 0}%
               </span>
             </div>
-            <Progress
-              value={stats?.globalProgress?.percentage || 0}
-              className="h-4 bg-emerald-100 dark:bg-emerald-900"
-            />
+            {memorizationSegments.length > 0 ? (
+              <SegmentedProgressBar
+                segments={memorizationSegments}
+                cursorPosition={memorizationCursor}
+                mode="compact"
+                colorScheme="memorization"
+                onBarClick={() => window.location.href = `/${locale}/progress`}
+              />
+            ) : (
+              <Progress
+                value={stats?.globalProgress?.percentage || 0}
+                className="h-4 bg-emerald-100 dark:bg-emerald-900"
+              />
+            )}
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>{stats?.globalProgress?.memorizedPages || 0} pages</span>
               <span>{stats?.globalProgress?.memorizedSurahs || 0} sourates</span>
@@ -1893,7 +1968,16 @@ export default function DashboardPage() {
               <span className="text-sm text-muted-foreground">Progression globale</span>
               <span className="font-bold text-lg text-rose-600">{stats?.tafsirCoverage?.percentage || 0}%</span>
             </div>
-            <Progress value={stats?.tafsirCoverage?.percentage || 0} className="h-3" />
+            {tafsirSegments.length > 0 ? (
+              <SegmentedProgressBar
+                segments={tafsirSegments}
+                mode="compact"
+                colorScheme="tafsir"
+                onBarClick={() => window.location.href = `/${locale}/tafsir`}
+              />
+            ) : (
+              <Progress value={stats?.tafsirCoverage?.percentage || 0} className="h-3" />
+            )}
             <div className="grid grid-cols-3 gap-4 pt-2">
               <div className="text-center">
                 <p className="text-2xl font-bold text-rose-600">{stats?.tafsirCoverage?.coveredVerses || 0}</p>
@@ -1911,7 +1995,7 @@ export default function DashboardPage() {
             <Button
               variant="outline"
               className="w-full mt-2"
-              onClick={() => window.location.href = '/tafsir'}
+              onClick={() => window.location.href = `/${locale}/tafsir`}
             >
               Voir détails par sourate
             </Button>

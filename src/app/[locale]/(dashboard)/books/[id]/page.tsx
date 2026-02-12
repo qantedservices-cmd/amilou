@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { useParams, useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
@@ -20,6 +20,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { ArrowLeft, BookOpen, Check, ChevronDown } from 'lucide-react'
+import { SegmentedProgressBar, SegmentData } from '@/components/segmented-progress-bar'
 
 interface BookItem {
   id: string
@@ -225,6 +226,37 @@ export default function BookDetailPage() {
   }
 
   const pct = book.userProgress.percentage
+
+  // Transform chapters into SegmentData[] for the progress bar
+  // Flatten to top-level chapters only
+  const bookSegments: SegmentData[] = useMemo(() => {
+    if (!book?.chapters) return []
+    return book.chapters.map(ch => {
+      const completed = chapterProgress[ch.id] || 0
+      const total = ch.totalItems || ch._count?.items || 0
+      const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
+      return {
+        id: ch.id,
+        label: `${ch.chapterNumber}. ${ch.title}`,
+        labelAr: ch.titleAr,
+        status: percentage >= 100
+          ? 'completed' as const
+          : percentage > 0
+            ? 'in_progress' as const
+            : 'not_started' as const,
+        percentage,
+        totalItems: total,
+        completedItems: completed,
+      }
+    })
+  }, [book?.chapters, chapterProgress])
+
+  const fetchChapterHistory = useCallback(async (segmentId: string) => {
+    const res = await fetch(`/api/books/${bookId}/chapters/${segmentId}/history`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.entries
+  }, [bookId])
 
   function ChapterSection({ chapter, depth = 0 }: { chapter: Chapter; depth?: number }) {
     const items = chapterItems[chapter.id]
@@ -440,6 +472,16 @@ export default function BookDetailPage() {
               </p>
             </div>
           </div>
+          {bookSegments.length > 0 && (
+            <div className="mt-3">
+              <SegmentedProgressBar
+                segments={bookSegments}
+                mode="full"
+                colorScheme="book"
+                fetchHistory={fetchChapterHistory}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Card,
@@ -38,6 +38,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ArrowLeft, BookOpen, Plus, CheckCircle } from 'lucide-react'
+import { SegmentedProgressBar, SegmentData } from '@/components/segmented-progress-bar'
 
 interface SurahStat {
   surahNumber: number
@@ -165,6 +166,37 @@ export default function TafsirPage() {
     )
   }
 
+  // Transform data into segments for SegmentedProgressBar
+  const tafsirSegments: SegmentData[] = useMemo(() => {
+    if (!data?.allSurahs) return []
+    return data.allSurahs.map(s => ({
+      id: s.surahNumber.toString(),
+      label: `${s.surahNumber}. ${s.surahName}`,
+      labelAr: s.surahNameAr,
+      status: s.isComplete
+        ? 'completed' as const
+        : s.coveredVerses > 0
+          ? 'in_progress' as const
+          : 'not_started' as const,
+      percentage: s.percentage,
+      totalItems: s.totalVerses,
+      completedItems: s.coveredVerses,
+    }))
+  }, [data?.allSurahs])
+
+  const fetchTafsirHistory = useCallback(async (segmentId: string) => {
+    // Use entries from data instead of API call
+    const surahNum = parseInt(segmentId)
+    const surah = data?.allSurahs?.find(s => s.surahNumber === surahNum)
+    if (!surah?.entries?.length) return []
+    return surah.entries.map(e => ({
+      date: e.date,
+      description: `Versets ${e.verseStart}–${e.verseEnd}`,
+      verseStart: e.verseStart,
+      verseEnd: e.verseEnd,
+    }))
+  }, [data?.allSurahs])
+
   const displaySurahs = showAll ? data?.allSurahs : data?.surahs
 
   return (
@@ -198,7 +230,16 @@ export default function TafsirPage() {
               <span className="text-muted-foreground">Couverture du Coran</span>
               <span className="font-bold text-2xl text-rose-600">{data?.global.percentage || 0}%</span>
             </div>
-            <Progress value={data?.global.percentage || 0} className="h-4" />
+            {tafsirSegments.length > 0 ? (
+              <SegmentedProgressBar
+                segments={tafsirSegments}
+                mode="full"
+                colorScheme="tafsir"
+                fetchHistory={fetchTafsirHistory}
+              />
+            ) : (
+              <Progress value={data?.global.percentage || 0} className="h-4" />
+            )}
             <div className="grid grid-cols-4 gap-4 pt-4">
               <div className="text-center">
                 <p className="text-2xl font-bold text-rose-600">{data?.global.coveredVerses || 0}</p>
