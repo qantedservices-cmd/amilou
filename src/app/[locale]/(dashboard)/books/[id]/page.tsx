@@ -217,18 +217,7 @@ export default function BookDetailPage() {
     }
   }
 
-  if (loading || !book) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin h-8 w-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
-      </div>
-    )
-  }
-
-  const pct = book.userProgress.percentage
-
   // Transform chapters into SegmentData[] for the progress bar
-  // Flatten to top-level chapters only
   const bookSegments: SegmentData[] = useMemo(() => {
     if (!book?.chapters) return []
     return book.chapters.map(ch => {
@@ -257,6 +246,16 @@ export default function BookDetailPage() {
     const data = await res.json()
     return data.entries
   }, [bookId])
+
+  if (loading || !book) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin h-8 w-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
+      </div>
+    )
+  }
+
+  const pct = book.userProgress.percentage
 
   function ChapterSection({ chapter, depth = 0 }: { chapter: Chapter; depth?: number }) {
     const items = chapterItems[chapter.id]

@@ -158,14 +158,6 @@ export default function TafsirPage() {
     setDialogOpen(true)
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500"></div>
-      </div>
-    )
-  }
-
   // Transform data into segments for SegmentedProgressBar
   const tafsirSegments: SegmentData[] = useMemo(() => {
     if (!data?.allSurahs) return []
@@ -196,6 +188,14 @@ export default function TafsirPage() {
       verseEnd: e.verseEnd,
     }))
   }, [data?.allSurahs])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500"></div>
+      </div>
+    )
+  }
 
   const displaySurahs = showAll ? data?.allSurahs : data?.surahs
 
