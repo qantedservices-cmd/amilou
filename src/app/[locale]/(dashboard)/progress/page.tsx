@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { TrendingUp, Plus, Pencil, Trash2, BookOpen, ArrowRight } from 'lucide-react'
+import { TrendingUp, Plus, Pencil, Trash2, BookOpen, ArrowRight, User, Lock } from 'lucide-react'
 import { SegmentedProgressBar, SegmentData } from '@/components/segmented-progress-bar'
 
 interface Program {
@@ -62,6 +62,28 @@ interface ProgressEntry {
   comment: string | null
   program: Program
   surah: Surah
+}
+
+interface ManageableUser {
+  id: string
+  name: string | null
+  email: string
+  isSelf: boolean
+  isPrivate: boolean
+  canEdit: boolean
+  canView: boolean
+}
+
+interface SurahStatsData {
+  surahs: Array<{
+    number: number
+    nameFr: string
+    nameAr: string
+    totalVerses: number
+    programs: Record<string, { covered: number; percentage: number }>
+    overallPercentage: number
+  }>
+  totals: Record<string, { covered: number; percentage: number }>
 }
 
 interface TafsirCoverage {
@@ -96,8 +118,13 @@ export default function ProgressPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [filterProgram, setFilterProgram] = useState<string>('all')
 
-  // Tafsir coverage
+  // User selector
+  const [manageableUsers, setManageableUsers] = useState<ManageableUser[]>([])
+  const [selectedUserId, setSelectedUserId] = useState<string>('')
+
+  // Tafsir coverage + surah stats
   const [tafsirData, setTafsirData] = useState<TafsirCoverage | null>(null)
+  const [surahStatsData, setSurahStatsData] = useState<SurahStatsData | null>(null)
 
   // Form state
   const [selectedProgram, setSelectedProgram] = useState('')
@@ -108,26 +135,54 @@ export default function ProgressPage() {
   const [repetitions, setRepetitions] = useState('')
   const [comment, setComment] = useState('')
 
+  // Load manageable users on mount
   useEffect(() => {
-    fetchData()
+    async function init() {
+      try {
+        const [usersRes, progRes, surahRes] = await Promise.all([
+          fetch('/api/users/manageable?dataType=progress'),
+          fetch('/api/programs'),
+          fetch('/api/surahs'),
+        ])
+        const users = await usersRes.json()
+        const progData = await progRes.json()
+        const surahData = await surahRes.json()
+        setManageableUsers(Array.isArray(users) ? users : [])
+        setPrograms(Array.isArray(progData) ? progData : [])
+        setSurahs(Array.isArray(surahData) ? surahData : [])
+        const selfUser = (users as ManageableUser[]).find(u => u.isSelf)
+        if (selfUser) {
+          setSelectedUserId(selfUser.id)
+        }
+      } catch (error) {
+        console.error('Error initializing:', error)
+        setLoading(false)
+      }
+    }
+    init()
   }, [])
+
+  // Reload data when selectedUserId changes
+  useEffect(() => {
+    if (selectedUserId) {
+      fetchData()
+    }
+  }, [selectedUserId])
 
   async function fetchData() {
     try {
-      const [entRes, progRes, surahRes, tafsirRes] = await Promise.all([
-        fetch('/api/progress'),
-        fetch('/api/programs'),
-        fetch('/api/surahs'),
+      const [entRes, tafsirRes, surahStatsRes] = await Promise.all([
+        fetch(`/api/progress?userId=${selectedUserId}&limit=500`),
         fetch('/api/tafsir'),
+        fetch('/api/stats/surahs'),
       ])
       const entData = await entRes.json()
-      const progData = await progRes.json()
-      const surahData = await surahRes.json()
       setEntries(Array.isArray(entData) ? entData : [])
-      setPrograms(Array.isArray(progData) ? progData : [])
-      setSurahs(Array.isArray(surahData) ? surahData : [])
       if (tafsirRes.ok) {
         setTafsirData(await tafsirRes.json())
+      }
+      if (surahStatsRes.ok) {
+        setSurahStatsData(await surahStatsRes.json())
       }
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -252,31 +307,23 @@ export default function ProgressPage() {
     }))
   }, [tafsirData?.allSurahs])
 
-  // Memorization segments
+  // Memorization segments from /api/stats/surahs (accurate, all entries)
   const memorizationSegments: SegmentData[] = useMemo(() => {
-    if (!surahs.length || !entries.length) return []
-    const memEntries = entries.filter(e => e.program.code === 'MEMORIZATION')
-    if (!memEntries.length) return []
-    // Build coverage per surah
-    const coverage: Record<number, Set<number>> = {}
-    for (const e of memEntries) {
-      if (!coverage[e.surahNumber]) coverage[e.surahNumber] = new Set()
-      for (let v = e.verseStart; v <= e.verseEnd; v++) coverage[e.surahNumber].add(v)
-    }
-    return surahs.map(s => {
-      const covered = coverage[s.number]?.size || 0
-      const pct = s.totalVerses > 0 ? Math.round((covered / s.totalVerses) * 100) : 0
-      return {
-        id: s.number.toString(),
-        label: `${s.number}. ${s.nameFr}`,
-        labelAr: s.nameAr,
-        status: pct >= 100 ? 'completed' as const : pct > 0 ? 'in_progress' as const : 'not_started' as const,
-        percentage: pct,
-        totalItems: s.totalVerses,
-        completedItems: covered,
-      }
-    })
-  }, [surahs, entries])
+    if (!surahStatsData?.surahs) return []
+    return surahStatsData.surahs.map(s => ({
+      id: s.number.toString(),
+      label: `${s.number}. ${s.nameFr}`,
+      labelAr: s.nameAr,
+      status: s.programs.MEMORIZATION?.percentage >= 100
+        ? 'completed' as const
+        : s.programs.MEMORIZATION?.percentage > 0
+          ? 'in_progress' as const
+          : 'not_started' as const,
+      percentage: s.programs.MEMORIZATION?.percentage || 0,
+      totalItems: s.totalVerses,
+      completedItems: s.programs.MEMORIZATION?.covered || 0,
+    }))
+  }, [surahStatsData])
 
   const fetchProgressHistory = useCallback(async (segmentId: string) => {
     const program = isTafsirFilter ? 'TAFSIR' : 'MEMORIZATION'
@@ -285,6 +332,9 @@ export default function ProgressPage() {
     const data = await res.json()
     return data.entries
   }, [isTafsirFilter])
+
+  const isViewingSelf = manageableUsers.find(u => u.id === selectedUserId)?.isSelf ?? true
+  const canEdit = isViewingSelf || manageableUsers.find(u => u.id === selectedUserId)?.canEdit
 
   if (loading) {
     return (
@@ -296,23 +346,60 @@ export default function ProgressPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t('progress.title')}</h1>
           <p className="text-muted-foreground">
-            Enregistrez votre avancement quotidien
+            {manageableUsers.find(u => u.id === selectedUserId)?.isSelf
+              ? 'Enregistrez votre avancement quotidien'
+              : `Avancement de ${manageableUsers.find(u => u.id === selectedUserId)?.name || 'Utilisateur'}`
+            }
           </p>
         </div>
+        <div className="flex items-center gap-3">
+          {/* User Selector */}
+          {manageableUsers.length > 1 && (
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger className="w-52">
+                  <SelectValue placeholder="Selectionner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {manageableUsers.map((user) => (
+                    <SelectItem
+                      key={user.id}
+                      value={user.id}
+                      disabled={user.isPrivate}
+                      className={user.isPrivate ? 'text-muted-foreground' : ''}
+                    >
+                      <span className="flex items-center gap-2">
+                        {user.isPrivate && <Lock className="h-3 w-3" />}
+                        {user.isSelf
+                          ? `Moi-meme (${user.name || user.email})`
+                          : user.isPrivate
+                            ? `${user.name || user.email} - Prive`
+                            : (user.name || user.email)
+                        }
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open)
           if (!open) resetForm()
         }}>
-          <DialogTrigger asChild>
-            <Button className="bg-emerald-600 hover:bg-emerald-700">
-              <Plus className="mr-2 h-4 w-4" />
-              {t('progress.addEntry')}
-            </Button>
-          </DialogTrigger>
+          {canEdit && (
+            <DialogTrigger asChild>
+              <Button className="bg-emerald-600 hover:bg-emerald-700">
+                <Plus className="mr-2 h-4 w-4" />
+                {t('progress.addEntry')}
+              </Button>
+            </DialogTrigger>
+          )}
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>
@@ -436,6 +523,7 @@ export default function ProgressPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -572,7 +660,7 @@ export default function ProgressPage() {
                   <TableHead>{t('progress.surah')}</TableHead>
                   <TableHead>{t('progress.verses')}</TableHead>
                   <TableHead>{t('progress.repetitions')}</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  {canEdit && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -602,22 +690,26 @@ export default function ProgressPage() {
                       {entry.repetitions || '-'}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => openEditDialog(entry)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(entry.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canEdit && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openEditDialog(entry)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => handleDelete(entry.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
