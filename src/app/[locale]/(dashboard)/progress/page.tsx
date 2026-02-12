@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useTranslations } from 'next-intl'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,7 +31,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { TrendingUp, Plus, Pencil, Trash2, BookOpen } from 'lucide-react'
+import { Progress } from '@/components/ui/progress'
+import { TrendingUp, Plus, Pencil, Trash2, BookOpen, ArrowRight } from 'lucide-react'
+import { SegmentedProgressBar, SegmentData } from '@/components/segmented-progress-bar'
 
 interface Program {
   id: string
@@ -62,8 +64,30 @@ interface ProgressEntry {
   surah: Surah
 }
 
+interface TafsirCoverage {
+  global: {
+    totalVerses: number
+    coveredVerses: number
+    percentage: number
+    completedSurahs: number
+    inProgressSurahs: number
+    totalSurahs: number
+  }
+  allSurahs: Array<{
+    surahNumber: number
+    surahName: string
+    surahNameAr: string
+    totalVerses: number
+    coveredVerses: number
+    percentage: number
+    isComplete: boolean
+    entries: { id: string; date: string; verseStart: number; verseEnd: number }[]
+  }>
+}
+
 export default function ProgressPage() {
   const t = useTranslations()
+  const locale = useLocale()
   const [entries, setEntries] = useState<ProgressEntry[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
   const [surahs, setSurahs] = useState<Surah[]>([])
@@ -71,6 +95,9 @@ export default function ProgressPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [filterProgram, setFilterProgram] = useState<string>('all')
+
+  // Tafsir coverage
+  const [tafsirData, setTafsirData] = useState<TafsirCoverage | null>(null)
 
   // Form state
   const [selectedProgram, setSelectedProgram] = useState('')
@@ -87,10 +114,11 @@ export default function ProgressPage() {
 
   async function fetchData() {
     try {
-      const [entRes, progRes, surahRes] = await Promise.all([
+      const [entRes, progRes, surahRes, tafsirRes] = await Promise.all([
         fetch('/api/progress'),
         fetch('/api/programs'),
         fetch('/api/surahs'),
+        fetch('/api/tafsir'),
       ])
       const entData = await entRes.json()
       const progData = await progRes.json()
@@ -98,6 +126,9 @@ export default function ProgressPage() {
       setEntries(Array.isArray(entData) ? entData : [])
       setPrograms(Array.isArray(progData) ? progData : [])
       setSurahs(Array.isArray(surahData) ? surahData : [])
+      if (tafsirRes.ok) {
+        setTafsirData(await tafsirRes.json())
+      }
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -195,6 +226,65 @@ export default function ProgressPage() {
     : entries.filter(e => e.programId === filterProgram)
 
   const totalVerses = filteredEntries.reduce((sum, e) => sum + (e.verseEnd - e.verseStart + 1), 0)
+
+  // Check if currently filtering on TAFSIR
+  const isTafsirFilter = useMemo(() => {
+    if (filterProgram === 'all') return false
+    const prog = programs.find(p => p.id === filterProgram)
+    return prog?.code === 'TAFSIR'
+  }, [filterProgram, programs])
+
+  // Tafsir segments for SegmentedProgressBar
+  const tafsirSegments: SegmentData[] = useMemo(() => {
+    if (!tafsirData?.allSurahs) return []
+    return tafsirData.allSurahs.map(s => ({
+      id: s.surahNumber.toString(),
+      label: `${s.surahNumber}. ${s.surahName}`,
+      labelAr: s.surahNameAr,
+      status: s.isComplete
+        ? 'completed' as const
+        : s.coveredVerses > 0
+          ? 'in_progress' as const
+          : 'not_started' as const,
+      percentage: s.percentage,
+      totalItems: s.totalVerses,
+      completedItems: s.coveredVerses,
+    }))
+  }, [tafsirData?.allSurahs])
+
+  // Memorization segments
+  const memorizationSegments: SegmentData[] = useMemo(() => {
+    if (!surahs.length || !entries.length) return []
+    const memEntries = entries.filter(e => e.program.code === 'MEMORIZATION')
+    if (!memEntries.length) return []
+    // Build coverage per surah
+    const coverage: Record<number, Set<number>> = {}
+    for (const e of memEntries) {
+      if (!coverage[e.surahNumber]) coverage[e.surahNumber] = new Set()
+      for (let v = e.verseStart; v <= e.verseEnd; v++) coverage[e.surahNumber].add(v)
+    }
+    return surahs.map(s => {
+      const covered = coverage[s.number]?.size || 0
+      const pct = s.totalVerses > 0 ? Math.round((covered / s.totalVerses) * 100) : 0
+      return {
+        id: s.number.toString(),
+        label: `${s.number}. ${s.nameFr}`,
+        labelAr: s.nameAr,
+        status: pct >= 100 ? 'completed' as const : pct > 0 ? 'in_progress' as const : 'not_started' as const,
+        percentage: pct,
+        totalItems: s.totalVerses,
+        completedItems: covered,
+      }
+    })
+  }, [surahs, entries])
+
+  const fetchProgressHistory = useCallback(async (segmentId: string) => {
+    const program = isTafsirFilter ? 'TAFSIR' : 'MEMORIZATION'
+    const res = await fetch(`/api/progress/history?surahNumber=${segmentId}&program=${program}`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.entries
+  }, [isTafsirFilter])
 
   if (loading) {
     return (
@@ -387,6 +477,74 @@ export default function ProgressPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Tafsir Coverage */}
+      {tafsirData && (isTafsirFilter || filterProgram === 'all') && (
+        <Card className={isTafsirFilter
+          ? 'bg-gradient-to-r from-rose-50 to-purple-50 dark:from-rose-950/30 dark:to-purple-950/30'
+          : ''
+        }>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BookOpen className="h-4 w-4 text-rose-600" />
+                Couverture Tafsir
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-rose-600">{tafsirData.global.percentage}%</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={() => window.location.href = `/${locale}/tafsir`}
+                >
+                  Voir detail <ArrowRight className="h-3 w-3 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {tafsirSegments.length > 0 ? (
+                <SegmentedProgressBar
+                  segments={tafsirSegments}
+                  mode={isTafsirFilter ? 'full' : 'compact'}
+                  colorScheme="tafsir"
+                  onBarClick={isTafsirFilter ? undefined : () => window.location.href = `/${locale}/tafsir`}
+                  fetchHistory={isTafsirFilter ? fetchProgressHistory : undefined}
+                />
+              ) : (
+                <Progress value={tafsirData.global.percentage} className="h-3" />
+              )}
+              <div className="flex gap-4 text-xs text-muted-foreground">
+                <span>{tafsirData.global.coveredVerses} versets couverts</span>
+                <span>{tafsirData.global.completedSurahs} sourates completes</span>
+                <span>{tafsirData.global.inProgressSurahs} en cours</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Memorization Coverage (when filtered to all or memorization) */}
+      {memorizationSegments.length > 0 && !isTafsirFilter && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingUp className="h-4 w-4 text-emerald-600" />
+              Couverture Memorisation
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SegmentedProgressBar
+              segments={memorizationSegments}
+              mode="compact"
+              colorScheme="memorization"
+              fetchHistory={fetchProgressHistory}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Table */}
       {filteredEntries.length === 0 ? (
