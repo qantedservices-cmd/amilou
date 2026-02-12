@@ -167,6 +167,33 @@ Application de suivi des cours de Coran avec gestion des groupes, progression et
 
 ---
 
+## Phase 11: Suivi de Livres (Mutun & Hadiths)
+
+| Tâche | Statut |
+|-------|--------|
+| Schéma Prisma (Book, BookChapter, BookItem, GroupBook, UserBook, UserItemProgress) | ✅ |
+| Seed data Mutun Talib Al-'Ilm (7 niveaux, ~18 textes) | ✅ |
+| Seed data 40 Hadiths Nawawi (42 hadiths arabe + français) | ✅ |
+| Seed data Riyad As-Salihin (19 livres, 50 chapitres) | ✅ |
+| Script fetch Nawawi (fawazahmed0 CDN) | ✅ |
+| Script seed-books.ts | ✅ |
+| API catalogue /api/books (GET, POST) | ✅ |
+| API détail /api/books/[id] (GET, PUT, DELETE) | ✅ |
+| API chapitres /api/books/[id]/chapters (GET, POST) | ✅ |
+| API items /api/books/[id]/chapters/[chapterId]/items (GET) | ✅ |
+| API progression /api/books/[id]/progress (GET, PUT) | ✅ |
+| API livres de groupe /api/groups/[id]/books (GET, POST) | ✅ |
+| API livres de groupe détail /api/groups/[id]/books/[bookId] (GET, DELETE) | ✅ |
+| API livres personnels /api/user/books (GET, POST) | ✅ |
+| Navigation sidebar "Livres" | ✅ |
+| i18n (fr, en, ar) | ✅ |
+| Page liste livres (catalogue + mes livres) | ✅ |
+| Page détail livre (chapitres, checkboxes, progression %) | ✅ |
+| Page livres du groupe (assigner, matrice progression) | ✅ |
+| Import sunnah.com / saisie manuelle | ⬜ |
+
+---
+
 ## Avancement Global
 
 ```
@@ -180,8 +207,9 @@ Phase 7:  ████████████████████ 100%  ✅
 Phase 8:  ████████████████████ 100%  ✅ Nouveau Assiduité
 Phase 9:  ██████████████░░░░░░  70%  Import/Export/Intégrations
 Phase 10: ██████████░░░░░░░░░░  50%  Déploiement
+Phase 11: ██████████████████░░  90%  Suivi de Livres
 ─────────────────────────────────────────────────
-TOTAL:    ██████████████████░░  92%
+TOTAL:    ██████████████████░░  93%
 ```
 
 ---
@@ -221,9 +249,30 @@ TOTAL:    ██████████████████░░  92%
 - **UserProgramSettings** - Objectifs par programme avec historique (startDate/endDate)
 - **DailyLog** - Suivi quotidien détaillé par programme
 
+### Tables Phase 11
+- **Book** - Livres (Mutun, collections de hadiths)
+- **BookChapter** - Chapitres (hiérarchie récursive)
+- **BookItem** - Items (hadith, point, verset)
+- **GroupBook** - Livres assignés à un groupe
+- **UserBook** - Livres personnels d'un utilisateur
+- **UserItemProgress** - Progression par item (checkbox)
+
 ---
 
 ## Changelog
+
+### v0.9.0 (Février 2026)
+- ✅ Suivi de livres islamiques (Mutun & collections de hadiths)
+- ✅ 6 nouveaux modèles Prisma (Book, BookChapter, BookItem, GroupBook, UserBook, UserItemProgress)
+- ✅ Catalogue pré-chargé : Mutun Talib Al-'Ilm (7 niveaux, ~18 textes)
+- ✅ 40 Hadiths Nawawi avec textes arabe et français
+- ✅ Riyad As-Salihin (structure 19 livres, 50 chapitres)
+- ✅ APIs complètes : catalogue, détail, chapitres, items, progression, groupe, personnel
+- ✅ Page catalogue avec vue collection (par niveau) et vue plate
+- ✅ Page détail livre : chapitres dépliables, checkboxes, progression en temps réel
+- ✅ Page livres du groupe : assigner, matrice de progression des membres
+- ✅ Navigation sidebar "Livres" avec icône Library
+- ✅ i18n complet (fr, en, ar)
 
 ### v0.8.0 (Février 2026)
 - ✅ Cycles révision : ajout du nombre de Hizbs (hizbCount) calculé automatiquement

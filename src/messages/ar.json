@@ -38,6 +38,7 @@
     "groups": "المجموعات",
     "evaluations": "التقييمات",
     "sessions": "الجلسات",
+    "books": "الكتب",
     "presentation": "تقديم",
     "settings": "الإعدادات",
     "admin": "الإدارة"
@@ -124,5 +125,45 @@
     "referent": "مرجع",
     "representative": "ممثل",
     "user": "مستخدم"
+  },
+  "books": {
+    "title": "الكتب",
+    "catalog": "الفهرس",
+    "myBooks": "كتبي",
+    "addBook": "إضافة كتاب",
+    "assignBook": "تعيين كتاب",
+    "removeBook": "إزالة الكتاب",
+    "noBooks": "لا توجد كتب",
+    "allDisciplines": "جميع التخصصات",
+    "allTypes": "جميع الأنواع",
+    "searchPlaceholder": "البحث عن كتاب...",
+    "level": "المستوى",
+    "items": "عناصر",
+    "chapters": "فصول",
+    "completed": "مكتمل",
+    "progress": "التقدم",
+    "markAll": "تحديد الكل",
+    "unmarkAll": "إلغاء تحديد الكل",
+    "groupBooks": "كتب المجموعة",
+    "memberProgress": "تقدم الأعضاء",
+    "addToMyList": "إضافة إلى قائمتي",
+    "removeFromMyList": "إزالة من قائمتي",
+    "confirmRemove": "هل تريد إزالة هذا الكتاب؟",
+    "collection": "المجموعة",
+    "disciplines": {
+      "AQEEDAH": "العقيدة",
+      "HADITH": "الحديث",
+      "FIQH": "الفقه",
+      "TAJWEED": "التجويد",
+      "GRAMMAR": "النحو",
+      "USUL_FIQH": "أصول الفقه",
+      "POETRY": "الشعر",
+      "GENERAL": "عام",
+      "ADAB": "الأدب"
+    },
+    "types": {
+      "HADITH_COLLECTION": "مجموعة أحاديث",
+      "MATN": "متن"
+    }
   }
 }

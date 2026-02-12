@@ -1,0 +1,199 @@
+{
+  "book": {
+    "title": "Riyad As-Salihin",
+    "titleAr": "رياض الصالحين",
+    "titleEn": "Gardens of the Righteous",
+    "author": "Imam An-Nawawi",
+    "authorAr": "الإمام النووي",
+    "type": "HADITH_COLLECTION",
+    "discipline": "HADITH",
+    "source": "MANUAL",
+    "sourceRef": "riyad-as-salihin",
+    "sortOrder": 100
+  },
+  "chapters": [
+    {
+      "title": "Livre de la sincérité et de l'intention",
+      "titleAr": "كتاب الإخلاص وهو باب النية",
+      "chapterNumber": 1,
+      "subchapters": [
+        { "title": "La sincérité et l'intention", "titleAr": "باب الإخلاص وإحضار النية", "chapterNumber": 1, "itemCount": 12 },
+        { "title": "Le repentir", "titleAr": "باب التوبة", "chapterNumber": 2, "itemCount": 19 },
+        { "title": "La patience", "titleAr": "باب الصبر", "chapterNumber": 3, "itemCount": 42 },
+        { "title": "La véracité", "titleAr": "باب الصدق", "chapterNumber": 4, "itemCount": 12 },
+        { "title": "La surveillance (Muraqaba)", "titleAr": "باب المراقبة", "chapterNumber": 5, "itemCount": 7 },
+        { "title": "La piété (Taqwa)", "titleAr": "باب التقوى", "chapterNumber": 6, "itemCount": 8 },
+        { "title": "La certitude et la confiance en Allah", "titleAr": "باب اليقين والتوكل", "chapterNumber": 7, "itemCount": 9 },
+        { "title": "La droiture (Istiqama)", "titleAr": "باب الاستقامة", "chapterNumber": 8, "itemCount": 4 },
+        { "title": "La réflexion sur les créatures d'Allah", "titleAr": "باب التفكر في عظيم مخلوقات الله", "chapterNumber": 9, "itemCount": 3 },
+        { "title": "L'empressement dans les bonnes œuvres", "titleAr": "باب المبادرة إلى الخيرات", "chapterNumber": 10, "itemCount": 7 },
+        { "title": "L'effort (Mujahada)", "titleAr": "باب المجاهدة", "chapterNumber": 11, "itemCount": 17 },
+        { "title": "L'incitation à augmenter les bonnes œuvres à la fin de sa vie", "titleAr": "باب الحث على الازدياد من الخير في أواخر العمر", "chapterNumber": 12, "itemCount": 5 },
+        { "title": "Les voies du bien sont nombreuses", "titleAr": "باب بيان كثرة طرق الخير", "chapterNumber": 13, "itemCount": 16 },
+        { "title": "L'économie dans l'adoration", "titleAr": "باب الاقتصاد في العبادة", "chapterNumber": 14, "itemCount": 5 },
+        { "title": "La préservation des actes d'adoration", "titleAr": "باب المحافظة على الأعمال", "chapterNumber": 15, "itemCount": 5 },
+        { "title": "L'obligation de suivre la Sunnah", "titleAr": "باب الأمر بالمحافظة على السنة وآدابها", "chapterNumber": 16, "itemCount": 14 },
+        { "title": "L'obligation d'obéir aux jugements d'Allah", "titleAr": "باب وجوب الانقياد لحكم الله تعالى", "chapterNumber": 17, "itemCount": 3 },
+        { "title": "L'interdiction des innovations", "titleAr": "باب النهي عن البدع", "chapterNumber": 18, "itemCount": 5 }
+      ]
+    },
+    {
+      "title": "Livre des bonnes manières",
+      "titleAr": "كتاب الأدب",
+      "chapterNumber": 2,
+      "subchapters": [
+        { "title": "La pudeur", "titleAr": "باب الحياء", "chapterNumber": 19, "itemCount": 4 },
+        { "title": "La tenue de la promesse", "titleAr": "باب المحافظة على العهد", "chapterNumber": 20, "itemCount": 7 }
+      ]
+    },
+    {
+      "title": "Livre de la bienveillance",
+      "titleAr": "كتاب عيادة المريض",
+      "chapterNumber": 3,
+      "subchapters": [
+        { "title": "La visite du malade", "titleAr": "باب عيادة المريض", "chapterNumber": 21, "itemCount": 9 }
+      ]
+    },
+    {
+      "title": "Livre de la piété filiale",
+      "titleAr": "كتاب بر الوالدين وصلة الأرحام",
+      "chapterNumber": 4,
+      "subchapters": [
+        { "title": "La bonté envers les parents", "titleAr": "باب بر الوالدين", "chapterNumber": 22, "itemCount": 17 },
+        { "title": "Le maintien des liens de parenté", "titleAr": "باب صلة الأرحام", "chapterNumber": 23, "itemCount": 6 }
+      ]
+    },
+    {
+      "title": "Livre de la bienveillance envers les proches",
+      "titleAr": "كتاب الإحسان إلى الجار",
+      "chapterNumber": 5,
+      "subchapters": [
+        { "title": "La bonté envers le voisin", "titleAr": "باب الإحسان إلى الجار", "chapterNumber": 24, "itemCount": 7 },
+        { "title": "La bonté envers les orphelins", "titleAr": "باب كفالة اليتيم", "chapterNumber": 25, "itemCount": 5 }
+      ]
+    },
+    {
+      "title": "Livre des droits du musulman",
+      "titleAr": "كتاب حق المسلم",
+      "chapterNumber": 6,
+      "subchapters": [
+        { "title": "Le respect des musulmans", "titleAr": "باب تعظيم حرمات المسلمين", "chapterNumber": 26, "itemCount": 12 },
+        { "title": "La couverture des défauts", "titleAr": "باب ستر عورات المسلمين", "chapterNumber": 27, "itemCount": 4 }
+      ]
+    },
+    {
+      "title": "Livre du jugement et de la modestie",
+      "titleAr": "كتاب النهي عن الكبر",
+      "chapterNumber": 7,
+      "subchapters": [
+        { "title": "L'interdiction de l'orgueil", "titleAr": "باب تحريم الكبر", "chapterNumber": 28, "itemCount": 9 },
+        { "title": "Le bon caractère", "titleAr": "باب حسن الخلق", "chapterNumber": 29, "itemCount": 14 }
+      ]
+    },
+    {
+      "title": "Livre de la bienveillance et de la douceur",
+      "titleAr": "كتاب الحلم والعفو والرفق",
+      "chapterNumber": 8,
+      "subchapters": [
+        { "title": "La clémence et le pardon", "titleAr": "باب العفو والإعراض عن الجاهلين", "chapterNumber": 30, "itemCount": 7 },
+        { "title": "La douceur", "titleAr": "باب الرفق", "chapterNumber": 31, "itemCount": 8 }
+      ]
+    },
+    {
+      "title": "Livre de la patience face au tort",
+      "titleAr": "كتاب احتمال الأذى",
+      "chapterNumber": 9,
+      "subchapters": [
+        { "title": "Supporter le tort", "titleAr": "باب احتمال الأذى", "chapterNumber": 32, "itemCount": 4 },
+        { "title": "La colère pour les limites d'Allah", "titleAr": "باب الغضب لحرمات الله", "chapterNumber": 33, "itemCount": 3 }
+      ]
+    },
+    {
+      "title": "Livre du commandement au bien",
+      "titleAr": "كتاب الأمر بالمعروف والنهي عن المنكر",
+      "chapterNumber": 10,
+      "subchapters": [
+        { "title": "Ordonner le bien et interdire le mal", "titleAr": "باب الأمر بالمعروف والنهي عن المنكر", "chapterNumber": 34, "itemCount": 24 }
+      ]
+    },
+    {
+      "title": "Livre de la confiance en Allah",
+      "titleAr": "كتاب الأمانة",
+      "chapterNumber": 11,
+      "subchapters": [
+        { "title": "L'honnêteté", "titleAr": "باب الأمانة", "chapterNumber": 35, "itemCount": 7 }
+      ]
+    },
+    {
+      "title": "Livre des invocations",
+      "titleAr": "كتاب الأذكار",
+      "chapterNumber": 12,
+      "subchapters": [
+        { "title": "Le mérite des invocations", "titleAr": "باب فضل الذكر والحث عليه", "chapterNumber": 36, "itemCount": 23 },
+        { "title": "L'invocation du matin et du soir", "titleAr": "باب أذكار الصباح والمساء", "chapterNumber": 37, "itemCount": 12 }
+      ]
+    },
+    {
+      "title": "Livre de la prière sur le Prophète",
+      "titleAr": "كتاب الصلاة على النبي",
+      "chapterNumber": 13,
+      "subchapters": [
+        { "title": "La prière sur le Prophète", "titleAr": "باب الصلاة على النبي", "chapterNumber": 38, "itemCount": 8 }
+      ]
+    },
+    {
+      "title": "Livre du Coran",
+      "titleAr": "كتاب القرآن",
+      "chapterNumber": 14,
+      "subchapters": [
+        { "title": "Le mérite de la lecture du Coran", "titleAr": "باب فضل قراءة القرآن", "chapterNumber": 39, "itemCount": 15 }
+      ]
+    },
+    {
+      "title": "Livre des invocations de circonstance",
+      "titleAr": "كتاب الدعوات",
+      "chapterNumber": 15,
+      "subchapters": [
+        { "title": "Le mérite de l'invocation", "titleAr": "باب فضل الدعاء", "chapterNumber": 40, "itemCount": 14 },
+        { "title": "L'invocation du voyageur", "titleAr": "باب دعاء المسافر", "chapterNumber": 41, "itemCount": 5 }
+      ]
+    },
+    {
+      "title": "Livre des interdictions",
+      "titleAr": "كتاب الأمور المنهي عنها",
+      "chapterNumber": 16,
+      "subchapters": [
+        { "title": "L'interdiction de la médisance", "titleAr": "باب تحريم الغيبة", "chapterNumber": 42, "itemCount": 10 },
+        { "title": "L'interdiction du mensonge", "titleAr": "باب تحريم الكذب", "chapterNumber": 43, "itemCount": 8 },
+        { "title": "L'interdiction de la tricherie", "titleAr": "باب تحريم الغش", "chapterNumber": 44, "itemCount": 4 }
+      ]
+    },
+    {
+      "title": "Livre du repentir et du retour à Allah",
+      "titleAr": "كتاب التوبة والإنابة",
+      "chapterNumber": 17,
+      "subchapters": [
+        { "title": "L'espoir en la miséricorde d'Allah", "titleAr": "باب الرجاء", "chapterNumber": 45, "itemCount": 12 },
+        { "title": "La peur d'Allah", "titleAr": "باب الخوف", "chapterNumber": 46, "itemCount": 18 }
+      ]
+    },
+    {
+      "title": "Livre des mérites",
+      "titleAr": "كتاب الفضائل",
+      "chapterNumber": 18,
+      "subchapters": [
+        { "title": "Mérites du jeûne", "titleAr": "باب فضل الصيام", "chapterNumber": 47, "itemCount": 14 },
+        { "title": "Mérites de la prière nocturne", "titleAr": "باب فضل قيام الليل", "chapterNumber": 48, "itemCount": 10 }
+      ]
+    },
+    {
+      "title": "Livre du Jour Dernier",
+      "titleAr": "كتاب أهوال يوم القيامة",
+      "chapterNumber": 19,
+      "subchapters": [
+        { "title": "Le Jour de la Résurrection", "titleAr": "باب يوم القيامة", "chapterNumber": 49, "itemCount": 15 },
+        { "title": "Le Paradis", "titleAr": "باب صفة الجنة", "chapterNumber": 50, "itemCount": 20 }
+      ]
+    }
+  ]
+}

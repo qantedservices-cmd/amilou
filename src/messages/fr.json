@@ -38,6 +38,7 @@
     "groups": "Groupes",
     "evaluations": "Évaluations",
     "sessions": "Séances",
+    "books": "Livres",
     "presentation": "Présentation",
     "settings": "Paramètres",
     "admin": "Administration"
@@ -145,5 +146,45 @@
     "userDeleted": "Utilisateur supprimé",
     "roleUpdated": "Rôle mis à jour",
     "accessDenied": "Accès réservé aux administrateurs"
+  },
+  "books": {
+    "title": "Livres",
+    "catalog": "Catalogue",
+    "myBooks": "Mes livres",
+    "addBook": "Ajouter un livre",
+    "assignBook": "Assigner un livre",
+    "removeBook": "Retirer le livre",
+    "noBooks": "Aucun livre",
+    "allDisciplines": "Toutes les disciplines",
+    "allTypes": "Tous les types",
+    "searchPlaceholder": "Rechercher un livre...",
+    "level": "Niveau",
+    "items": "éléments",
+    "chapters": "chapitres",
+    "completed": "complétés",
+    "progress": "Progression",
+    "markAll": "Tout cocher",
+    "unmarkAll": "Tout décocher",
+    "groupBooks": "Livres du groupe",
+    "memberProgress": "Progression des membres",
+    "addToMyList": "Ajouter à ma liste",
+    "removeFromMyList": "Retirer de ma liste",
+    "confirmRemove": "Voulez-vous retirer ce livre ?",
+    "collection": "Collection",
+    "disciplines": {
+      "AQEEDAH": "Aqeedah",
+      "HADITH": "Hadith",
+      "FIQH": "Fiqh",
+      "TAJWEED": "Tajweed",
+      "GRAMMAR": "Grammaire",
+      "USUL_FIQH": "Usul al-Fiqh",
+      "POETRY": "Poésie",
+      "GENERAL": "Général",
+      "ADAB": "Adab"
+    },
+    "types": {
+      "HADITH_COLLECTION": "Collection de hadiths",
+      "MATN": "Matn"
+    }
   }
 }

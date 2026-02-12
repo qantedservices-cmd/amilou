@@ -15,6 +15,7 @@ import {
   Settings,
   Shield,
   BookOpen,
+  Library,
 } from 'lucide-react'
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
   { href: '/groups', icon: Users, labelKey: 'nav.groups' },
   { href: '/evaluations', icon: ClipboardCheck, labelKey: 'nav.evaluations' },
   { href: '/sessions', icon: Calendar, labelKey: 'nav.sessions' },
+  { href: '/books', icon: Library, labelKey: 'nav.books' },
 ]
 
 const bottomItems = [

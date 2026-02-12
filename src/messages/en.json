@@ -38,6 +38,7 @@
     "groups": "Groups",
     "evaluations": "Evaluations",
     "sessions": "Sessions",
+    "books": "Books",
     "presentation": "Presentation",
     "settings": "Settings",
     "admin": "Administration"
@@ -124,5 +125,45 @@
     "referent": "Referent",
     "representative": "Representative",
     "user": "User"
+  },
+  "books": {
+    "title": "Books",
+    "catalog": "Catalog",
+    "myBooks": "My Books",
+    "addBook": "Add a book",
+    "assignBook": "Assign a book",
+    "removeBook": "Remove book",
+    "noBooks": "No books",
+    "allDisciplines": "All disciplines",
+    "allTypes": "All types",
+    "searchPlaceholder": "Search for a book...",
+    "level": "Level",
+    "items": "items",
+    "chapters": "chapters",
+    "completed": "completed",
+    "progress": "Progress",
+    "markAll": "Check all",
+    "unmarkAll": "Uncheck all",
+    "groupBooks": "Group Books",
+    "memberProgress": "Member Progress",
+    "addToMyList": "Add to my list",
+    "removeFromMyList": "Remove from my list",
+    "confirmRemove": "Do you want to remove this book?",
+    "collection": "Collection",
+    "disciplines": {
+      "AQEEDAH": "Aqeedah",
+      "HADITH": "Hadith",
+      "FIQH": "Fiqh",
+      "TAJWEED": "Tajweed",
+      "GRAMMAR": "Grammar",
+      "USUL_FIQH": "Usul al-Fiqh",
+      "POETRY": "Poetry",
+      "GENERAL": "General",
+      "ADAB": "Adab"
+    },
+    "types": {
+      "HADITH_COLLECTION": "Hadith Collection",
+      "MATN": "Matn"
+    }
   }
 }

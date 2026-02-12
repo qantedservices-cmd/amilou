@@ -101,6 +101,7 @@ Les données privées restent visibles pour :
 | Groupes | Tous | Ses groupes uniquement (ADMIN voit tous) |
 | Évaluations | Tous | Ses évaluations (ADMIN/REFERENT voient celles du groupe) |
 | Séances | Tous | Séances de ses groupes uniquement (ADMIN voit toutes) |
+| Livres | Tous | Catalogue + mes livres + livres de groupe |
 | Paramètres | Tous | Profil, mot de passe, confidentialité, objectifs par programme |
 | Présentation | Tous | Contenu spirituel sur le Coran et explication des programmes |
 | Admin | ADMIN seulement | Gestion utilisateurs, impersonation |
@@ -155,6 +156,38 @@ Base PostgreSQL hébergée sur Supabase. Schéma Prisma dans `prisma/schema.pris
 - `SurahMastery` : État de maîtrise par sourate
 - `SurahRecitation` : Historique des récitations en séance
 - `CompletionCycle` : Cycles de révision/lecture complètes (CRUD complet via API)
+- `Book` : Livres islamiques (Mutun, collections de hadiths)
+- `BookChapter` : Chapitres (hiérarchie récursive parent/children)
+- `BookItem` : Items (hadith, point, verset) avec textes arabe/français/anglais
+- `GroupBook` : Livres assignés à un groupe par le référent
+- `UserBook` : Livres personnels d'un utilisateur
+- `UserItemProgress` : Progression par item (checkbox completed)
+
+## Suivi de Livres (Mutun & Hadiths)
+
+### Structure
+- **Book** : type (HADITH_COLLECTION | MATN), discipline (AQEEDAH, HADITH, FIQH...), collectionId, collectionLevel
+- **BookChapter** : hiérarchie récursive (parentId), chapterNumber, depth
+- **BookItem** : itemNumber, textes multilingues
+- **Complétion en cascade** : checkbox item → % chapitre → % livre
+
+### Collection pré-chargée : Mutun Talib Al-'Ilm
+- 7 niveaux, ~18 textes (Al-Usul al-Thalatha, Nawaqid, Kitab at-Tawhid, Nawawi40, etc.)
+- Seed : `npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/seed-books.ts`
+
+### APIs
+- `/api/books` : catalogue (filtrable par discipline/type/search)
+- `/api/books/[id]` : détail avec arbre chapitres + progression utilisateur
+- `/api/books/[id]/chapters/[chapterId]/items` : items avec progression (lazy-load)
+- `/api/books/[id]/progress` : GET progression, PUT toggle complétion (unitaire ou batch)
+- `/api/groups/[id]/books` : livres du groupe (assigner/lister)
+- `/api/groups/[id]/books/[bookId]` : matrice progression membres + retirer
+- `/api/user/books` : mes livres (perso + groupe combinés)
+
+### Pages
+- `/books` : catalogue avec vue collection (par niveau) et vue plate
+- `/books/[id]` : détail livre avec chapitres dépliables, checkboxes, progression %
+- `/groups/[id]/books` : livres du groupe, assigner, matrice membres
 
 ## Grille de suivi (Mastery)
 

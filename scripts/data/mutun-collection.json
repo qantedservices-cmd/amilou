@@ -1,0 +1,772 @@
+{
+  "collection": {
+    "id": "mutun-talib-al-ilm",
+    "title": "Mutun Talib Al-'Ilm",
+    "titleAr": "متون طالب العلم",
+    "description": "Collection progressive de textes fondamentaux pour l'étudiant en sciences islamiques"
+  },
+  "books": [
+    {
+      "title": "Les trois fondements",
+      "titleAr": "الأصول الثلاثة",
+      "titleEn": "The Three Fundamental Principles",
+      "author": "Muhammad ibn Abd al-Wahhab",
+      "authorAr": "محمد بن عبد الوهاب",
+      "type": "MATN",
+      "discipline": "AQEEDAH",
+      "collectionLevel": 1,
+      "sourceRef": "usul-thalatha",
+      "sortOrder": 1,
+      "chapters": [
+        {
+          "title": "Introduction",
+          "titleAr": "المقدمة",
+          "chapterNumber": 1,
+          "items": [
+            { "itemNumber": 1, "title": "Les quatre points à apprendre", "textAr": "اعلم رحمك الله أنه يجب علينا تعلم أربع مسائل" }
+          ]
+        },
+        {
+          "title": "Premier fondement : Connaissance d'Allah",
+          "titleAr": "الأصل الأول: معرفة الله",
+          "chapterNumber": 2,
+          "items": [
+            { "itemNumber": 1, "title": "Qui est ton Seigneur ?", "textAr": "فإذا قيل لك: من ربك؟ فقل: ربي الله" },
+            { "itemNumber": 2, "title": "Les signes d'Allah", "textAr": "ومن آياته الليل والنهار والشمس والقمر" },
+            { "itemNumber": 3, "title": "Les types d'adoration", "textAr": "وأنواع العبادة التي أمر الله بها" }
+          ]
+        },
+        {
+          "title": "Deuxième fondement : Connaissance de l'Islam",
+          "titleAr": "الأصل الثاني: معرفة دين الإسلام",
+          "chapterNumber": 3,
+          "items": [
+            { "itemNumber": 1, "title": "L'Islam et ses piliers", "textAr": "الإسلام هو الاستسلام لله بالتوحيد" },
+            { "itemNumber": 2, "title": "La foi et ses piliers", "textAr": "الإيمان بضع وسبعون شعبة" },
+            { "itemNumber": 3, "title": "L'excellence (Ihsan)", "textAr": "الإحسان: أن تعبد الله كأنك تراه" }
+          ]
+        },
+        {
+          "title": "Troisième fondement : Connaissance du Prophète",
+          "titleAr": "الأصل الثالث: معرفة نبيكم",
+          "chapterNumber": 4,
+          "items": [
+            { "itemNumber": 1, "title": "Sa lignée et sa mission", "textAr": "هو محمد بن عبد الله بن عبد المطلب الهاشمي القرشي" },
+            { "itemNumber": 2, "title": "Sa révélation", "textAr": "أنزل عليه سورة اقرأ" },
+            { "itemNumber": 3, "title": "Sa migration", "textAr": "ثم هاجر إلى المدينة" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Les quatre règles",
+      "titleAr": "القواعد الأربع",
+      "titleEn": "The Four Rules",
+      "author": "Muhammad ibn Abd al-Wahhab",
+      "authorAr": "محمد بن عبد الوهاب",
+      "type": "MATN",
+      "discipline": "AQEEDAH",
+      "collectionLevel": 1,
+      "sourceRef": "qawaid-arba",
+      "sortOrder": 2,
+      "chapters": [
+        {
+          "title": "Introduction et invocations",
+          "titleAr": "المقدمة والدعاء",
+          "chapterNumber": 1,
+          "items": [
+            { "itemNumber": 1, "title": "Demande de guidance", "textAr": "أسأل الله الكريم رب العرش العظيم أن يتولاك في الدنيا والآخرة" }
+          ]
+        },
+        {
+          "title": "Première règle",
+          "titleAr": "القاعدة الأولى",
+          "chapterNumber": 2,
+          "items": [
+            { "itemNumber": 1, "title": "Les mécréants reconnaissaient un Créateur", "textAr": "أن الكفار الذين قاتلهم رسول الله كانوا يُقِرّون بأن الله هو الخالق" }
+          ]
+        },
+        {
+          "title": "Deuxième règle",
+          "titleAr": "القاعدة الثانية",
+          "chapterNumber": 3,
+          "items": [
+            { "itemNumber": 1, "title": "Ils invoquaient des intermédiaires", "textAr": "أنهم يقولون ما دعوناهم إلا ليقربونا إلى الله زلفى" }
+          ]
+        },
+        {
+          "title": "Troisième règle",
+          "titleAr": "القاعدة الثالثة",
+          "chapterNumber": 4,
+          "items": [
+            { "itemNumber": 1, "title": "Le Prophète combattit des gens de différentes adorations", "textAr": "أن النبي ظهر على أناس متفرقين في عباداتهم" }
+          ]
+        },
+        {
+          "title": "Quatrième règle",
+          "titleAr": "القاعدة الرابعة",
+          "chapterNumber": 5,
+          "items": [
+            { "itemNumber": 1, "title": "Le shirk de notre époque est pire", "textAr": "أن مشركي زماننا أعظم شركاً من الأولين" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Les annulatifs de l'Islam",
+      "titleAr": "نواقض الإسلام",
+      "titleEn": "Nullifiers of Islam",
+      "author": "Muhammad ibn Abd al-Wahhab",
+      "authorAr": "محمد بن عبد الوهاب",
+      "type": "MATN",
+      "discipline": "AQEEDAH",
+      "collectionLevel": 1,
+      "sourceRef": "nawaqid-islam",
+      "sortOrder": 3,
+      "chapters": [
+        {
+          "title": "Les dix annulatifs",
+          "titleAr": "النواقض العشرة",
+          "chapterNumber": 1,
+          "items": [
+            { "itemNumber": 1, "title": "Le polythéisme dans l'adoration", "textAr": "الأول: الشرك في عبادة الله تعالى" },
+            { "itemNumber": 2, "title": "Les intermédiaires entre Allah et soi", "textAr": "الثاني: من جعل بينه وبين الله وسائط" },
+            { "itemNumber": 3, "title": "Ne pas déclarer mécréant les polythéistes", "textAr": "الثالث: من لم يكفِّر المشركين" },
+            { "itemNumber": 4, "title": "Croire qu'une autre guidance est meilleure", "textAr": "الرابع: من اعتقد أن غير هدي النبي أكمل من هديه" },
+            { "itemNumber": 5, "title": "Détester un enseignement du Prophète", "textAr": "الخامس: من أبغض شيئاً مما جاء به الرسول" },
+            { "itemNumber": 6, "title": "Se moquer de la religion", "textAr": "السادس: من استهزأ بشيء من دين الرسول" },
+            { "itemNumber": 7, "title": "La sorcellerie", "textAr": "السابع: السحر" },
+            { "itemNumber": 8, "title": "Soutenir les polythéistes contre les musulmans", "textAr": "الثامن: مظاهرة المشركين ومعاونتهم على المسلمين" },
+            { "itemNumber": 9, "title": "Croire pouvoir sortir de la Charia", "textAr": "التاسع: من اعتقد أن بعض الناس يسعه الخروج عن شريعة محمد" },
+            { "itemNumber": 10, "title": "Se détourner de la religion d'Allah", "textAr": "العاشر: الإعراض عن دين الله لا يتعلمه ولا يعمل به" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Les conditions de la prière",
+      "titleAr": "شروط الصلاة وأركانها وواجباتها",
+      "titleEn": "Conditions, Pillars and Obligations of Prayer",
+      "author": "Muhammad ibn Abd al-Wahhab",
+      "authorAr": "محمد بن عبد الوهاب",
+      "type": "MATN",
+      "discipline": "FIQH",
+      "collectionLevel": 1,
+      "sourceRef": "shurut-salah",
+      "sortOrder": 4,
+      "chapters": [
+        {
+          "title": "Conditions de la prière",
+          "titleAr": "شروط الصلاة",
+          "chapterNumber": 1,
+          "items": [
+            { "itemNumber": 1, "title": "L'Islam" },
+            { "itemNumber": 2, "title": "La raison" },
+            { "itemNumber": 3, "title": "Le discernement" },
+            { "itemNumber": 4, "title": "La purification" },
+            { "itemNumber": 5, "title": "Le temps prescrit" },
+            { "itemNumber": 6, "title": "Couvrir la 'awra" },
+            { "itemNumber": 7, "title": "Éviter les impuretés" },
+            { "itemNumber": 8, "title": "Faire face à la Qibla" },
+            { "itemNumber": 9, "title": "L'intention" }
+          ]
+        },
+        {
+          "title": "Piliers de la prière",
+          "titleAr": "أركان الصلاة",
+          "chapterNumber": 2,
+          "items": [
+            { "itemNumber": 1, "title": "Se tenir debout" },
+            { "itemNumber": 2, "title": "Le takbir d'ouverture" },
+            { "itemNumber": 3, "title": "La récitation de la Fatiha" },
+            { "itemNumber": 4, "title": "L'inclinaison (ruku')" },
+            { "itemNumber": 5, "title": "Se relever de l'inclinaison" },
+            { "itemNumber": 6, "title": "La prosternation sur 7 membres" },
+            { "itemNumber": 7, "title": "Se relever de la prosternation" },
+            { "itemNumber": 8, "title": "S'asseoir entre les deux prosternations" },
+            { "itemNumber": 9, "title": "La sérénité dans tous les actes" },
+            { "itemNumber": 10, "title": "Le tachahoud final" },
+            { "itemNumber": 11, "title": "S'asseoir pour le tachahoud" },
+            { "itemNumber": 12, "title": "La prière sur le Prophète" },
+            { "itemNumber": 13, "title": "Le taslim" },
+            { "itemNumber": 14, "title": "L'ordre entre les piliers" }
+          ]
+        },
+        {
+          "title": "Obligations de la prière",
+          "titleAr": "واجبات الصلاة",
+          "chapterNumber": 3,
+          "items": [
+            { "itemNumber": 1, "title": "Tous les takbirs sauf le premier" },
+            { "itemNumber": 2, "title": "Dire 'Subhana Rabbi al-'Azim' dans le ruku'" },
+            { "itemNumber": 3, "title": "Dire 'Sami' Allahu liman hamidah'" },
+            { "itemNumber": 4, "title": "Dire 'Rabbana wa laka al-hamd'" },
+            { "itemNumber": 5, "title": "Dire 'Subhana Rabbi al-A'la' dans le sujud" },
+            { "itemNumber": 6, "title": "Dire 'Rabbi ighfir li' entre les deux prosternations" },
+            { "itemNumber": 7, "title": "Le premier tachahoud" },
+            { "itemNumber": 8, "title": "S'asseoir pour le premier tachahoud" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Les quarante hadiths",
+      "titleAr": "الأربعون النووية",
+      "titleEn": "An-Nawawi's Forty Hadith",
+      "author": "Imam An-Nawawi",
+      "authorAr": "الإمام النووي",
+      "type": "HADITH_COLLECTION",
+      "discipline": "HADITH",
+      "collectionLevel": 2,
+      "sourceRef": "nawawi40",
+      "sortOrder": 5,
+      "chapters": [
+        {
+          "title": "Les quarante hadiths",
+          "titleAr": "الأربعون حديثاً",
+          "chapterNumber": 1,
+          "items": "FETCH_FROM_API"
+        }
+      ]
+    },
+    {
+      "title": "Tuhfat al-Atfal",
+      "titleAr": "تحفة الأطفال",
+      "titleEn": "The Children's Gift (Tajweed Poem)",
+      "author": "Sulayman al-Jamzuri",
+      "authorAr": "سليمان الجمزوري",
+      "type": "MATN",
+      "discipline": "TAJWEED",
+      "collectionLevel": 2,
+      "sourceRef": "tuhfat-atfal",
+      "sortOrder": 6,
+      "chapters": [
+        {
+          "title": "Règles du Noun Sakinah et Tanwin",
+          "titleAr": "أحكام النون الساكنة والتنوين",
+          "chapterNumber": 1,
+          "items": [
+            { "itemNumber": 1, "title": "Izhar (manifestation)", "textAr": "للنونِ إن تسكن وللتنوينِ *** أربعُ أحكامٍ فخذ تبييني" },
+            { "itemNumber": 2, "title": "Idgham (assimilation)", "textAr": "والثانِ إدغامٌ بستةٍ أتت *** في يرملون عندهم قد ثبتت" },
+            { "itemNumber": 3, "title": "Iqlab (conversion)", "textAr": "والثالثُ الإقلابُ عند الباءِ *** ميماً بغنةٍ مع الإخفاءِ" },
+            { "itemNumber": 4, "title": "Ikhfa (dissimulation)", "textAr": "والرابعُ الإخفاءُ عند الفاضلِ *** من الحروفِ واجبٌ للفاضلِ" }
+          ]
+        },
+        {
+          "title": "Règles du Mim Sakinah",
+          "titleAr": "أحكام الميم الساكنة",
+          "chapterNumber": 2,
+          "items": [
+            { "itemNumber": 1, "title": "Ikhfa Shafawi", "textAr": "والميمُ إن تسكن تجي قبل الهجا *** لا ألفٍ لينةٍ لذي الحجا" },
+            { "itemNumber": 2, "title": "Idgham Mimi", "textAr": "أُحكامُها ثلاثةٌ لمن ضبط *** إخفاءٌ ادغامٌ وإظهارٌ فقط" },
+            { "itemNumber": 3, "title": "Izhar Shafawi" }
+          ]
+        },
+        {
+          "title": "Les prolongations (Al-Madd)",
+          "titleAr": "أحكام المدود",
+          "chapterNumber": 3,
+          "items": [
+            { "itemNumber": 1, "title": "Madd Tabii (naturel)", "textAr": "والمدُّ أصلي وفرعي له *** وما سواه الفرعُ لا تُنسى" },
+            { "itemNumber": 2, "title": "Madd Muttasil (joint)", "textAr": "فواجبٌ إن جاء همزٌ بعد مدّ *** في كلمةٍ وذا بمتصلٍ يُعدّ" },
+            { "itemNumber": 3, "title": "Madd Munfasil (séparé)" },
+            { "itemNumber": 4, "title": "Madd 'Arid (accidentel)" },
+            { "itemNumber": 5, "title": "Madd Lazim (obligatoire)" }
+          ]
+        },
+        {
+          "title": "Les lettres épaisses et fines (Tafkhim/Tarqiq)",
+          "titleAr": "التفخيم والترقيق",
+          "chapterNumber": 4,
+          "items": [
+            { "itemNumber": 1, "title": "Lettres de Tafkhim", "textAr": "خُصَّ ضَغطٍ قِظ حروفُ الاستعلا" },
+            { "itemNumber": 2, "title": "Règles du Ra" },
+            { "itemNumber": 3, "title": "Règles du Lam dans le nom d'Allah" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Al-Bayquniyyah",
+      "titleAr": "المنظومة البيقونية",
+      "titleEn": "Al-Bayquniyyah Poem (Hadith Sciences)",
+      "author": "Umar ibn Muhammad al-Bayquni",
+      "authorAr": "عمر بن محمد البيقوني",
+      "type": "MATN",
+      "discipline": "HADITH",
+      "collectionLevel": 2,
+      "sourceRef": "bayquniyyah",
+      "sortOrder": 7,
+      "chapters": [
+        {
+          "title": "Types de hadiths",
+          "titleAr": "أنواع الحديث",
+          "chapterNumber": 1,
+          "items": [
+            { "itemNumber": 1, "title": "Introduction du poème", "textAr": "أبدأُ بالحمدِ مُصلِّياً على *** محمدٍ خيرِ نبيٍّ أُرسلا" },
+            { "itemNumber": 2, "title": "Al-Sahih (authentique)", "textAr": "أولُها الصحيحُ وهو ما اتصل *** إسنادُه ولم يشذَّ أو يُعل" },
+            { "itemNumber": 3, "title": "Al-Hasan (bon)" },
+            { "itemNumber": 4, "title": "Ad-Da'if (faible)" },
+            { "itemNumber": 5, "title": "Al-Marfu' (élevé)" },
+            { "itemNumber": 6, "title": "Al-Mawquf (arrêté)" },
+            { "itemNumber": 7, "title": "Al-Maqtu' (interrompu)" },
+            { "itemNumber": 8, "title": "Al-Musnad (appuyé)" },
+            { "itemNumber": 9, "title": "Al-Muttasil (continu)" },
+            { "itemNumber": 10, "title": "Al-Mursal (envoyé)" },
+            { "itemNumber": 11, "title": "Al-Munqati' (coupé)" },
+            { "itemNumber": 12, "title": "Al-Mu'dal (problématique)" },
+            { "itemNumber": 13, "title": "Al-Mudallas (dissimulé)" },
+            { "itemNumber": 14, "title": "Ash-Shadh (anomal)" },
+            { "itemNumber": 15, "title": "Al-Munkar (rejeté)" },
+            { "itemNumber": 16, "title": "Al-Matruk (abandonné)" },
+            { "itemNumber": 17, "title": "Al-Mawdu' (fabriqué)" },
+            { "itemNumber": 18, "title": "Al-Mutawatir (massivement rapporté)" },
+            { "itemNumber": 19, "title": "Al-Ahad (isolé)" },
+            { "itemNumber": 20, "title": "Al-Aziz (rare)" },
+            { "itemNumber": 21, "title": "Al-Mashhur (célèbre)" },
+            { "itemNumber": 22, "title": "Al-Gharib (étrange)" },
+            { "itemNumber": 23, "title": "Al-Mu'an'an (transmis par 'an)" },
+            { "itemNumber": 24, "title": "Al-Mubham (vague)" },
+            { "itemNumber": 25, "title": "Al-'Ali et An-Nazil (haut et bas)" },
+            { "itemNumber": 26, "title": "Al-Musalsal (enchaîné)" },
+            { "itemNumber": 27, "title": "Al-Mu'allaq (suspendu)" },
+            { "itemNumber": 28, "title": "Al-Mudraj (interpolé)" },
+            { "itemNumber": 29, "title": "Al-Mudrij (qui interpolère)" },
+            { "itemNumber": 30, "title": "Al-Mudtarib (vacillant)" },
+            { "itemNumber": 31, "title": "Al-Maqlub (inversé)" },
+            { "itemNumber": 32, "title": "Al-Fard (unique)" },
+            { "itemNumber": 33, "title": "Al-Mu'allal (défectueux)" },
+            { "itemNumber": 34, "title": "Conclusion du poème" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Al-Ajurrumiyyah",
+      "titleAr": "الآجرومية",
+      "titleEn": "Al-Ajurrumiyyah (Arabic Grammar)",
+      "author": "Ibn Ajurrum",
+      "authorAr": "ابن آجروم",
+      "type": "MATN",
+      "discipline": "GRAMMAR",
+      "collectionLevel": 2,
+      "sourceRef": "ajurrumiyyah",
+      "sortOrder": 8,
+      "chapters": [
+        {
+          "title": "Les types de mots",
+          "titleAr": "أنواع الكلام",
+          "chapterNumber": 1,
+          "items": [
+            { "itemNumber": 1, "title": "Définition du discours (Kalam)" },
+            { "itemNumber": 2, "title": "Le nom (Ism)" },
+            { "itemNumber": 3, "title": "Le verbe (Fi'l)" },
+            { "itemNumber": 4, "title": "La particule (Harf)" }
+          ]
+        },
+        {
+          "title": "Les signes de l'I'rab",
+          "titleAr": "علامات الإعراب",
+          "chapterNumber": 2,
+          "items": [
+            { "itemNumber": 1, "title": "Le Raf' (nominatif)" },
+            { "itemNumber": 2, "title": "Le Nasb (accusatif)" },
+            { "itemNumber": 3, "title": "Le Khafd (génitif)" },
+            { "itemNumber": 4, "title": "Le Jazm (apocopé)" }
+          ]
+        },
+        {
+          "title": "Les noms au Raf'",
+          "titleAr": "المرفوعات من الأسماء",
+          "chapterNumber": 3,
+          "items": [
+            { "itemNumber": 1, "title": "Le sujet (Fa'il)" },
+            { "itemNumber": 2, "title": "Le sujet passif (Na'ib al-Fa'il)" },
+            { "itemNumber": 3, "title": "Le Mubtada et le Khabar" },
+            { "itemNumber": 4, "title": "Les particules de Kana" },
+            { "itemNumber": 5, "title": "Les particules de Inna" }
+          ]
+        },
+        {
+          "title": "Les noms au Nasb",
+          "titleAr": "المنصوبات من الأسماء",
+          "chapterNumber": 4,
+          "items": [
+            { "itemNumber": 1, "title": "Le complément d'objet (Maf'ul bihi)" },
+            { "itemNumber": 2, "title": "Le Masdar (nom verbal)" },
+            { "itemNumber": 3, "title": "Le complément de temps et de lieu" },
+            { "itemNumber": 4, "title": "Le Hal (état)" },
+            { "itemNumber": 5, "title": "Le Tamyiz (spécification)" },
+            { "itemNumber": 6, "title": "L'exception (Istithna)" },
+            { "itemNumber": 7, "title": "Le complément de cause" },
+            { "itemNumber": 8, "title": "Le complément d'accompagnement" }
+          ]
+        },
+        {
+          "title": "Les noms au Khafd (génitif)",
+          "titleAr": "المخفوضات من الأسماء",
+          "chapterNumber": 5,
+          "items": [
+            { "itemNumber": 1, "title": "Par les prépositions" },
+            { "itemNumber": 2, "title": "Par l'annexion (Idafa)" },
+            { "itemNumber": 3, "title": "Par proximité (Tabi')" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Kitab At-Tawhid",
+      "titleAr": "كتاب التوحيد",
+      "titleEn": "The Book of Monotheism",
+      "author": "Muhammad ibn Abd al-Wahhab",
+      "authorAr": "محمد بن عبد الوهاب",
+      "type": "MATN",
+      "discipline": "AQEEDAH",
+      "collectionLevel": 3,
+      "sourceRef": "kitab-tawhid",
+      "sortOrder": 9,
+      "chapters": [
+        { "title": "Le Tawhid", "titleAr": "باب التوحيد", "chapterNumber": 1, "items": [{ "itemNumber": 1, "title": "Le sens du Tawhid et les mérites" }] },
+        { "title": "Mérite du Tawhid et péchés qu'il efface", "titleAr": "باب فضل التوحيد وما يكفر من الذنوب", "chapterNumber": 2, "items": [{ "itemNumber": 1, "title": "Hadith et versets" }] },
+        { "title": "Réaliser le Tawhid fait entrer au Paradis sans jugement", "titleAr": "باب من حقق التوحيد دخل الجنة بغير حساب", "chapterNumber": 3, "items": [{ "itemNumber": 1, "title": "Versets et récits" }] },
+        { "title": "La peur du shirk", "titleAr": "باب الخوف من الشرك", "chapterNumber": 4, "items": [{ "itemNumber": 1, "title": "Versets et hadiths sur la peur du shirk" }] },
+        { "title": "Appeler à la Shahada", "titleAr": "باب الدعاء إلى شهادة أن لا إله إلا الله", "chapterNumber": 5, "items": [{ "itemNumber": 1, "title": "Hadith de Mu'adh" }] },
+        { "title": "Le Tawhid expliqué et la Shahada", "titleAr": "باب تفسير التوحيد وشهادة أن لا إله إلا الله", "chapterNumber": 6, "items": [{ "itemNumber": 1, "title": "Explication" }] },
+        { "title": "Porter des bagues ou des fils", "titleAr": "باب من الشرك لبس الحلقة والخيط ونحوهما", "chapterNumber": 7, "items": [{ "itemNumber": 1, "title": "Interdiction des amulettes" }] },
+        { "title": "Les ruqa (incantations) et les talismans", "titleAr": "باب ما جاء في الرقى والتمائم", "chapterNumber": 8, "items": [{ "itemNumber": 1, "title": "Distinction entre ruqa permises et interdites" }] },
+        { "title": "Invoquer un arbre ou une pierre", "titleAr": "باب من تبرك بشجر أو حجر ونحوهما", "chapterNumber": 9, "items": [{ "itemNumber": 1, "title": "Récit et hadith" }] },
+        { "title": "Égorger pour autre qu'Allah", "titleAr": "باب ما جاء في الذبح لغير الله", "chapterNumber": 10, "items": [{ "itemNumber": 1, "title": "Interdiction du sacrifice pour autre qu'Allah" }] },
+        { "title": "Interdiction d'égorger pour Allah dans un lieu de sacrifice païen", "titleAr": "باب لا يُذبح لله بمكان يُذبح فيه لغير الله", "chapterNumber": 11, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Le vœu (nadhr) pour autre qu'Allah est du shirk", "titleAr": "باب أن النذر لغير الله شرك", "chapterNumber": 12, "items": [{ "itemNumber": 1, "title": "Versets et hadiths" }] },
+        { "title": "Se réfugier auprès d'autre qu'Allah", "titleAr": "باب من الشرك الاستعاذة بغير الله", "chapterNumber": 13, "items": [{ "itemNumber": 1, "title": "Versets" }] },
+        { "title": "Invoquer autre qu'Allah ou implorer un mort", "titleAr": "باب من الشرك أن يستغيث بغير الله أو يدعو غيره", "chapterNumber": 14, "items": [{ "itemNumber": 1, "title": "Versets et hadiths" }] },
+        { "title": "Rien n'arrive sans la volonté d'Allah", "titleAr": "باب قول الله تعالى: أيشركون ما لا يخلق شيئاً", "chapterNumber": 15, "items": [{ "itemNumber": 1, "title": "Versets" }] },
+        { "title": "L'intercession (shafa'a)", "titleAr": "باب الشفاعة", "chapterNumber": 16, "items": [{ "itemNumber": 1, "title": "Types d'intercession" }] },
+        { "title": "Tu ne guides pas qui tu veux", "titleAr": "باب قول الله تعالى: إنك لا تهدي من أحببت", "chapterNumber": 17, "items": [{ "itemNumber": 1, "title": "Verset et contexte" }] },
+        { "title": "La cause de la mécréance est l'exagération envers les pieux", "titleAr": "باب ما جاء أن سبب كفر بني آدم الغلو في الصالحين", "chapterNumber": 18, "items": [{ "itemNumber": 1, "title": "Récit de Nuh et les idoles" }] },
+        { "title": "La sorcellerie", "titleAr": "باب ما جاء في السحر", "chapterNumber": 19, "items": [{ "itemNumber": 1, "title": "Versets et hadiths" }] },
+        { "title": "La divination", "titleAr": "باب ما جاء في الكهان", "chapterNumber": 20, "items": [{ "itemNumber": 1, "title": "Hadiths sur la divination" }] },
+        { "title": "La conjuration (nushrah)", "titleAr": "باب ما جاء في النشرة", "chapterNumber": 21, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Le pessimisme (tiyara)", "titleAr": "باب ما جاء في التطير", "chapterNumber": 22, "items": [{ "itemNumber": 1, "title": "Hadiths sur la tiyara" }] },
+        { "title": "L'astrologie", "titleAr": "باب ما جاء في التنجيم", "chapterNumber": 23, "items": [{ "itemNumber": 1, "title": "Hadiths" }] },
+        { "title": "Demander la pluie par les astres", "titleAr": "باب ما جاء في الاستسقاء بالأنواء", "chapterNumber": 24, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "L'amour d'Allah", "titleAr": "باب قول الله تعالى: ومن الناس من يتخذ من دون الله أنداداً", "chapterNumber": 25, "items": [{ "itemNumber": 1, "title": "Versets" }] },
+        { "title": "La peur d'Allah seul", "titleAr": "باب قول الله تعالى: إنما ذلكم الشيطان يخوف أولياءه", "chapterNumber": 26, "items": [{ "itemNumber": 1, "title": "Versets" }] },
+        { "title": "Le tawakkul (confiance en Allah)", "titleAr": "باب قول الله تعالى: وعلى الله فتوكلوا", "chapterNumber": 27, "items": [{ "itemNumber": 1, "title": "Versets et hadiths" }] },
+        { "title": "Se sentir à l'abri du plan d'Allah", "titleAr": "باب قول الله تعالى: أفأمنوا مكر الله", "chapterNumber": 28, "items": [{ "itemNumber": 1, "title": "Verset" }] },
+        { "title": "La patience face au destin", "titleAr": "باب من الإيمان بالله الصبر على أقدار الله", "chapterNumber": 29, "items": [{ "itemNumber": 1, "title": "Hadiths" }] },
+        { "title": "L'ostentation (riya)", "titleAr": "باب ما جاء في الرياء", "chapterNumber": 30, "items": [{ "itemNumber": 1, "title": "Versets et hadiths" }] },
+        { "title": "Chercher le bas monde par une œuvre de l'au-delà", "titleAr": "باب من الشرك إرادة الإنسان بعمله الدنيا", "chapterNumber": 31, "items": [{ "itemNumber": 1, "title": "Versets" }] },
+        { "title": "Obéir aux savants dans le haram", "titleAr": "باب من أطاع العلماء والأمراء في تحريم ما أحل الله", "chapterNumber": 32, "items": [{ "itemNumber": 1, "title": "Verset d'At-Tawba" }] },
+        { "title": "Juger par autre que la révélation", "titleAr": "باب قول الله تعالى: ألم تر إلى الذين يزعمون أنهم آمنوا", "chapterNumber": 33, "items": [{ "itemNumber": 1, "title": "Verset" }] },
+        { "title": "Nier les noms et attributs d'Allah", "titleAr": "باب من جحد شيئاً من الأسماء والصفات", "chapterNumber": 34, "items": [{ "itemNumber": 1, "title": "Versets" }] },
+        { "title": "Les bienfaits viennent d'Allah", "titleAr": "باب قول الله تعالى: يعرفون نعمة الله ثم ينكرونها", "chapterNumber": 35, "items": [{ "itemNumber": 1, "title": "Verset" }] },
+        { "title": "Associer à Allah dans Ses noms", "titleAr": "باب قول الله تعالى: فلا تجعلوا لله أنداداً", "chapterNumber": 36, "items": [{ "itemNumber": 1, "title": "Versets" }] },
+        { "title": "Dire 'ce qu'Allah veut et tu veux'", "titleAr": "باب ما جاء فيمن لم يقنع بالحلف بالله", "chapterNumber": 37, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Le juron par autre qu'Allah", "titleAr": "باب قول ما شاء الله وشئت", "chapterNumber": 38, "items": [{ "itemNumber": 1, "title": "Hadiths" }] },
+        { "title": "Dire 'Si seulement…'", "titleAr": "باب ما جاء في قول لو", "chapterNumber": 39, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Insulter le vent", "titleAr": "باب النهي عن سب الريح", "chapterNumber": 40, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Insulter le temps", "titleAr": "باب النهي عن سب الدهر", "chapterNumber": 41, "items": [{ "itemNumber": 1, "title": "Hadith qudsi" }] },
+        { "title": "Se faire appeler Juge des juges", "titleAr": "باب التسمي بقاضي القضاة", "chapterNumber": 42, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Respecter les noms d'Allah", "titleAr": "باب احترام أسماء الله تعالى", "chapterNumber": 43, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Se moquer d'un rappel d'Allah", "titleAr": "باب من هزل بشيء فيه ذكر الله", "chapterNumber": 44, "items": [{ "itemNumber": 1, "title": "Verset" }] },
+        { "title": "Dire 'C'est grâce à mon savoir'", "titleAr": "باب قول الله تعالى: ولئن أذقناه رحمة منا", "chapterNumber": 45, "items": [{ "itemNumber": 1, "title": "Verset de Qarun" }] },
+        { "title": "Attribuer la pluie aux étoiles", "titleAr": "باب قوله تعالى: فلما آتاهما صالحاً جعلا له شركاء", "chapterNumber": 46, "items": [{ "itemNumber": 1, "title": "Verset" }] },
+        { "title": "Le droit d'Allah sur Ses serviteurs", "titleAr": "باب قول الله تعالى: ولله الأسماء الحسنى", "chapterNumber": 47, "items": [{ "itemNumber": 1, "title": "Versets et hadiths" }] },
+        { "title": "Ne pas dire 'Paix' à Allah", "titleAr": "باب لا يقال السلام على الله", "chapterNumber": 48, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Dire 'Pardonne-moi si Tu veux'", "titleAr": "باب قول اللهم اغفر لي إن شئت", "chapterNumber": 49, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Ne pas dire 'mon serviteur/ma servante'", "titleAr": "باب لا يقول عبدي وأمتي", "chapterNumber": 50, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Ne pas repousser qui demande par le nom d'Allah", "titleAr": "باب لا يُرَدّ من سأل بالله", "chapterNumber": 51, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "On ne demande le Paradis que par le visage d'Allah", "titleAr": "باب لا يُسأل بوجه الله إلا الجنة", "chapterNumber": 52, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "La parole 'Si seulement…'", "titleAr": "باب ما جاء في اللو", "chapterNumber": 53, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Interdiction d'insulter le destin", "titleAr": "باب النهي عن سب الدهر", "chapterNumber": 54, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Se nommer Roi des rois", "titleAr": "باب التسمي بملك الأملاك", "chapterNumber": 55, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Magnifier Allah", "titleAr": "باب التعظيم لله تعالى", "chapterNumber": 56, "items": [{ "itemNumber": 1, "title": "Hadiths" }] },
+        { "title": "La terre sera dans Sa main le Jour du Jugement", "titleAr": "باب قوله تعالى: والأرض جميعاً قبضته يوم القيامة", "chapterNumber": 57, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Protéger le Tawhid et barrer les chemins du Shirk", "titleAr": "باب ما جاء في حماية المصطفى جناب التوحيد", "chapterNumber": 58, "items": [{ "itemNumber": 1, "title": "Hadiths du Prophète" }] },
+        { "title": "Ce qui est venu concernant ceux qui exagèrent", "titleAr": "باب ما جاء أن بعض هذه الأمة يعبد الأوثان", "chapterNumber": 59, "items": [{ "itemNumber": 1, "title": "Hadiths" }] },
+        { "title": "Celui qui dit 'La ilaha illa Allah'", "titleAr": "باب ما جاء في قول الله تعالى: وما خلقت الجن والإنس إلا ليعبدون", "chapterNumber": 60, "items": [{ "itemNumber": 1, "title": "Verset et hadith" }] },
+        { "title": "Les images", "titleAr": "باب ما جاء في التصاوير", "chapterNumber": 61, "items": [{ "itemNumber": 1, "title": "Hadiths" }] },
+        { "title": "L'excès sur les tombes", "titleAr": "باب ما جاء في كثرة الحلف", "chapterNumber": 62, "items": [{ "itemNumber": 1, "title": "Hadiths" }] },
+        { "title": "Le pacte avec Allah", "titleAr": "باب ما جاء في ذمة الله وذمة نبيه", "chapterNumber": 63, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Jurer par Allah en mentant", "titleAr": "باب ما جاء في الإقسام على الله", "chapterNumber": 64, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Nul ne peut obliger Allah", "titleAr": "باب لا يُستشفع بالله على خلقه", "chapterNumber": 65, "items": [{ "itemNumber": 1, "title": "Hadith" }] },
+        { "title": "Le Prophète protège le Tawhid", "titleAr": "باب ما جاء في حماية النبي حمى التوحيد وسده طرق الشرك", "chapterNumber": 66, "items": [{ "itemNumber": 1, "title": "Hadiths" }] },
+        { "title": "Le Tawhid : premier devoir", "titleAr": "باب ما جاء في التوحيد أول واجب", "chapterNumber": 67, "items": [{ "itemNumber": 1, "title": "Hadith de Mu'adh au Yémen" }] }
+      ]
+    },
+    {
+      "title": "Al-'Aqida Al-Wasitiyyah",
+      "titleAr": "العقيدة الواسطية",
+      "titleEn": "The Wasitiyyah Creed",
+      "author": "Ibn Taymiyyah",
+      "authorAr": "ابن تيمية",
+      "type": "MATN",
+      "discipline": "AQEEDAH",
+      "collectionLevel": 4,
+      "sourceRef": "wasitiyyah",
+      "sortOrder": 10,
+      "chapters": [
+        {
+          "title": "Introduction et profession de foi",
+          "titleAr": "المقدمة وبيان عقيدة أهل السنة",
+          "chapterNumber": 1,
+          "items": [
+            { "itemNumber": 1, "title": "Introduction de l'auteur" },
+            { "itemNumber": 2, "title": "La croyance d'Ahl as-Sunnah" }
+          ]
+        },
+        {
+          "title": "Les noms et attributs d'Allah dans le Coran",
+          "titleAr": "الأسماء والصفات من القرآن",
+          "chapterNumber": 2,
+          "items": [
+            { "itemNumber": 1, "title": "Verset du Kursiy" },
+            { "itemNumber": 2, "title": "Sourate Al-Hashr" },
+            { "itemNumber": 3, "title": "Sourate Al-Ikhlas et Al-Falaq et An-Nas" }
+          ]
+        },
+        {
+          "title": "Les attributs dans la Sunnah",
+          "titleAr": "الصفات من السنة",
+          "chapterNumber": 3,
+          "items": [
+            { "itemNumber": 1, "title": "La descente d'Allah" },
+            { "itemNumber": 2, "title": "La joie d'Allah" },
+            { "itemNumber": 3, "title": "Le rire d'Allah" },
+            { "itemNumber": 4, "title": "Les deux mains d'Allah" }
+          ]
+        },
+        {
+          "title": "La méthodologie d'Ahl as-Sunnah",
+          "titleAr": "منهج أهل السنة في الأسماء والصفات",
+          "chapterNumber": 4,
+          "items": [
+            { "itemNumber": 1, "title": "Ni ta'til ni tashbih" },
+            { "itemNumber": 2, "title": "Le juste milieu" }
+          ]
+        },
+        {
+          "title": "La foi au Jour Dernier",
+          "titleAr": "الإيمان باليوم الآخر",
+          "chapterNumber": 5,
+          "items": [
+            { "itemNumber": 1, "title": "L'épreuve de la tombe" },
+            { "itemNumber": 2, "title": "La résurrection" },
+            { "itemNumber": 3, "title": "Le Bassin (Hawd)" },
+            { "itemNumber": 4, "title": "L'intercession" },
+            { "itemNumber": 5, "title": "Le Paradis et l'Enfer" }
+          ]
+        },
+        {
+          "title": "La foi au destin",
+          "titleAr": "الإيمان بالقدر",
+          "chapterNumber": 6,
+          "items": [
+            { "itemNumber": 1, "title": "Les quatre degrés du destin" }
+          ]
+        },
+        {
+          "title": "La position envers les Compagnons",
+          "titleAr": "الموقف من الصحابة",
+          "chapterNumber": 7,
+          "items": [
+            { "itemNumber": 1, "title": "Amour et respect des Compagnons" },
+            { "itemNumber": 2, "title": "Les mérites des Khulafa ar-Rashidun" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Al-'Aqida At-Tahawiyyah",
+      "titleAr": "العقيدة الطحاوية",
+      "titleEn": "The Tahawiyyah Creed",
+      "author": "Imam At-Tahawi",
+      "authorAr": "الإمام الطحاوي",
+      "type": "MATN",
+      "discipline": "AQEEDAH",
+      "collectionLevel": 5,
+      "sourceRef": "tahawiyyah",
+      "sortOrder": 11,
+      "chapters": [
+        {
+          "title": "L'unicité d'Allah",
+          "titleAr": "توحيد الله",
+          "chapterNumber": 1,
+          "items": [
+            { "itemNumber": 1, "title": "Allah est Un, sans associé" },
+            { "itemNumber": 2, "title": "Rien ne Lui ressemble" },
+            { "itemNumber": 3, "title": "Il est Éternel, sans début ni fin" },
+            { "itemNumber": 4, "title": "Il est le Créateur sans besoin" },
+            { "itemNumber": 5, "title": "Il a pouvoir sur toute chose" }
+          ]
+        },
+        {
+          "title": "Le Coran",
+          "titleAr": "القرآن",
+          "chapterNumber": 2,
+          "items": [
+            { "itemNumber": 1, "title": "Le Coran est la parole d'Allah, incréé" },
+            { "itemNumber": 2, "title": "Quiconque dit qu'il est créé a mécru" }
+          ]
+        },
+        {
+          "title": "La vision d'Allah",
+          "titleAr": "رؤية الله",
+          "chapterNumber": 3,
+          "items": [
+            { "itemNumber": 1, "title": "Les croyants verront Allah au Paradis" }
+          ]
+        },
+        {
+          "title": "La foi (Al-Iman)",
+          "titleAr": "الإيمان",
+          "chapterNumber": 4,
+          "items": [
+            { "itemNumber": 1, "title": "Parole et actes, augmente et diminue" },
+            { "itemNumber": 2, "title": "La foi des gens du Paradis" },
+            { "itemNumber": 3, "title": "On ne déclare pas mécréant pour un péché" }
+          ]
+        },
+        {
+          "title": "Le destin (Al-Qadar)",
+          "titleAr": "القدر",
+          "chapterNumber": 5,
+          "items": [
+            { "itemNumber": 1, "title": "Tout est par la volonté et la science d'Allah" },
+            { "itemNumber": 2, "title": "Le bien et le mal sont décrétés" },
+            { "itemNumber": 3, "title": "La Tablette préservée (Al-Lawh al-Mahfuz)" }
+          ]
+        },
+        {
+          "title": "Les Compagnons et les Imams",
+          "titleAr": "الصحابة والأئمة",
+          "chapterNumber": 6,
+          "items": [
+            { "itemNumber": 1, "title": "Nous aimons les Compagnons" },
+            { "itemNumber": 2, "title": "Les quatre Califes bien guidés" },
+            { "itemNumber": 3, "title": "Ahl al-Bayt" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Bulugh Al-Maram",
+      "titleAr": "بلوغ المرام",
+      "titleEn": "Attainment of the Objective",
+      "author": "Ibn Hajar al-Asqalani",
+      "authorAr": "ابن حجر العسقلاني",
+      "type": "HADITH_COLLECTION",
+      "discipline": "HADITH",
+      "collectionLevel": 5,
+      "sourceRef": "bulugh-al-maram",
+      "sortOrder": 12,
+      "chapters": [
+        { "title": "Livre de la purification", "titleAr": "كتاب الطهارة", "chapterNumber": 1, "items": [{ "itemNumber": 1, "title": "Section: Les eaux" }, { "itemNumber": 2, "title": "Section: Les ustensiles" }, { "itemNumber": 3, "title": "Section: Enlever l'impureté" }, { "itemNumber": 4, "title": "Section: Les ablutions" }, { "itemNumber": 5, "title": "Section: L'essuyage sur les chaussons" }] },
+        { "title": "Livre de la prière", "titleAr": "كتاب الصلاة", "chapterNumber": 2, "items": [{ "itemNumber": 1, "title": "Section: Les horaires" }, { "itemNumber": 2, "title": "Section: L'appel à la prière" }, { "itemNumber": 3, "title": "Section: Les conditions" }] },
+        { "title": "Livre des funérailles", "titleAr": "كتاب الجنائز", "chapterNumber": 3, "items": [{ "itemNumber": 1, "title": "Section: Le lavage du mort" }, { "itemNumber": 2, "title": "Section: La prière funéraire" }] },
+        { "title": "Livre de la Zakat", "titleAr": "كتاب الزكاة", "chapterNumber": 4, "items": [{ "itemNumber": 1, "title": "Section: La Zakat des biens" }, { "itemNumber": 2, "title": "Section: Zakat al-Fitr" }] },
+        { "title": "Livre du jeûne", "titleAr": "كتاب الصيام", "chapterNumber": 5, "items": [{ "itemNumber": 1, "title": "Section: Le jeûne obligatoire" }, { "itemNumber": 2, "title": "Section: Le jeûne surérogatoire" }] },
+        { "title": "Livre du Hajj", "titleAr": "كتاب الحج", "chapterNumber": 6, "items": [{ "itemNumber": 1, "title": "Section: Les rites" }] },
+        { "title": "Livre des transactions", "titleAr": "كتاب البيوع", "chapterNumber": 7, "items": [{ "itemNumber": 1, "title": "Section: Les conditions de vente" }] },
+        { "title": "Livre du mariage", "titleAr": "كتاب النكاح", "chapterNumber": 8, "items": [{ "itemNumber": 1, "title": "Section: Le contrat de mariage" }] },
+        { "title": "Livre du serment", "titleAr": "كتاب الجامع", "chapterNumber": 9, "items": [{ "itemNumber": 1, "title": "Section: Les bonnes manières" }] }
+      ]
+    },
+    {
+      "title": "Umdatul-Ahkam",
+      "titleAr": "عمدة الأحكام",
+      "titleEn": "The Reliance of Rulings",
+      "author": "Abd al-Ghani al-Maqdisi",
+      "authorAr": "عبد الغني المقدسي",
+      "type": "HADITH_COLLECTION",
+      "discipline": "FIQH",
+      "collectionLevel": 3,
+      "sourceRef": "umdatul-ahkam",
+      "sortOrder": 13,
+      "chapters": [
+        { "title": "Livre de la purification", "titleAr": "كتاب الطهارة", "chapterNumber": 1, "items": [{ "itemNumber": 1, "title": "Hadiths de la purification" }] },
+        { "title": "Livre de la prière", "titleAr": "كتاب الصلاة", "chapterNumber": 2, "items": [{ "itemNumber": 1, "title": "Hadiths de la prière" }] },
+        { "title": "Livre de la Zakat", "titleAr": "كتاب الزكاة", "chapterNumber": 3, "items": [{ "itemNumber": 1, "title": "Hadiths de la Zakat" }] },
+        { "title": "Livre du jeûne", "titleAr": "كتاب الصيام", "chapterNumber": 4, "items": [{ "itemNumber": 1, "title": "Hadiths du jeûne" }] },
+        { "title": "Livre du Hajj", "titleAr": "كتاب الحج", "chapterNumber": 5, "items": [{ "itemNumber": 1, "title": "Hadiths du Hajj" }] },
+        { "title": "Livre des transactions", "titleAr": "كتاب البيوع", "chapterNumber": 6, "items": [{ "itemNumber": 1, "title": "Hadiths des transactions" }] },
+        { "title": "Livre du serment", "titleAr": "كتاب الأيمان والنذور", "chapterNumber": 7, "items": [{ "itemNumber": 1, "title": "Hadiths des serments" }] }
+      ]
+    },
+    {
+      "title": "Zad al-Mustaqni'",
+      "titleAr": "زاد المستقنع",
+      "titleEn": "Provision of the Seeker",
+      "author": "Al-Hajjawi",
+      "authorAr": "الحجاوي",
+      "type": "MATN",
+      "discipline": "FIQH",
+      "collectionLevel": 5,
+      "sourceRef": "zad-mustaqni",
+      "sortOrder": 14,
+      "chapters": [
+        { "title": "Livre de la purification", "titleAr": "كتاب الطهارة", "chapterNumber": 1, "items": [{ "itemNumber": 1, "title": "Types d'eaux" }, { "itemNumber": 2, "title": "Ablutions" }, { "itemNumber": 3, "title": "Tayammum" }] },
+        { "title": "Livre de la prière", "titleAr": "كتاب الصلاة", "chapterNumber": 2, "items": [{ "itemNumber": 1, "title": "Horaires" }, { "itemNumber": 2, "title": "Adhan" }, { "itemNumber": 3, "title": "Conditions et piliers" }] },
+        { "title": "Livre de la Zakat", "titleAr": "كتاب الزكاة", "chapterNumber": 3, "items": [{ "itemNumber": 1, "title": "Nisab et calcul" }] },
+        { "title": "Livre du jeûne", "titleAr": "كتاب الصيام", "chapterNumber": 4, "items": [{ "itemNumber": 1, "title": "Obligations du jeûne" }] },
+        { "title": "Livre du Hajj", "titleAr": "كتاب الحج", "chapterNumber": 5, "items": [{ "itemNumber": 1, "title": "Rites du Hajj" }] }
+      ]
+    },
+    {
+      "title": "Al-Usul min 'Ilm al-Usul",
+      "titleAr": "الأصول من علم الأصول",
+      "titleEn": "Foundations of Islamic Jurisprudence",
+      "author": "Muhammad ibn Salih al-Uthaymin",
+      "authorAr": "محمد بن صالح العثيمين",
+      "type": "MATN",
+      "discipline": "USUL_FIQH",
+      "collectionLevel": 4,
+      "sourceRef": "usul-ilm-usul",
+      "sortOrder": 15,
+      "chapters": [
+        { "title": "Introduction aux Usul al-Fiqh", "titleAr": "مقدمة في أصول الفقه", "chapterNumber": 1, "items": [{ "itemNumber": 1, "title": "Définition et importance" }] },
+        { "title": "Le Hukm Shar'i", "titleAr": "الحكم الشرعي", "chapterNumber": 2, "items": [{ "itemNumber": 1, "title": "Wajib, Mandub, Mubah, Makruh, Haram" }] },
+        { "title": "Les sources de la législation", "titleAr": "أدلة الأحكام", "chapterNumber": 3, "items": [{ "itemNumber": 1, "title": "Le Coran" }, { "itemNumber": 2, "title": "La Sunnah" }, { "itemNumber": 3, "title": "Le Ijma'" }, { "itemNumber": 4, "title": "Le Qiyas" }] },
+        { "title": "Al-Ijtihad et At-Taqlid", "titleAr": "الاجتهاد والتقليد", "chapterNumber": 4, "items": [{ "itemNumber": 1, "title": "Conditions du Mujtahid" }, { "itemNumber": 2, "title": "Le Taqlid et ses règles" }] }
+      ]
+    },
+    {
+      "title": "Nukhbat al-Fikar",
+      "titleAr": "نخبة الفكر",
+      "titleEn": "The Cream of Thought (Hadith Terminology)",
+      "author": "Ibn Hajar al-Asqalani",
+      "authorAr": "ابن حجر العسقلاني",
+      "type": "MATN",
+      "discipline": "HADITH",
+      "collectionLevel": 4,
+      "sourceRef": "nukhbat-fikar",
+      "sortOrder": 16,
+      "chapters": [
+        { "title": "Classification des hadiths", "titleAr": "تقسيم الخبر", "chapterNumber": 1, "items": [{ "itemNumber": 1, "title": "Mutawatir et Ahad" }, { "itemNumber": 2, "title": "Mashhur, 'Aziz, Gharib" }] },
+        { "title": "Conditions d'acceptation", "titleAr": "شروط القبول", "chapterNumber": 2, "items": [{ "itemNumber": 1, "title": "Ittisâl as-Sanad" }, { "itemNumber": 2, "title": "'Adâlah" }, { "itemNumber": 3, "title": "Dabt" }, { "itemNumber": 4, "title": "Absence de Shudhûdh et 'Illah" }] },
+        { "title": "Les défauts ('Ilal)", "titleAr": "العلل", "chapterNumber": 3, "items": [{ "itemNumber": 1, "title": "Types de défauts dans la chaîne" }, { "itemNumber": 2, "title": "Types de défauts dans le texte" }] },
+        { "title": "Al-Jarh wa at-Ta'dil", "titleAr": "الجرح والتعديل", "chapterNumber": 4, "items": [{ "itemNumber": 1, "title": "La critique et l'éloge des rapporteurs" }] }
+      ]
+    },
+    {
+      "title": "Alfiyyat Ibn Malik",
+      "titleAr": "ألفية ابن مالك",
+      "titleEn": "Ibn Malik's Thousand-Line Poem (Grammar)",
+      "author": "Ibn Malik",
+      "authorAr": "ابن مالك",
+      "type": "MATN",
+      "discipline": "GRAMMAR",
+      "collectionLevel": 6,
+      "sourceRef": "alfiyyat-ibn-malik",
+      "sortOrder": 17,
+      "chapters": [
+        { "title": "Al-Kalam wa ma Yata'allaq bihi", "titleAr": "الكلام وما يتعلق به", "chapterNumber": 1, "items": [{ "itemNumber": 1, "title": "Définition du Kalam" }] },
+        { "title": "Al-Mu'rab wal-Mabni", "titleAr": "المعرب والمبني", "chapterNumber": 2, "items": [{ "itemNumber": 1, "title": "Flexion et inflexibilité" }] },
+        { "title": "An-Nakirah wal-Ma'rifah", "titleAr": "النكرة والمعرفة", "chapterNumber": 3, "items": [{ "itemNumber": 1, "title": "L'indéfini et le défini" }] },
+        { "title": "Al-'Alam", "titleAr": "العلم", "chapterNumber": 4, "items": [{ "itemNumber": 1, "title": "Le nom propre" }] },
+        { "title": "Al-Mubtada wal-Khabar", "titleAr": "المبتدأ والخبر", "chapterNumber": 5, "items": [{ "itemNumber": 1, "title": "Le sujet et le prédicat" }] }
+      ]
+    }
+  ]
+}
