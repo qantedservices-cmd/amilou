@@ -1383,7 +1383,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.text(`Page ${i}/${pageCount}`, 280, 205)
       }
 
-      // Open PDF in new tab (blob/data URI downloads blocked on HTTP)
+      const fileName = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-').toLowerCase()}.pdf`
+
+      // Download the PDF file
+      doc.save(fileName)
+
+      // Also open in new tab for viewing
       const pdfBase64 = doc.output('datauristring')
       const pdfWindow = window.open('')
       if (pdfWindow) {
