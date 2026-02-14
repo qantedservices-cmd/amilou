@@ -1384,66 +1384,30 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
 
       const fileName = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-').toLowerCase()}.pdf`
-      const dataUri = doc.output('datauristring')
-      const pdfBase64 = dataUri.split(',')[1]
+      const pdfBase64 = doc.output('datauristring').split(',')[1]
 
-      // Open PDF in new window with custom toolbar
-      const pdfWindow = window.open('', '_blank')
+      // Open window immediately (preserves user gesture context)
+      const pdfWindow = window.open('about:blank', '_blank')
       if (pdfWindow) {
-        pdfWindow.document.write([
-          '<html><head>',
-          '<title>' + fileName + '</title>',
-          '<style>',
-          'body{margin:0;display:flex;flex-direction:column;height:100vh;font-family:system-ui,sans-serif}',
-          '.toolbar{padding:8px 12px;background:#1e293b;display:flex;gap:10px;align-items:center;flex-shrink:0}',
-          '.toolbar span{color:#94a3b8;font-size:13px;margin-left:auto}',
-          '.btn{padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;gap:6px;color:white}',
-          '.btn-dl{background:#2563eb}',
-          '.btn-dl:hover{background:#1d4ed8}',
-          '.btn-dl.loading{background:#64748b;pointer-events:none}',
-          '.btn-print{background:#059669;border:none}',
-          '.btn-print:hover{background:#047857}',
-          '.hint{color:#64748b;font-size:11px}',
-          'embed{flex:1;width:100%}',
-          '</style></head><body>',
-          '<div class="toolbar">',
-          '<a id="dlBtn" class="btn btn-dl loading" href="#">Préparation...</a>',
-          '<button id="printBtn" class="btn btn-print">Imprimer</button>',
-          '<span>' + fileName + '</span>',
-          '<span class="hint">Ctrl+P pour imprimer / enregistrer en PDF</span>',
-          '</div>',
-          '<embed src="' + dataUri + '" type="application/pdf">',
-          '</body></html>'
-        ].join(''))
+        pdfWindow.document.write('<html><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#0f172a;color:#94a3b8"><p>Chargement du PDF...</p></body></html>')
         pdfWindow.document.close()
+      }
 
-        // Attach print handler from parent window context
-        const printBtn = pdfWindow.document.getElementById('printBtn')
-        if (printBtn) {
-          printBtn.addEventListener('click', () => { pdfWindow.print() })
-        }
+      // Upload PDF to server
+      const uploadRes = await fetch('/api/pdf-download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: pdfBase64, fileName }),
+      })
+      if (!uploadRes.ok) {
+        if (pdfWindow) pdfWindow.close()
+        throw new Error('Erreur upload PDF')
+      }
+      const { id: pdfId } = await uploadRes.json()
 
-        // Upload to server for a real HTTP download link
-        fetch('/api/pdf-download', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: pdfBase64, fileName }),
-        })
-          .then(r => r.json())
-          .then(({ id }) => {
-            const dlBtn = pdfWindow.document.getElementById('dlBtn')
-            if (dlBtn) {
-              dlBtn.setAttribute('href', '/api/pdf-download/' + id)
-              dlBtn.classList.remove('loading')
-              dlBtn.textContent = 'Télécharger'
-            }
-          })
-          .catch(() => {
-            const dlBtn = pdfWindow.document.getElementById('dlBtn')
-            if (dlBtn) {
-              dlBtn.textContent = 'Erreur'
-            }
-          })
+      // Redirect to server-rendered viewer page (real HTTP page, not about:blank)
+      if (pdfWindow) {
+        pdfWindow.location.href = `/api/pdf-viewer/${pdfId}`
       }
 
       setSessionReportOpen(false)

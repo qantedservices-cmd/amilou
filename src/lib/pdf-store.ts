@@ -21,7 +21,9 @@ export function storePdf(buffer: Buffer, fileName: string): string {
 
 export function getPdf(id: string): PdfEntry | null {
   const entry = store.get(id)
-  if (!entry) return null
-  store.delete(id) // Single use
+  if (!entry || entry.expires < Date.now()) {
+    if (entry) store.delete(id)
+    return null
+  }
   return entry
 }
