@@ -1384,32 +1384,34 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
 
       const fileName = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-').toLowerCase()}.pdf`
-      const pdfBase64 = doc.output('datauristring').split(',')[1]
+      const dataUri = doc.output('datauristring')
 
-      // Open window NOW (in user gesture context) before async operations
-      const pdfWindow = window.open('about:blank', '_blank')
+      // Open PDF in new window with custom toolbar (download + print)
+      const pdfWindow = window.open('', '_blank')
       if (pdfWindow) {
-        pdfWindow.document.write('<html><head><title>' + fileName + '</title></head><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif"><p>Chargement du PDF...</p></body></html>')
+        pdfWindow.document.write([
+          '<html><head>',
+          '<title>' + fileName + '</title>',
+          '<style>',
+          'body{margin:0;display:flex;flex-direction:column;height:100vh;font-family:system-ui,sans-serif}',
+          '.toolbar{padding:8px 12px;background:#1e293b;display:flex;gap:10px;align-items:center;flex-shrink:0}',
+          '.toolbar span{color:#94a3b8;font-size:13px;margin-left:auto}',
+          '.btn{padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;gap:6px}',
+          '.btn-dl{background:#2563eb;color:white}',
+          '.btn-dl:hover{background:#1d4ed8}',
+          '.btn-print{background:#059669;color:white}',
+          '.btn-print:hover{background:#047857}',
+          'embed{flex:1;width:100%}',
+          '</style></head><body>',
+          '<div class="toolbar">',
+          '<a class="btn btn-dl" href="' + dataUri + '" download="' + fileName + '">&#11015; Télécharger</a>',
+          '<button class="btn btn-print" onclick="window.print()">&#128424; Imprimer</button>',
+          '<span>' + fileName + '</span>',
+          '</div>',
+          '<embed src="' + dataUri + '" type="application/pdf">',
+          '</body></html>'
+        ].join(''))
         pdfWindow.document.close()
-      }
-
-      // Upload PDF to server, then redirect the open window to the GET URL
-      const uploadRes = await fetch('/api/pdf-download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: pdfBase64, fileName }),
-      })
-      if (!uploadRes.ok) {
-        if (pdfWindow) pdfWindow.close()
-        throw new Error('Erreur upload PDF')
-      }
-      const { id: pdfId } = await uploadRes.json()
-
-      if (pdfWindow) {
-        pdfWindow.location.href = `/api/pdf-download/${pdfId}`
-      } else {
-        // Popup bloqué, ouvrir dans l'onglet courant
-        window.location.href = `/api/pdf-download/${pdfId}`
       }
 
       setSessionReportOpen(false)
