@@ -1405,10 +1405,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           '</style></head><body>',
           '<div class="toolbar">',
           '<a class="btn btn-dl" href="' + dataUri + '" download="' + fileName + '">&#11015; Télécharger</a>',
-          '<button class="btn btn-print" onclick="window.print()">&#128424; Imprimer</button>',
+          '<button id="printBtn" class="btn btn-print">&#128424; Imprimer</button>',
           '<span>' + fileName + '</span>',
           '</div>',
           '<embed src="' + dataUri + '" type="application/pdf">',
+          '<script>document.getElementById("printBtn").addEventListener("click",function(){window.print()})<\/script>',
           '</body></html>'
         ].join(''))
         pdfWindow.document.close()
