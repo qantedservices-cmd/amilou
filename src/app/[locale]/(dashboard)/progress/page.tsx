@@ -32,7 +32,13 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { TrendingUp, Plus, Pencil, Trash2, BookOpen, ArrowRight, User, Lock } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import { TrendingUp, Plus, Pencil, Trash2, BookOpen, ArrowRight, User, Lock, Library, ChevronDown, ChevronRight, Check } from 'lucide-react'
 import { SegmentedProgressBar, SegmentData } from '@/components/segmented-progress-bar'
 
 interface Program {
@@ -86,6 +92,42 @@ interface SurahStatsData {
   totals: Record<string, { covered: number; percentage: number }>
 }
 
+interface UserBook {
+  id: string
+  title: string
+  titleAr?: string
+  author?: string
+  type: string
+  discipline: string
+  totalItems: number
+  completedItems?: number
+  percentage?: number
+}
+
+interface BookChapter {
+  id: string
+  title: string
+  titleAr?: string
+  chapterNumber: number
+  depth: number
+  totalItems: number
+  _count: { items: number }
+  children?: BookChapter[]
+}
+
+interface BookItemData {
+  id: string
+  itemNumber: number
+  title?: string
+  textAr?: string
+  textFr?: string
+  textEn?: string
+  userProgress: {
+    completed: boolean
+    completedAt?: string
+  } | null
+}
+
 interface TafsirCoverage {
   global: {
     totalVerses: number
@@ -125,6 +167,17 @@ export default function ProgressPage() {
   // Tafsir coverage + surah stats
   const [tafsirData, setTafsirData] = useState<TafsirCoverage | null>(null)
   const [surahStatsData, setSurahStatsData] = useState<SurahStatsData | null>(null)
+
+  // Books section
+  const [userBooks, setUserBooks] = useState<UserBook[]>([])
+  const [openBookIds, setOpenBookIds] = useState<Set<string>>(new Set())
+  const [bookChapters, setBookChapters] = useState<Record<string, BookChapter[]>>({})
+  const [bookChapterProgress, setBookChapterProgress] = useState<Record<string, Record<string, number>>>({})
+  const [bookChapterItems, setBookChapterItems] = useState<Record<string, BookItemData[]>>({})
+  const [openChapterIds, setOpenChapterIds] = useState<Set<string>>(new Set())
+  const [loadingBookIds, setLoadingBookIds] = useState<Set<string>>(new Set())
+  const [loadingChapterIds, setLoadingChapterIds] = useState<Set<string>>(new Set())
+  const [togglingItemIds, setTogglingItemIds] = useState<Set<string>>(new Set())
 
   // Form state
   const [selectedProgram, setSelectedProgram] = useState('')
@@ -166,6 +219,7 @@ export default function ProgressPage() {
   useEffect(() => {
     if (selectedUserId) {
       fetchData()
+      fetchUserBooks()
     }
   }, [selectedUserId])
 
@@ -188,6 +242,158 @@ export default function ProgressPage() {
       console.error('Error fetching data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Books functions
+  async function fetchUserBooks() {
+    try {
+      const res = await fetch('/api/user/books')
+      if (res.ok) setUserBooks(await res.json())
+    } catch (e) {
+      console.error('Error fetching user books:', e)
+    }
+  }
+
+  async function toggleBook(bookId: string) {
+    const isOpen = openBookIds.has(bookId)
+    const next = new Set(openBookIds)
+    if (isOpen) {
+      next.delete(bookId)
+      setOpenBookIds(next)
+      return
+    }
+    next.add(bookId)
+    setOpenBookIds(next)
+
+    // Load chapters if not yet loaded
+    if (!bookChapters[bookId]) {
+      setLoadingBookIds(prev => new Set(prev).add(bookId))
+      try {
+        const [bookRes, progressRes] = await Promise.all([
+          fetch(`/api/books/${bookId}`),
+          fetch(`/api/books/${bookId}/progress`),
+        ])
+        if (bookRes.ok) {
+          const data = await bookRes.json()
+          setBookChapters(prev => ({ ...prev, [bookId]: data.chapters }))
+        }
+        if (progressRes.ok) {
+          const data = await progressRes.json()
+          setBookChapterProgress(prev => ({ ...prev, [bookId]: data.chapterProgress || {} }))
+        }
+      } catch (e) {
+        console.error('Error loading book chapters:', e)
+      } finally {
+        setLoadingBookIds(prev => { const n = new Set(prev); n.delete(bookId); return n })
+      }
+    }
+  }
+
+  async function toggleChapterOpen(bookId: string, chapterId: string) {
+    const isOpen = openChapterIds.has(chapterId)
+    const next = new Set(openChapterIds)
+    if (isOpen) {
+      next.delete(chapterId)
+      setOpenChapterIds(next)
+      return
+    }
+    next.add(chapterId)
+    setOpenChapterIds(next)
+
+    // Load items if not yet loaded
+    if (!bookChapterItems[chapterId]) {
+      setLoadingChapterIds(prev => new Set(prev).add(chapterId))
+      try {
+        const res = await fetch(`/api/books/${bookId}/chapters/${chapterId}/items`)
+        if (res.ok) {
+          const items = await res.json()
+          setBookChapterItems(prev => ({ ...prev, [chapterId]: items }))
+        }
+      } catch (e) {
+        console.error('Error loading chapter items:', e)
+      } finally {
+        setLoadingChapterIds(prev => { const n = new Set(prev); n.delete(chapterId); return n })
+      }
+    }
+  }
+
+  async function toggleBookItem(bookId: string, chapterId: string, itemId: string, completed: boolean) {
+    setTogglingItemIds(prev => new Set(prev).add(itemId))
+    try {
+      await fetch(`/api/books/${bookId}/progress`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIds: [itemId], completed }),
+      })
+      // Update local item state
+      setBookChapterItems(prev => ({
+        ...prev,
+        [chapterId]: (prev[chapterId] || []).map(item =>
+          item.id === itemId
+            ? { ...item, userProgress: { completed, completedAt: completed ? new Date().toISOString() : undefined } }
+            : item
+        ),
+      }))
+      // Update chapter progress
+      setBookChapterProgress(prev => {
+        const bookProg = { ...(prev[bookId] || {}) }
+        bookProg[chapterId] = (bookProg[chapterId] || 0) + (completed ? 1 : -1)
+        return { ...prev, [bookId]: bookProg }
+      })
+      // Update book-level progress
+      setUserBooks(prev => prev.map(b => {
+        if (b.id !== bookId) return b
+        const newCompleted = (b.completedItems || 0) + (completed ? 1 : -1)
+        return {
+          ...b,
+          completedItems: Math.max(0, newCompleted),
+          percentage: b.totalItems > 0 ? Math.round((Math.max(0, newCompleted) / b.totalItems) * 100) : 0,
+        }
+      }))
+    } catch (e) {
+      console.error('Error toggling book item:', e)
+    } finally {
+      setTogglingItemIds(prev => { const n = new Set(prev); n.delete(itemId); return n })
+    }
+  }
+
+  async function toggleBookChapterAll(bookId: string, chapterId: string, completed: boolean) {
+    const items = bookChapterItems[chapterId]
+    if (!items) return
+    const itemIds = items.map(i => i.id)
+    const changedCount = items.filter(i => (i.userProgress?.completed || false) !== completed).length
+    try {
+      await fetch(`/api/books/${bookId}/progress`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIds, completed }),
+      })
+      setBookChapterItems(prev => ({
+        ...prev,
+        [chapterId]: prev[chapterId].map(item => ({
+          ...item,
+          userProgress: { completed, completedAt: completed ? new Date().toISOString() : undefined },
+        })),
+      }))
+      setBookChapterProgress(prev => {
+        const bookProg = { ...(prev[bookId] || {}) }
+        const total = items.length
+        bookProg[chapterId] = completed ? total : 0
+        return { ...prev, [bookId]: bookProg }
+      })
+      setUserBooks(prev => prev.map(b => {
+        if (b.id !== bookId) return b
+        const delta = completed ? changedCount : -changedCount
+        const newCompleted = Math.max(0, (b.completedItems || 0) + delta)
+        return {
+          ...b,
+          completedItems: newCompleted,
+          percentage: b.totalItems > 0 ? Math.round((newCompleted / b.totalItems) * 100) : 0,
+        }
+      }))
+    } catch (e) {
+      console.error('Error toggling chapter:', e)
     }
   }
 
@@ -718,6 +924,211 @@ export default function ProgressPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Lecture de livres */}
+      {userBooks.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Library className="h-4 w-4 text-blue-600" />
+              Lecture de livres
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {userBooks.map(book => {
+              const isBookOpen = openBookIds.has(book.id)
+              const pct = book.percentage || 0
+              const chapters = bookChapters[book.id]
+              const chapterProg = bookChapterProgress[book.id] || {}
+
+              return (
+                <div key={book.id} className="border rounded-lg">
+                  {/* Book header */}
+                  <button
+                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left"
+                    onClick={() => toggleBook(book.id)}
+                  >
+                    {isBookOpen
+                      ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                      : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    }
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium truncate">{book.title}</span>
+                        {book.titleAr && (
+                          <span className="text-xs text-muted-foreground truncate hidden sm:inline" dir="rtl">
+                            {book.titleAr}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground">
+                        {book.completedItems || 0}/{book.totalItems}
+                      </span>
+                      {pct > 0 && (
+                        <div className="w-16 flex items-center gap-1">
+                          <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 rounded-full"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">{pct}%</span>
+                        </div>
+                      )}
+                    </div>
+                    {loadingBookIds.has(book.id) && (
+                      <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full shrink-0" />
+                    )}
+                  </button>
+
+                  {/* Chapters */}
+                  {isBookOpen && chapters && (
+                    <div className="border-t px-2 py-1 space-y-0.5">
+                      {chapters.map(chapter => renderBookChapter(book.id, chapter, chapterProg, 0))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
+
+  function renderBookChapter(bookId: string, chapter: BookChapter, chapterProg: Record<string, number>, depth: number): React.ReactNode {
+    const isChapterOpen = openChapterIds.has(chapter.id)
+    const completedInChapter = chapterProg[chapter.id] || 0
+    const totalInChapter = chapter.totalItems || chapter._count?.items || 0
+    const chapterPct = totalInChapter > 0 ? Math.round((completedInChapter / totalInChapter) * 100) : 0
+    const isComplete = totalInChapter > 0 && completedInChapter >= totalInChapter
+    const items = bookChapterItems[chapter.id]
+
+    return (
+      <div key={chapter.id} className={depth > 0 ? 'ml-4 border-l border-muted pl-2' : ''}>
+        {/* Chapter header */}
+        <button
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-left"
+          onClick={() => toggleChapterOpen(bookId, chapter.id)}
+        >
+          {isChapterOpen
+            ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          }
+          {isComplete && <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />}
+          <span className="text-sm truncate flex-1">
+            {chapter.chapterNumber}. {chapter.title}
+          </span>
+          {chapter.titleAr && (
+            <span className="text-xs text-muted-foreground truncate hidden sm:inline" dir="rtl">
+              {chapter.titleAr}
+            </span>
+          )}
+          <Badge variant={isComplete ? 'default' : 'secondary'} className="text-[10px] shrink-0">
+            {completedInChapter}/{totalInChapter}
+          </Badge>
+          {loadingChapterIds.has(chapter.id) && (
+            <div className="animate-spin h-3.5 w-3.5 border-2 border-blue-500 border-t-transparent rounded-full shrink-0" />
+          )}
+        </button>
+
+        {/* Items */}
+        {isChapterOpen && items && (
+          <div className="ml-6 space-y-0.5 pb-1">
+            {/* Batch actions */}
+            {canEdit && items.length > 0 && (
+              <div className="flex gap-2 py-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-6 px-2"
+                  onClick={() => toggleBookChapterAll(bookId, chapter.id, true)}
+                >
+                  Tout cocher
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-6 px-2"
+                  onClick={() => toggleBookChapterAll(bookId, chapter.id, false)}
+                >
+                  Tout décocher
+                </Button>
+              </div>
+            )}
+            {items.map(item => {
+              const isCompleted = item.userProgress?.completed || false
+              const hasText = item.textAr || item.textFr || item.textEn
+              return (
+                <div key={item.id}>
+                  {hasText ? (
+                    <Collapsible>
+                      <div className="flex items-start gap-2 px-1 py-1 rounded hover:bg-muted/50">
+                        <Checkbox
+                          checked={isCompleted}
+                          disabled={togglingItemIds.has(item.id) || !canEdit}
+                          onCheckedChange={(checked) =>
+                            toggleBookItem(bookId, chapter.id, item.id, checked as boolean)
+                          }
+                          className="mt-0.5"
+                        />
+                        <CollapsibleTrigger className="flex-1 text-left">
+                          <div className="flex items-center gap-1">
+                            <span className={`text-sm ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
+                              {item.itemNumber}. {item.title || `#${item.itemNumber}`}
+                            </span>
+                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                          </div>
+                        </CollapsibleTrigger>
+                      </div>
+                      <CollapsibleContent className="ml-7 px-1 pb-1">
+                        {item.textAr && (
+                          <p className="text-sm leading-relaxed text-right mb-1" dir="rtl">
+                            {item.textAr}
+                          </p>
+                        )}
+                        {item.textFr && (
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {item.textFr}
+                          </p>
+                        )}
+                        {item.textEn && !item.textFr && (
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {item.textEn}
+                          </p>
+                        )}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ) : (
+                    <div className="flex items-start gap-2 px-1 py-1 rounded hover:bg-muted/50">
+                      <Checkbox
+                        checked={isCompleted}
+                        disabled={togglingItemIds.has(item.id) || !canEdit}
+                        onCheckedChange={(checked) =>
+                          toggleBookItem(bookId, chapter.id, item.id, checked as boolean)
+                        }
+                        className="mt-0.5"
+                      />
+                      <span className={`text-sm ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
+                        {item.itemNumber}. {item.title || `#${item.itemNumber}`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Sub-chapters */}
+        {isChapterOpen && chapter.children && chapter.children.length > 0 && (
+          <div className="pb-1">
+            {chapter.children.map(child => renderBookChapter(bookId, child, chapterProg, depth + 1))}
+          </div>
+        )}
+      </div>
+    )
+  }
 }
