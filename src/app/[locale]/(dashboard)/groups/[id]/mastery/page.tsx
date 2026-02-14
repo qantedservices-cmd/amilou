@@ -1383,35 +1383,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.text(`Page ${i}/${pageCount}`, 280, 205)
       }
 
-      const fileName = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-').toLowerCase()}.pdf`
-
-      // Download via blob + <a download> (works on HTTP)
+      // Open PDF in new tab via blob URL — Chrome's native PDF viewer has download button
       const pdfBlob = doc.output('blob')
       const blobUrl = URL.createObjectURL(pdfBlob)
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = fileName
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-
-      // Also open in new tab for viewing
-      const pdfWindow = window.open(blobUrl)
-      if (!pdfWindow) {
-        // Fallback if popup blocked: open via data URI
-        const pdfBase64 = doc.output('datauristring')
-        const fallbackWindow = window.open('')
-        if (fallbackWindow) {
-          fallbackWindow.document.write(
-            `<html><head><title>Séance ${targetSessionNumber} - ${data.group.name}</title></head>` +
-            `<body style="margin:0"><embed src="${pdfBase64}" type="application/pdf" width="100%" height="100%" /></body></html>`
-          )
-          fallbackWindow.document.close()
-        }
-      }
-
-      // Revoke blob URL after a delay (let the new tab load first)
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000)
+      window.open(blobUrl, '_blank')
+      // Don't revoke immediately — let the new tab load
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
 
       setSessionReportOpen(false)
     } catch (err) {
