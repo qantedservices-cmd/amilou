@@ -179,7 +179,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [reportHomework, setReportHomework] = useState('')
   const [reportSurahs, setReportSurahs] = useState<SurahOption[]>([])
   const [newTopicLabel, setNewTopicLabel] = useState('')
-  const [pdfViewerData, setPdfViewerData] = useState<{ blobUrl: string, fileName: string } | null>(null)
+  const [pdfViewerData, setPdfViewerData] = useState<{ blobUrl: string, fileName: string, pdfId: string } | null>(null)
   const [pdfSectionOrder, setPdfSectionOrder] = useState([
     { key: 'pointsAbordes', label: 'Points abordés', enabled: true },
     { key: 'prochaineSourate', label: 'Sourate pour la prochaine séance', enabled: true },
@@ -1388,8 +1388,23 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       const blob = doc.output('blob')
       const blobUrl = URL.createObjectURL(blob)
 
+      // Upload to server for reliable HTTP download
+      let pdfId = ''
+      try {
+        const pdfBase64 = doc.output('datauristring').split(',')[1]
+        const uploadRes = await fetch('/api/pdf-download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: pdfBase64, fileName }),
+        })
+        if (uploadRes.ok) {
+          const json = await uploadRes.json()
+          pdfId = json.id
+        }
+      } catch { /* fallback: download won't work but viewer still will */ }
+
       // Show PDF in a dialog on the same page
-      setPdfViewerData({ blobUrl, fileName })
+      setPdfViewerData({ blobUrl, fileName, pdfId })
 
       setSessionReportOpen(false)
     } catch (err) {
@@ -2379,15 +2394,22 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* PDF Viewer Dialog */}
+      {/* PDF Viewer - Fullscreen overlay */}
       {pdfViewerData && (
-        <Dialog open onOpenChange={() => {
-          // Revoke blob URL on close to free memory
-          URL.revokeObjectURL(pdfViewerData.blobUrl)
-          setPdfViewerData(null)
-        }}>
-          <DialogContent className="max-w-[95vw] w-[95vw] max-h-[95vh] h-[95vh] p-0 flex flex-col gap-0 [&>button]:z-50">
-            <div className="flex items-center gap-2 px-3 py-2 bg-slate-800 rounded-t-lg flex-shrink-0">
+        <div className="fixed inset-0 z-50 flex flex-col bg-slate-900">
+          {/* Print landscape hint */}
+          <style>{`@media print { @page { size: landscape; } }`}</style>
+          {/* Toolbar */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-slate-800 flex-shrink-0">
+            {pdfViewerData.pdfId ? (
+              <a
+                href={`/api/pdf-download/${pdfViewerData.pdfId}`}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md"
+              >
+                <Download className="h-4 w-4" />
+                Télécharger
+              </a>
+            ) : (
               <a
                 href={pdfViewerData.blobUrl}
                 download={pdfViewerData.fileName}
@@ -2396,29 +2418,39 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 <Download className="h-4 w-4" />
                 Télécharger
               </a>
-              <button
-                onClick={() => {
-                  const printFrame = document.getElementById('pdf-print-frame') as HTMLIFrameElement
-                  if (printFrame?.contentWindow) {
-                    printFrame.contentWindow.focus()
-                    printFrame.contentWindow.print()
-                  }
-                }}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md"
-              >
-                <Printer className="h-4 w-4" />
-                Imprimer
-              </button>
-              <span className="text-slate-300 text-sm font-medium ml-auto">{pdfViewerData.fileName}</span>
-            </div>
-            <iframe
-              id="pdf-print-frame"
-              src={pdfViewerData.blobUrl}
-              className="flex-1 w-full border-0"
-              title={pdfViewerData.fileName}
-            />
-          </DialogContent>
-        </Dialog>
+            )}
+            <button
+              onClick={() => {
+                const printFrame = document.getElementById('pdf-print-frame') as HTMLIFrameElement
+                if (printFrame?.contentWindow) {
+                  printFrame.contentWindow.focus()
+                  printFrame.contentWindow.print()
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimer
+            </button>
+            <span className="text-slate-300 text-sm font-medium ml-auto">{pdfViewerData.fileName}</span>
+            <button
+              onClick={() => {
+                URL.revokeObjectURL(pdfViewerData.blobUrl)
+                setPdfViewerData(null)
+              }}
+              className="inline-flex items-center justify-center w-8 h-8 text-slate-400 hover:text-white hover:bg-slate-700 rounded-md"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          {/* PDF iframe - fills all remaining space */}
+          <iframe
+            id="pdf-print-frame"
+            src={pdfViewerData.blobUrl}
+            className="flex-1 w-full border-0"
+            title={pdfViewerData.fileName}
+          />
+        </div>
       )}
     </div>
   )
