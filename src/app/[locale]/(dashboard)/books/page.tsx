@@ -27,7 +27,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
-import { Library, Search, Plus, BookOpen, Check } from 'lucide-react'
+import { Library, Search, Plus, BookOpen, Check, List } from 'lucide-react'
 
 interface Book {
   id: string
@@ -76,7 +76,7 @@ export default function BooksPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [discipline, setDiscipline] = useState<string>('all')
-  const [view, setView] = useState<'collection' | 'flat'>('collection')
+  const [view, setView] = useState<'collection' | 'flat' | 'list'>('collection')
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [addingBookId, setAddingBookId] = useState<string | null>(null)
 
@@ -318,6 +318,14 @@ export default function BooksPage() {
             >
               {t('catalog')}
             </Button>
+            <Button
+              variant={view === 'list' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setView('list')}
+            >
+              <List className="h-4 w-4 mr-1" />
+              Liste
+            </Button>
           </div>
         </div>
 
@@ -371,6 +379,76 @@ export default function BooksPage() {
             {filteredBooks.map((book) => (
               <BookCard key={book.id} book={book} />
             ))}
+          </div>
+        )}
+
+        {/* List View */}
+        {view === 'list' && (
+          <div className="border rounded-lg divide-y">
+            {filteredBooks.map((book) => {
+              const myBook = myBooks.find((b) => b.id === book.id)
+              const pct = myBook?.percentage || 0
+              const isInMyList = myBookIds.has(book.id)
+
+              return (
+                <div
+                  key={book.id}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                  onClick={() => router.push(`/${locale}/books/${book.id}`)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium truncate">{book.title}</span>
+                      {book.titleAr && (
+                        <span className="text-xs text-muted-foreground truncate hidden sm:inline" dir="rtl">
+                          {book.titleAr}
+                        </span>
+                      )}
+                    </div>
+                    {book.author && (
+                      <p className="text-xs text-muted-foreground truncate">{book.author}</p>
+                    )}
+                  </div>
+
+                  <Badge variant="outline" className={`text-[10px] shrink-0 ${DISCIPLINE_COLORS[book.discipline] || ''}`}>
+                    {t(`disciplines.${book.discipline}`)}
+                  </Badge>
+
+                  <span className="text-xs text-muted-foreground shrink-0 w-16 text-right">
+                    {book.totalItems} {t('items')}
+                  </span>
+
+                  {pct > 0 && (
+                    <div className="shrink-0 w-16 flex items-center gap-1">
+                      <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 rounded-full"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">{pct}%</span>
+                    </div>
+                  )}
+
+                  {isInMyList ? (
+                    <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="shrink-0 h-7 w-7 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        addToMyList(book.id)
+                      }}
+                      disabled={addingBookId === book.id}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
 
