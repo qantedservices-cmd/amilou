@@ -36,6 +36,8 @@ import {
   Loader2,
   Lock
 } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
 import { format, addDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -151,6 +153,9 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  // Calendar popover state
+  const [calendarOpen, setCalendarOpen] = useState(false)
 
   // New objective dialog state
   const [showNewObjectiveDialog, setShowNewObjectiveDialog] = useState(false)
@@ -434,13 +439,50 @@ export default function AttendancePage() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
 
-              <Button
-                variant="outline"
-                className="min-w-[140px] sm:min-w-[180px] font-semibold text-sm sm:text-base"
-                onClick={goToCurrentWeek}
-              >
-                Semaine {weekInfo.week} - {weekInfo.year}
-              </Button>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-auto py-1 px-3 flex flex-col items-center gap-0 min-w-[120px]"
+                  >
+                    <span className="font-bold text-lg">S{weekInfo.week}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(weekStart, 'd MMM', { locale: fr })} - {format(addDays(weekStart, 6), 'd MMM yyyy', { locale: fr })}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center">
+                  <Calendar
+                    mode="single"
+                    selected={weekStart}
+                    onSelect={(date) => {
+                      if (date) {
+                        setWeekStart(getWeekStart(date))
+                        setCalendarOpen(false)
+                      }
+                    }}
+                    showWeekNumber
+                    locale={fr}
+                    defaultMonth={weekStart}
+                    captionLayout="dropdown"
+                    fromYear={2020}
+                    toYear={new Date().getFullYear()}
+                  />
+                  <div className="border-t p-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={() => {
+                        goToCurrentWeek()
+                        setCalendarOpen(false)
+                      }}
+                    >
+                      Aujourd'hui
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
 
               <Button variant="outline" size="icon" onClick={nextWeek}>
                 <ChevronRight className="h-4 w-4" />
