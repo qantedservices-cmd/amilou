@@ -19,7 +19,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { ArrowLeft, BookOpen, Check, ChevronDown } from 'lucide-react'
+import { ArrowLeft, BookOpen, Check, ChevronDown, List, FolderTree } from 'lucide-react'
 import { SegmentedProgressBar, SegmentData } from '@/components/segmented-progress-bar'
 
 interface BookItem {
@@ -91,6 +91,8 @@ export default function BookDetailPage() {
   const [loadingChapters, setLoadingChapters] = useState<Set<string>>(new Set())
   const [chapterProgress, setChapterProgress] = useState<Record<string, number>>({})
   const [toggling, setToggling] = useState<Set<string>>(new Set())
+  const [openChapters, setOpenChapters] = useState<string[]>([])
+  const [viewMode, setViewMode] = useState<'accordion' | 'list'>('accordion')
 
   const fetchBook = useCallback(async () => {
     try {
@@ -143,6 +145,30 @@ export default function BookDetailPage() {
     }
   }
 
+  // Load all chapters for list view
+  async function loadAllChapterItems() {
+    if (!book) return
+    const allChapters = getAllChapters(book.chapters)
+    const toLoad = allChapters.filter(ch => !chapterItems[ch.id])
+    if (toLoad.length === 0) return
+    for (const ch of toLoad) {
+      setLoadingChapters((prev) => new Set(prev).add(ch.id))
+    }
+    try {
+      await Promise.all(toLoad.map(async (ch) => {
+        const res = await fetch(`/api/books/${bookId}/chapters/${ch.id}/items`)
+        if (res.ok) {
+          const items = await res.json()
+          setChapterItems((prev) => ({ ...prev, [ch.id]: items }))
+        }
+      }))
+    } catch (e) {
+      console.error('Error loading all items:', e)
+    } finally {
+      setLoadingChapters(new Set())
+    }
+  }
+
   async function toggleItem(itemId: string, completed: boolean) {
     setToggling((prev) => new Set(prev).add(itemId))
     try {
@@ -151,7 +177,7 @@ export default function BookDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemIds: [itemId], completed }),
       })
-      // Update local state
+      // Update local item state
       setChapterItems((prev) => {
         const updated = { ...prev }
         for (const [chapId, items] of Object.entries(updated)) {
@@ -171,10 +197,24 @@ export default function BookDetailPage() {
         }
         return updated
       })
+      // Update book progress locally (avoid full re-fetch which causes accordion to close)
+      setBook(prev => {
+        if (!prev) return prev
+        const newCompleted = completed
+          ? prev.userProgress.completed + 1
+          : prev.userProgress.completed - 1
+        return {
+          ...prev,
+          userProgress: {
+            ...prev.userProgress,
+            completed: newCompleted,
+            percentage: prev.userProgress.total > 0
+              ? Math.round((newCompleted / prev.userProgress.total) * 100)
+              : 0
+          }
+        }
+      })
       await fetchProgress()
-      // Refresh book for global progress
-      const res = await fetch(`/api/books/${bookId}`)
-      if (res.ok) setBook(await res.json())
     } catch (e) {
       console.error('Error toggling item:', e)
     } finally {
@@ -190,6 +230,7 @@ export default function BookDetailPage() {
     const items = chapterItems[chapterId]
     if (!items) return
     const itemIds = items.map((item) => item.id)
+    const changedCount = items.filter(item => (item.userProgress?.completed || false) !== completed).length
     try {
       await fetch(`/api/books/${bookId}/progress`, {
         method: 'PUT',
@@ -209,13 +250,56 @@ export default function BookDetailPage() {
           },
         })),
       }))
+      // Update book progress locally
+      setBook(prev => {
+        if (!prev) return prev
+        const newCompleted = completed
+          ? prev.userProgress.completed + changedCount
+          : prev.userProgress.completed - changedCount
+        return {
+          ...prev,
+          userProgress: {
+            ...prev.userProgress,
+            completed: Math.max(0, newCompleted),
+            percentage: prev.userProgress.total > 0
+              ? Math.round((Math.max(0, newCompleted) / prev.userProgress.total) * 100)
+              : 0
+          }
+        }
+      })
       await fetchProgress()
-      const res = await fetch(`/api/books/${bookId}`)
-      if (res.ok) setBook(await res.json())
     } catch (e) {
       console.error('Error toggling chapter:', e)
     }
   }
+
+  // Helper: flatten all chapters (including children) for counting
+  function getAllChapters(chapters: Chapter[]): Chapter[] {
+    const result: Chapter[] = []
+    for (const ch of chapters) {
+      result.push(ch)
+      if (ch.children) {
+        result.push(...getAllChapters(ch.children))
+      }
+    }
+    return result
+  }
+
+  // Compute counts
+  const counts = useMemo(() => {
+    if (!book) return { kitab: 0, bab: 0, hadiths: 0, read: 0 }
+    const topLevel = book.chapters.length
+    let subChapters = 0
+    for (const ch of book.chapters) {
+      subChapters += ch.children?.length || 0
+    }
+    return {
+      kitab: topLevel,
+      bab: subChapters,
+      hadiths: book.userProgress.total,
+      read: book.userProgress.completed
+    }
+  }, [book])
 
   // Transform chapters into SegmentData[] for the progress bar
   const bookSegments: SegmentData[] = useMemo(() => {
@@ -247,6 +331,31 @@ export default function BookDetailPage() {
     return data.entries
   }, [bookId])
 
+  // Collect all items across loaded chapters for list view
+  const allItemsList = useMemo(() => {
+    if (!book) return []
+    const result: Array<{ chapterTitle: string; chapterTitleAr?: string; item: BookItem }> = []
+    function collectItems(chapters: Chapter[]) {
+      for (const ch of chapters) {
+        const items = chapterItems[ch.id]
+        if (items) {
+          for (const item of items) {
+            result.push({
+              chapterTitle: ch.title,
+              chapterTitleAr: ch.titleAr,
+              item,
+            })
+          }
+        }
+        if (ch.children) {
+          collectItems(ch.children)
+        }
+      }
+    }
+    collectItems(book.chapters)
+    return result
+  }, [book, chapterItems])
+
   if (loading || !book) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -257,7 +366,7 @@ export default function BookDetailPage() {
 
   const pct = book.userProgress.percentage
 
-  function ChapterSection({ chapter, depth = 0 }: { chapter: Chapter; depth?: number }) {
+  function renderChapterSection(chapter: Chapter, depth: number = 0) {
     const items = chapterItems[chapter.id]
     const completedInChapter = chapterProgress[chapter.id] || 0
     const totalInChapter = chapter.totalItems || chapter._count?.items || 0
@@ -265,7 +374,7 @@ export default function BookDetailPage() {
     const isComplete = totalInChapter > 0 && completedInChapter >= totalInChapter
 
     return (
-      <AccordionItem value={chapter.id} className={depth > 0 ? 'border-l-2 border-muted ml-4' : ''}>
+      <AccordionItem key={chapter.id} value={chapter.id} className={depth > 0 ? 'border-l-2 border-muted ml-4' : ''}>
         <AccordionTrigger
           className="text-sm hover:no-underline"
           onClick={() => loadChapterItems(chapter.id)}
@@ -321,68 +430,7 @@ export default function BookDetailPage() {
                 </Button>
               </div>
 
-              {items.map((item) => {
-                const isCompleted = item.userProgress?.completed || false
-                const hasText = item.textAr || item.textFr
-
-                return (
-                  <div key={item.id}>
-                    {hasText ? (
-                      <Collapsible>
-                        <div className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-muted/50">
-                          <Checkbox
-                            checked={isCompleted}
-                            disabled={toggling.has(item.id)}
-                            onCheckedChange={(checked) =>
-                              toggleItem(item.id, checked as boolean)
-                            }
-                            className="mt-0.5"
-                          />
-                          <CollapsibleTrigger className="flex-1 text-left">
-                            <div className="flex items-center gap-1">
-                              <span className={`text-sm ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
-                                {item.itemNumber}. {item.title || `#${item.itemNumber}`}
-                              </span>
-                              <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                            </div>
-                          </CollapsibleTrigger>
-                        </div>
-                        <CollapsibleContent className="ml-8 px-2 pb-2">
-                          {item.textAr && (
-                            <p className="text-sm leading-relaxed text-right mb-2" dir="rtl">
-                              {item.textAr}
-                            </p>
-                          )}
-                          {item.textFr && (
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                              {item.textFr}
-                            </p>
-                          )}
-                          {item.textEn && !item.textFr && (
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                              {item.textEn}
-                            </p>
-                          )}
-                        </CollapsibleContent>
-                      </Collapsible>
-                    ) : (
-                      <div className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-muted/50">
-                        <Checkbox
-                          checked={isCompleted}
-                          disabled={toggling.has(item.id)}
-                          onCheckedChange={(checked) =>
-                            toggleItem(item.id, checked as boolean)
-                          }
-                          className="mt-0.5"
-                        />
-                        <span className={`text-sm ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
-                          {item.itemNumber}. {item.title || `#${item.itemNumber}`}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+              {items.map((item) => renderItemRow(item))}
             </div>
           )}
 
@@ -394,14 +442,75 @@ export default function BookDetailPage() {
 
           {/* Nested chapters */}
           {chapter.children && chapter.children.length > 0 && (
-            <Accordion type="multiple">
-              {chapter.children.map((child) => (
-                <ChapterSection key={child.id} chapter={child} depth={depth + 1} />
-              ))}
+            <Accordion type="multiple" value={openChapters} onValueChange={setOpenChapters}>
+              {chapter.children.map((child) => renderChapterSection(child, depth + 1))}
             </Accordion>
           )}
         </AccordionContent>
       </AccordionItem>
+    )
+  }
+
+  function renderItemRow(item: BookItem) {
+    const isCompleted = item.userProgress?.completed || false
+    const hasText = item.textAr || item.textFr
+
+    return (
+      <div key={item.id}>
+        {hasText ? (
+          <Collapsible>
+            <div className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-muted/50">
+              <Checkbox
+                checked={isCompleted}
+                disabled={toggling.has(item.id)}
+                onCheckedChange={(checked) =>
+                  toggleItem(item.id, checked as boolean)
+                }
+                className="mt-0.5"
+              />
+              <CollapsibleTrigger className="flex-1 text-left">
+                <div className="flex items-center gap-1">
+                  <span className={`text-sm ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
+                    {item.itemNumber}. {item.title || `#${item.itemNumber}`}
+                  </span>
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                </div>
+              </CollapsibleTrigger>
+            </div>
+            <CollapsibleContent className="ml-8 px-2 pb-2">
+              {item.textAr && (
+                <p className="text-sm leading-relaxed text-right mb-2" dir="rtl">
+                  {item.textAr}
+                </p>
+              )}
+              {item.textFr && (
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {item.textFr}
+                </p>
+              )}
+              {item.textEn && !item.textFr && (
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {item.textEn}
+                </p>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        ) : (
+          <div className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-muted/50">
+            <Checkbox
+              checked={isCompleted}
+              disabled={toggling.has(item.id)}
+              onCheckedChange={(checked) =>
+                toggleItem(item.id, checked as boolean)
+              }
+              className="mt-0.5"
+            />
+            <span className={`text-sm ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
+              {item.itemNumber}. {item.title || `#${item.itemNumber}`}
+            </span>
+          </div>
+        )}
+      </div>
     )
   }
 
@@ -462,13 +571,19 @@ export default function BookDetailPage() {
                 <span className="text-sm font-bold">{pct}%</span>
               </div>
             </div>
-            <div>
+            <div className="space-y-1">
               <p className="text-sm font-medium">
-                {book.userProgress.completed}/{book.userProgress.total} {t('completed')}
+                <span className="text-emerald-600 font-bold">{counts.read}</span>
+                <span className="text-muted-foreground">/{counts.hadiths} {book.type === 'HADITH_COLLECTION' ? 'hadiths' : 'items'} lus</span>
               </p>
-              <p className="text-xs text-muted-foreground">
-                {book.chapters.length} {t('chapters')}
-              </p>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                {counts.kitab > 0 && (
+                  <span>{counts.kitab} kitab</span>
+                )}
+                {counts.bab > 0 && (
+                  <span>{counts.bab} bab</span>
+                )}
+              </div>
             </div>
           </div>
           {bookSegments.length > 0 && (
@@ -484,12 +599,92 @@ export default function BookDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Chapters */}
-      <Accordion type="multiple">
-        {book.chapters.map((chapter) => (
-          <ChapterSection key={chapter.id} chapter={chapter} />
-        ))}
-      </Accordion>
+      {/* View toggle */}
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant={viewMode === 'accordion' ? 'default' : 'outline'}
+          className="text-xs h-8"
+          onClick={() => setViewMode('accordion')}
+        >
+          <FolderTree className="h-3.5 w-3.5 mr-1" />
+          Chapitres
+        </Button>
+        <Button
+          size="sm"
+          variant={viewMode === 'list' ? 'default' : 'outline'}
+          className="text-xs h-8"
+          onClick={() => {
+            setViewMode('list')
+            loadAllChapterItems()
+          }}
+        >
+          <List className="h-3.5 w-3.5 mr-1" />
+          Liste
+        </Button>
+      </div>
+
+      {/* Accordion view */}
+      {viewMode === 'accordion' && (
+        <Accordion type="multiple" value={openChapters} onValueChange={setOpenChapters}>
+          {book.chapters.map((chapter) => renderChapterSection(chapter))}
+        </Accordion>
+      )}
+
+      {/* List view */}
+      {viewMode === 'list' && (
+        <Card>
+          <CardContent className="p-4">
+            {loadingChapters.size > 0 && (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin h-5 w-5 border-2 border-emerald-500 border-t-transparent rounded-full mr-2" />
+                <span className="text-sm text-muted-foreground">Chargement...</span>
+              </div>
+            )}
+            {allItemsList.length > 0 && (
+              <div className="space-y-0.5">
+                {(() => {
+                  let currentChapter = ''
+                  return allItemsList.map(({ chapterTitle, chapterTitleAr, item }) => {
+                    const showHeader = chapterTitle !== currentChapter
+                    currentChapter = chapterTitle
+                    return (
+                      <div key={item.id}>
+                        {showHeader && (
+                          <div className="flex items-center gap-2 pt-3 pb-1 first:pt-0 border-b border-muted mb-1">
+                            <span className="text-xs font-semibold text-muted-foreground">{chapterTitle}</span>
+                            {chapterTitleAr && (
+                              <span className="text-xs text-muted-foreground" dir="rtl">{chapterTitleAr}</span>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex items-start gap-2 px-2 py-1 rounded hover:bg-muted/50">
+                          <Checkbox
+                            checked={item.userProgress?.completed || false}
+                            disabled={toggling.has(item.id)}
+                            onCheckedChange={(checked) =>
+                              toggleItem(item.id, checked as boolean)
+                            }
+                            className="mt-0.5"
+                          />
+                          <span className={`text-sm ${item.userProgress?.completed ? 'line-through text-muted-foreground' : ''}`}>
+                            {item.itemNumber}. {item.title || `#${item.itemNumber}`}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })
+                })()}
+              </div>
+            )}
+            {allItemsList.length === 0 && loadingChapters.size === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Aucun élément chargé
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
