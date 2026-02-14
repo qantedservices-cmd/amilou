@@ -15,7 +15,7 @@ export async function GET(
   return new Response(new Uint8Array(entry.buffer), {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="${encodeURIComponent(entry.fileName)}"`,
+      'Content-Disposition': `attachment; filename="${entry.fileName}"`,
       'Content-Length': entry.buffer.length.toString(),
     },
   })

@@ -1385,8 +1385,9 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
       const fileName = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-').toLowerCase()}.pdf`
       const dataUri = doc.output('datauristring')
+      const pdfBase64 = dataUri.split(',')[1]
 
-      // Open PDF in new window with custom toolbar (download + print)
+      // Open PDF in new window with custom toolbar
       const pdfWindow = window.open('', '_blank')
       if (pdfWindow) {
         pdfWindow.document.write([
@@ -1396,23 +1397,53 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           'body{margin:0;display:flex;flex-direction:column;height:100vh;font-family:system-ui,sans-serif}',
           '.toolbar{padding:8px 12px;background:#1e293b;display:flex;gap:10px;align-items:center;flex-shrink:0}',
           '.toolbar span{color:#94a3b8;font-size:13px;margin-left:auto}',
-          '.btn{padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;gap:6px}',
-          '.btn-dl{background:#2563eb;color:white}',
+          '.btn{padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;gap:6px;color:white}',
+          '.btn-dl{background:#2563eb}',
           '.btn-dl:hover{background:#1d4ed8}',
-          '.btn-print{background:#059669;color:white}',
+          '.btn-dl.loading{background:#64748b;pointer-events:none}',
+          '.btn-print{background:#059669;border:none}',
           '.btn-print:hover{background:#047857}',
+          '.hint{color:#64748b;font-size:11px}',
           'embed{flex:1;width:100%}',
           '</style></head><body>',
           '<div class="toolbar">',
-          '<a class="btn btn-dl" href="' + dataUri + '" download="' + fileName + '">&#11015; Télécharger</a>',
-          '<button id="printBtn" class="btn btn-print">&#128424; Imprimer</button>',
+          '<a id="dlBtn" class="btn btn-dl loading" href="#">Préparation...</a>',
+          '<button id="printBtn" class="btn btn-print">Imprimer</button>',
           '<span>' + fileName + '</span>',
+          '<span class="hint">Ctrl+P pour imprimer / enregistrer en PDF</span>',
           '</div>',
           '<embed src="' + dataUri + '" type="application/pdf">',
-          '<script>document.getElementById("printBtn").addEventListener("click",function(){window.print()})<\/script>',
           '</body></html>'
         ].join(''))
         pdfWindow.document.close()
+
+        // Attach print handler from parent window context
+        const printBtn = pdfWindow.document.getElementById('printBtn')
+        if (printBtn) {
+          printBtn.addEventListener('click', () => { pdfWindow.print() })
+        }
+
+        // Upload to server for a real HTTP download link
+        fetch('/api/pdf-download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: pdfBase64, fileName }),
+        })
+          .then(r => r.json())
+          .then(({ id }) => {
+            const dlBtn = pdfWindow.document.getElementById('dlBtn')
+            if (dlBtn) {
+              dlBtn.setAttribute('href', '/api/pdf-download/' + id)
+              dlBtn.classList.remove('loading')
+              dlBtn.textContent = 'Télécharger'
+            }
+          })
+          .catch(() => {
+            const dlBtn = pdfWindow.document.getElementById('dlBtn')
+            if (dlBtn) {
+              dlBtn.textContent = 'Erreur'
+            }
+          })
       }
 
       setSessionReportOpen(false)
