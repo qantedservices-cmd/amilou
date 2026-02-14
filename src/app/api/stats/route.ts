@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
+import { checkDataVisibility } from '@/lib/permissions'
 
 // Constantes du Coran
 const QURAN_TOTAL_VERSES = 6236
@@ -36,8 +37,18 @@ export async function GET(request: Request) {
 
     // Support impersonation
     const { userId: effectiveUserId } = await getEffectiveUserId()
-    const userId = effectiveUserId!
+    let userId = effectiveUserId!
     const now = new Date()
+
+    // Support viewing another user's stats (for admin/referent)
+    const requestedUserId = new URL(request.url).searchParams.get('userId')
+    if (requestedUserId && requestedUserId !== userId) {
+      const visibility = await checkDataVisibility(userId, requestedUserId, 'stats')
+      if (!visibility.canView) {
+        return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
+      }
+      userId = requestedUserId
+    }
 
     // Parse period params
     const { searchParams } = new URL(request.url)

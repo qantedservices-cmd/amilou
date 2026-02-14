@@ -1,18 +1,32 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { getEffectiveUserId } from '@/lib/impersonation'
+import { checkDataVisibility } from '@/lib/permissions'
 import prisma from '@/lib/db'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await auth()
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const { userId } = await getEffectiveUserId()
-    if (!userId) {
+    const { userId: effectiveUserId } = await getEffectiveUserId()
+    if (!effectiveUserId) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    let userId = effectiveUserId
+
+    // Support viewing another user's books (for admin/referent)
+    const { searchParams } = new URL(request.url)
+    const requestedUserId = searchParams.get('userId')
+    if (requestedUserId && requestedUserId !== userId) {
+      const visibility = await checkDataVisibility(userId, requestedUserId, 'stats')
+      if (!visibility.canView) {
+        return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
+      }
+      userId = requestedUserId
     }
 
     // Get personal books

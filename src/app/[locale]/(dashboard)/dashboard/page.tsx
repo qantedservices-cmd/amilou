@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -14,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight, Library } from 'lucide-react'
 import { toast } from 'sonner'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import {
@@ -253,6 +254,8 @@ interface ProgramInfo {
 export default function DashboardPage() {
   const t = useTranslations()
   const locale = useLocale()
+  const searchParams = useSearchParams()
+  const urlUserId = searchParams.get('userId')
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
@@ -355,15 +358,66 @@ export default function DashboardPage() {
     }>
   } | null>(null)
 
-  async function fetchSurahStats() {
+  // User books for segmented bar
+  const [userBooks, setUserBooks] = useState<Array<{
+    id: string
+    title: string
+    titleAr?: string
+    totalItems: number
+    completedItems: number
+    percentage: number
+  }>>([])
+
+  // Inactivity alerts
+  const [inactiveAlerts, setInactiveAlerts] = useState<Array<{
+    userId: string
+    name: string
+    daysSinceActivity: number
+    lastActivityDate: string | null
+    groupName: string
+  }>>([])
+
+  // Global user selector (replaces limited selectedUserId for Programmes Journaliers)
+  const [globalUserId, setGlobalUserId] = useState<string>('')
+  const [globalUserName, setGlobalUserName] = useState<string>('')
+  const [isViewingSelf, setIsViewingSelf] = useState(true)
+  const [globalCanEdit, setGlobalCanEdit] = useState(true)
+
+  async function fetchSurahStats(targetUserId?: string) {
     try {
-      const res = await fetch('/api/stats/surahs')
+      const params = targetUserId ? `?userId=${targetUserId}` : ''
+      const res = await fetch(`/api/stats/surahs${params}`)
       if (res.ok) {
         const data = await res.json()
         setSurahStats(data)
       }
     } catch (error) {
       console.error('Error fetching surah stats:', error)
+    }
+  }
+
+  async function fetchUserBooks(targetUserId?: string) {
+    try {
+      const params = targetUserId ? `?userId=${targetUserId}` : ''
+      const res = await fetch(`/api/user/books${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setUserBooks(data)
+      }
+    } catch (error) {
+      console.error('Error fetching user books:', error)
+    }
+  }
+
+  async function fetchInactiveAlerts() {
+    try {
+      const res = await fetch('/api/alerts/inactive-students?threshold=7')
+      if (res.ok) {
+        const data = await res.json()
+        setInactiveAlerts(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Error fetching inactive alerts:', error)
     }
   }
 
@@ -379,7 +433,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function fetchStats(showLoader = true) {
+  async function fetchStats(showLoader = true, targetUserId?: string) {
     // Save scroll position before fetching (for non-initial loads)
     const scrollY = window.scrollY
     const shouldRestoreScroll = !isInitialLoad
@@ -398,6 +452,9 @@ export default function DashboardPage() {
         params.set('month', selectedMonth.toString())
       }
       params.set('weekOffset', weekOffset.toString())
+      if (targetUserId) {
+        params.set('userId', targetUserId)
+      }
       const res = await fetch(`/api/stats?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
@@ -494,7 +551,9 @@ export default function DashboardPage() {
   }, [period, selectedYear, selectedMonth])
 
   useEffect(() => {
-    fetchStats()
+    const selfUser = manageableUsers.find(u => u.isSelf)
+    const targetId = (globalUserId && selfUser && globalUserId !== selfUser.id) ? globalUserId : undefined
+    fetchStats(true, targetId)
   }, [period, selectedYear, selectedMonth])
 
   // Fetch week data when weekOffset changes (without full page reload)
@@ -570,9 +629,11 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchSurahStats()
     fetchGroupRanking()
+    fetchUserBooks()
+    fetchInactiveAlerts()
   }, [])
 
-  // Fetch manageable users for Programmes Journaliers selector
+  // Fetch manageable users for global selector
   useEffect(() => {
     async function fetchManageableUsers() {
       try {
@@ -581,8 +642,13 @@ export default function DashboardPage() {
           const users = await res.json()
           setManageableUsers(Array.isArray(users) ? users : [])
           const selfUser = users.find((u: ManageableUser) => u.isSelf)
-          if (selfUser) {
-            setSelectedUserId(selfUser.id)
+          // If URL has userId param and user is allowed to see them, use that
+          const targetUser = urlUserId && users.find((u: ManageableUser) => u.id === urlUserId && u.canView)
+          const initialUser = targetUser || selfUser
+          if (initialUser) {
+            setSelectedUserId(initialUser.id)
+            setGlobalUserId(initialUser.id)
+            setGlobalUserName(initialUser.name || initialUser.email)
           }
         }
       } catch (error) {
@@ -633,7 +699,7 @@ export default function DashboardPage() {
     }
   }, [stats?.weeklyObjectivesStatus])
 
-  // Handle user selector change for Programmes Journaliers
+  // Handle user selector change for Programmes Journaliers (synced with global)
   useEffect(() => {
     if (!selectedUserId) return
     const selfUser = manageableUsers.find(u => u.isSelf)
@@ -652,6 +718,29 @@ export default function DashboardPage() {
       fetchOtherUserWeekGrid(selectedUserId)
     }
   }, [selectedUserId])
+
+  // Handle global user selector change — reloads all dashboard data
+  useEffect(() => {
+    if (!globalUserId) return
+    const selfUser = manageableUsers.find(u => u.isSelf)
+    const isSelf = selfUser?.id === globalUserId
+    setIsViewingSelf(isSelf)
+    const selected = manageableUsers.find(u => u.id === globalUserId)
+    setGlobalUserName(selected?.name || '')
+    setGlobalCanEdit(selected?.canEdit ?? true)
+
+    // Sync with programmes journaliers selector
+    setSelectedUserId(globalUserId)
+
+    // Skip if this is the initial load (data already being fetched)
+    if (!stats) return
+
+    // Refetch all data for the selected user
+    const targetId = isSelf ? undefined : globalUserId
+    fetchStats(true, targetId)
+    fetchSurahStats(targetId)
+    fetchUserBooks(targetId)
+  }, [globalUserId])
 
   async function fetchOtherUserWeekGrid(userId: string) {
     setLoadingWeek(true)
@@ -1165,6 +1254,24 @@ export default function DashboardPage() {
     }))
   }, [surahStats])
 
+  // Transform userBooks into SegmentData[] for book progress bar
+  const bookSegments: SegmentData[] = useMemo(() => {
+    if (!userBooks.length) return []
+    return userBooks.map(b => ({
+      id: b.id,
+      label: b.title,
+      labelAr: b.titleAr,
+      status: b.percentage >= 100
+        ? 'completed' as const
+        : b.percentage > 0
+          ? 'in_progress' as const
+          : 'not_started' as const,
+      percentage: b.percentage || 0,
+      totalItems: b.totalItems,
+      completedItems: b.completedItems || 0,
+    }))
+  }, [userBooks])
+
   // Calculate cursor position for memorization (last surah with data)
   const memorizationCursor = useMemo(() => {
     if (!memorizationSegments.length) return undefined
@@ -1311,12 +1418,90 @@ export default function DashboardPage() {
             {getPeriodLabel()}
           </span>
 
+          {/* Global User Selector (admin/referent) */}
+          {manageableUsers.length > 1 && (
+            <div className="flex items-center gap-1 ml-auto">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <Select value={globalUserId} onValueChange={setGlobalUserId}>
+                <SelectTrigger className="w-44 md:w-52 h-8">
+                  <SelectValue placeholder="Sélectionner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {manageableUsers.map((user) => (
+                    <SelectItem
+                      key={user.id}
+                      value={user.id}
+                      disabled={user.isPrivate}
+                      className={user.isPrivate ? 'text-muted-foreground' : ''}
+                    >
+                      <span className="flex items-center gap-2">
+                        {user.isPrivate && <Lock className="h-3 w-3" />}
+                        {user.isSelf
+                          ? `Moi-même (${user.name || user.email})`
+                          : user.isPrivate
+                            ? `${user.name || user.email} - Privé`
+                            : (user.name || user.email)
+                        }
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Refresh Indicator */}
           {isRefreshing && (
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground ml-2" />
           )}
         </div>
+
+        {/* Banner when viewing another user */}
+        {!isViewingSelf && (
+          <div className="mt-2 px-3 py-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center gap-2 text-sm text-blue-800 dark:text-blue-200">
+            <User className="h-4 w-4 shrink-0" />
+            <span>Consultation des données de <strong>{globalUserName}</strong></span>
+            {!globalCanEdit && (
+              <Badge variant="secondary" className="ml-2">Lecture seule</Badge>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Inactivity Alerts (admin/referent only) */}
+      {isViewingSelf && inactiveAlerts.length > 0 && (
+        <Card className="border-2 border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-orange-800 dark:text-orange-200">
+              <AlertCircle className="h-5 w-5" />
+              Élèves inactifs ({inactiveAlerts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {inactiveAlerts.slice(0, 5).map((alert) => (
+                <div
+                  key={alert.userId}
+                  className="flex items-center justify-between text-sm p-2 rounded bg-white/50 dark:bg-black/20"
+                >
+                  <div>
+                    <span className="font-medium">{alert.name}</span>
+                    <span className="text-xs text-muted-foreground ml-2">({alert.groupName})</span>
+                  </div>
+                  <Badge variant="outline" className="text-orange-700 dark:text-orange-300 border-orange-300">
+                    {alert.daysSinceActivity === 999 ? 'Aucune activité' : `${alert.daysSinceActivity} jours`}
+                  </Badge>
+                </div>
+              ))}
+              {inactiveAlerts.length > 5 && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Et {inactiveAlerts.length - 5} autres...
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Mes Objectifs - Résumé compact */}
       <Card className="border-2 border-purple-200 dark:border-purple-800">
@@ -1326,14 +1511,16 @@ export default function DashboardPage() {
               <Target className="h-5 w-5 text-purple-600" />
               Mes Objectifs
             </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-purple-600 hover:text-purple-700"
-              onClick={() => window.location.href = `/${locale}/settings`}
-            >
-              Configurer
-            </Button>
+            {isViewingSelf && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-purple-600 hover:text-purple-700"
+                onClick={() => window.location.href = `/${locale}/settings`}
+              >
+                Configurer
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -1453,7 +1640,7 @@ export default function DashboardPage() {
                 <button
                   key={prog.code}
                   onClick={() => toggleTodayProgram(prog.code)}
-                  disabled={togglingProgram === prog.code || !programsMap[prog.code]}
+                  disabled={togglingProgram === prog.code || !programsMap[prog.code] || (!isViewingSelf && !globalCanEdit)}
                   className={`flex items-center gap-2 p-3 rounded-lg border transition-all duration-200 text-left min-h-[52px] ${
                     prog.completed
                       ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/50'
@@ -1548,37 +1735,6 @@ export default function DashboardPage() {
               )}
             </CardTitle>
             <div className="flex items-center gap-2">
-              {/* User Selector */}
-              {manageableUsers.length > 1 && (
-                <div className="flex items-center gap-1">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                    <SelectTrigger className="w-52 h-9">
-                      <SelectValue placeholder="Sélectionner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {manageableUsers.map((user) => (
-                        <SelectItem
-                          key={user.id}
-                          value={user.id}
-                          disabled={user.isPrivate}
-                          className={user.isPrivate ? 'text-muted-foreground' : ''}
-                        >
-                          <span className="flex items-center gap-2">
-                            {user.isPrivate && <Lock className="h-3 w-3" />}
-                            {user.isSelf
-                              ? `Moi-même (${user.name || user.email})`
-                              : user.isPrivate
-                                ? `${user.name || user.email} - Privé`
-                                : (user.name || user.email)
-                            }
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
               {/* Week Navigation with Calendar */}
               <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => changeWeekOffset(-1)} disabled={loadingWeek}>
                 <ChevronLeft className="h-4 w-4" />
@@ -1838,15 +1994,17 @@ export default function DashboardPage() {
                   <RefreshCw className="h-5 w-5 text-blue-600" />
                   <span className="font-medium text-blue-800 dark:text-blue-200">Révision</span>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
-                  onClick={(e) => { e.stopPropagation(); openCycleDialog('REVISION'); }}
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Ajouter
-                </Button>
+                {isViewingSelf && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={(e) => { e.stopPropagation(); openCycleDialog('REVISION'); }}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Ajouter
+                  </Button>
+                )}
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -1901,15 +2059,17 @@ export default function DashboardPage() {
                   <BookMarked className="h-5 w-5 text-purple-600" />
                   <span className="font-medium text-purple-800 dark:text-purple-200">Lecture</span>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
-                  onClick={(e) => { e.stopPropagation(); openCycleDialog('LECTURE'); }}
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Ajouter
-                </Button>
+                {isViewingSelf && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={(e) => { e.stopPropagation(); openCycleDialog('LECTURE'); }}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Ajouter
+                  </Button>
+                )}
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -2002,6 +2162,46 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Mes Livres */}
+      {bookSegments.length > 0 && (
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Library className="h-5 w-5 text-blue-600" />
+              Mes Livres
+            </CardTitle>
+            <CardDescription>
+              Progression dans les livres d'étude
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {userBooks.filter(b => (b.percentage || 0) >= 100).length}/{userBooks.length} livres complétés
+                </span>
+                <span className="font-bold text-blue-600 text-lg">
+                  {userBooks.length > 0
+                    ? Math.round(userBooks.reduce((sum, b) => sum + (b.percentage || 0), 0) / userBooks.length)
+                    : 0}%
+                </span>
+              </div>
+              <SegmentedProgressBar
+                segments={bookSegments}
+                mode="compact"
+                colorScheme="book"
+                onBarClick={() => window.location.href = `/${locale}/books`}
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                {userBooks.slice(0, 3).map(b => (
+                  <span key={b.id} className="truncate max-w-[30%]">{b.title}: {b.percentage}%</span>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Avancement par Sourate */}
       <Card>

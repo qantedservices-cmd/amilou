@@ -1549,8 +1549,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             <table className="w-full border-collapse">
               <thead className="sticky top-0 z-20 bg-background">
                 <tr>
-                  <th className="sticky left-0 z-30 bg-background border-b border-r p-2 text-left w-[220px]">
-                    <span className="text-sm font-medium">Sourate</span>
+                  <th className="sticky left-0 z-30 bg-background border-b border-r p-2 text-left w-[140px] md:w-[220px]">
+                    <span className="text-xs md:text-sm font-medium">Sourate</span>
                   </th>
                   {data.members.map(member => {
                     const nameParts = member.name.split(' ')
@@ -1560,7 +1560,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                     return (
                       <th
                         key={member.id}
-                        className="border-b p-1 text-center w-[70px] text-xs"
+                        className="border-b p-1 text-center w-[60px] md:w-[70px] text-xs"
                       >
                         <div className="flex flex-col items-center" title={member.name}>
                           <span className="font-semibold truncate w-full text-[10px]">{lastName}</span>
@@ -1590,7 +1590,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                           key={`expanded-${surahNum}`}
                           className="hover:bg-muted/50"
                         >
-                          <td className="sticky left-0 bg-background border-r p-2 w-[220px]">
+                          <td className="sticky left-0 z-10 bg-background border-r p-2 w-[140px] md:w-[220px]">
                             <div className="flex items-center gap-1">
                               {subIdx === 0 && (
                                 <Button
@@ -1603,12 +1603,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                                 </Button>
                               )}
                               {subIdx !== 0 && <div className="w-6 shrink-0" />}
-                              <div className="text-sm leading-snug">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold w-7 text-right">{surahNum}</span>
+                              <div className="text-xs md:text-sm leading-snug">
+                                <div className="flex items-center gap-1 md:gap-2">
+                                  <span className="font-bold w-6 md:w-7 text-right">{surahNum}</span>
                                   <span className="font-semibold">{surahInfo?.nameAr}</span>
                                 </div>
-                                <div className="pl-9 text-xs text-gray-500">
+                                <div className="pl-7 md:pl-9 text-[10px] md:text-xs text-gray-500">
                                   {surahInfo?.nameFr} <span className="text-gray-400">({surahInfo?.totalVerses} v.)</span>
                                 </div>
                               </div>
@@ -1643,7 +1643,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                         className="bg-muted/30 hover:bg-muted/50 cursor-pointer"
                         onClick={() => toggleExpanded(key)}
                       >
-                        <td className="sticky left-0 bg-muted/30 border-r p-2" colSpan={1}>
+                        <td className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-900 border-r p-2" colSpan={1}>
                           <div className="flex items-center gap-2 text-muted-foreground">
                             <ChevronRight className="h-4 w-4" />
                             <span className="text-sm">
@@ -1663,13 +1663,13 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                   // Regular surah row
                   return (
                     <tr key={group.number} className="hover:bg-muted/50">
-                      <td className="sticky left-0 bg-background border-r p-2 w-[220px]">
-                        <div className="text-sm leading-snug">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold w-7 text-right">{group.number}</span>
+                      <td className="sticky left-0 z-10 bg-background border-r p-2 w-[140px] md:w-[220px]">
+                        <div className="text-xs md:text-sm leading-snug">
+                          <div className="flex items-center gap-1 md:gap-2">
+                            <span className="font-bold w-6 md:w-7 text-right">{group.number}</span>
                             <span className="font-semibold">{group.nameAr}</span>
                           </div>
-                          <div className="pl-9 text-xs text-gray-500">
+                          <div className="pl-7 md:pl-9 text-[10px] md:text-xs text-gray-500">
                             {group.nameFr} <span className="text-gray-400">({group.totalVerses} v.)</span>
                           </div>
                         </div>

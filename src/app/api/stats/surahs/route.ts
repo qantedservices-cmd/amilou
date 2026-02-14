@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
+import { checkDataVisibility } from '@/lib/permissions'
 
 // Programs to track (excluding REVISION and READING which use cycles)
 const TRACKED_PROGRAMS = ['MEMORIZATION', 'CONSOLIDATION', 'TAFSIR']
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -15,7 +16,18 @@ export async function GET() {
 
     // Support impersonation
     const { userId: effectiveUserId } = await getEffectiveUserId()
-    const userId = effectiveUserId!
+    let userId = effectiveUserId!
+
+    // Support viewing another user's stats (for admin/referent)
+    const { searchParams } = new URL(request.url)
+    const requestedUserId = searchParams.get('userId')
+    if (requestedUserId && requestedUserId !== userId) {
+      const visibility = await checkDataVisibility(userId, requestedUserId, 'stats')
+      if (!visibility.canView) {
+        return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 })
+      }
+      userId = requestedUserId
+    }
 
     // Get all surahs
     const surahs = await prisma.surah.findMany({

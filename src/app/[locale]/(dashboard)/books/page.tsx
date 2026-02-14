@@ -138,16 +138,30 @@ export default function BooksPage() {
     return true
   })
 
-  // Group by collection level
+  // Group by collection level + discipline for books without level
   const byLevel: Record<number, Book[]> = {}
-  const noLevel: Book[] = []
+  const byDiscipline: Record<string, Book[]> = {}
   for (const book of filteredBooks) {
     if (book.collectionLevel != null) {
       if (!byLevel[book.collectionLevel]) byLevel[book.collectionLevel] = []
       byLevel[book.collectionLevel].push(book)
     } else {
-      noLevel.push(book)
+      const disc = book.discipline || 'GENERAL'
+      if (!byDiscipline[disc]) byDiscipline[disc] = []
+      byDiscipline[disc].push(book)
     }
+  }
+
+  const DISCIPLINE_LABELS: Record<string, string> = {
+    HADITH: 'Hadiths',
+    AQEEDAH: 'Croyance (Aqeedah)',
+    FIQH: 'Jurisprudence (Fiqh)',
+    TAJWEED: 'Tajweed',
+    GRAMMAR: 'Grammaire',
+    USUL_FIQH: 'Fondements du Fiqh',
+    POETRY: 'Poésie',
+    ADAB: 'Adab',
+    GENERAL: 'Autres',
   }
 
   const myBookIds = new Set(myBooks.map((b) => b.id))
@@ -329,23 +343,25 @@ export default function BooksPage() {
                   </AccordionContent>
                 </AccordionItem>
               ))}
-            {noLevel.length > 0 && (
-              <AccordionItem value="other">
-                <AccordionTrigger className="text-sm font-semibold">
-                  Autres
-                  <Badge variant="secondary" className="ml-2">
-                    {noLevel.length}
-                  </Badge>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
-                    {noLevel.map((book) => (
-                      <BookCard key={book.id} book={book} />
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            )}
+            {Object.entries(byDiscipline)
+              .sort(([a], [b]) => (DISCIPLINE_LABELS[a] || a).localeCompare(DISCIPLINE_LABELS[b] || b))
+              .map(([disc, discBooks]) => (
+                <AccordionItem key={disc} value={`disc-${disc}`}>
+                  <AccordionTrigger className="text-sm font-semibold">
+                    {DISCIPLINE_LABELS[disc] || disc}
+                    <Badge variant="secondary" className="ml-2">
+                      {discBooks.length}
+                    </Badge>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+                      {discBooks.map((book) => (
+                        <BookCard key={book.id} book={book} />
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
           </Accordion>
         )}
 
