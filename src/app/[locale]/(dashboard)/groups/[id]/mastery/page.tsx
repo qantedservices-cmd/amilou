@@ -1383,12 +1383,28 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         doc.text(`Page ${i}/${pageCount}`, 280, 205)
       }
 
-      // Open PDF in new tab via blob URL — Chrome's native PDF viewer has download button
-      const pdfBlob = doc.output('blob')
-      const blobUrl = URL.createObjectURL(pdfBlob)
-      window.open(blobUrl, '_blank')
-      // Don't revoke immediately — let the new tab load
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+      const fileName = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-').toLowerCase()}.pdf`
+      const pdfBase64 = doc.output('datauristring').split(',')[1]
+
+      // Open PDF via server response (form POST → new tab with real HTTP PDF)
+      const form = document.createElement('form')
+      form.method = 'POST'
+      form.action = '/api/pdf-download'
+      form.target = '_blank'
+      form.enctype = 'multipart/form-data'
+      const dataInput = document.createElement('input')
+      dataInput.type = 'hidden'
+      dataInput.name = 'data'
+      dataInput.value = pdfBase64
+      form.appendChild(dataInput)
+      const nameInput = document.createElement('input')
+      nameInput.type = 'hidden'
+      nameInput.name = 'fileName'
+      nameInput.value = fileName
+      form.appendChild(nameInput)
+      document.body.appendChild(form)
+      form.submit()
+      document.body.removeChild(form)
 
       setSessionReportOpen(false)
     } catch (err) {
