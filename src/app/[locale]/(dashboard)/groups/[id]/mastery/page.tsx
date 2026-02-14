@@ -1407,7 +1407,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
       // Redirect to server-rendered viewer page (real HTTP page, not about:blank)
       if (pdfWindow) {
-        pdfWindow.location.href = `/api/pdf-viewer/${pdfId}`
+        pdfWindow.location.href = `${window.location.origin}/api/pdf-viewer/${pdfId}`
       }
 
       setSessionReportOpen(false)
