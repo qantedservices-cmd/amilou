@@ -182,6 +182,15 @@ export default function BooksPage() {
     GENERAL: 'Autres',
   }
 
+  // Count books per category (based on all books, not filtered)
+  const categoryCounts: Record<string, number> = {}
+  for (const book of books) {
+    // Count by type
+    categoryCounts[book.type] = (categoryCounts[book.type] || 0) + 1
+    // Count by discipline
+    categoryCounts[book.discipline] = (categoryCounts[book.discipline] || 0) + 1
+  }
+
   const myBookIds = new Set(myBooks.map((b) => b.id))
 
   function BookCard({ book }: { book: Book }) {
@@ -371,18 +380,18 @@ export default function BooksPage() {
               <SelectValue placeholder="Toutes catégories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Toutes catégories</SelectItem>
-              <SelectItem value="MATN">Mutun (collection)</SelectItem>
-              <SelectItem value="HADITH_COLLECTION">Collections de hadiths</SelectItem>
-              <SelectItem value="AQEEDAH">Croyance (Aqeedah)</SelectItem>
-              <SelectItem value="HADITH">Hadiths</SelectItem>
-              <SelectItem value="FIQH">Jurisprudence (Fiqh)</SelectItem>
-              <SelectItem value="TAJWEED">Tajweed</SelectItem>
-              <SelectItem value="GRAMMAR">Grammaire</SelectItem>
-              <SelectItem value="USUL_FIQH">Fondements du Fiqh</SelectItem>
-              <SelectItem value="ADAB">Adab</SelectItem>
-              <SelectItem value="POETRY">Poésie</SelectItem>
-              <SelectItem value="GENERAL">Autres</SelectItem>
+              <SelectItem value="all">Toutes catégories ({books.length})</SelectItem>
+              <SelectItem value="MATN">Mutun ({categoryCounts['MATN'] || 0})</SelectItem>
+              <SelectItem value="HADITH_COLLECTION">Collections de hadiths ({categoryCounts['HADITH_COLLECTION'] || 0})</SelectItem>
+              <SelectItem value="AQEEDAH">Croyance ({categoryCounts['AQEEDAH'] || 0})</SelectItem>
+              <SelectItem value="HADITH">Hadiths ({categoryCounts['HADITH'] || 0})</SelectItem>
+              <SelectItem value="FIQH">Fiqh ({categoryCounts['FIQH'] || 0})</SelectItem>
+              <SelectItem value="TAJWEED">Tajweed ({categoryCounts['TAJWEED'] || 0})</SelectItem>
+              <SelectItem value="GRAMMAR">Grammaire ({categoryCounts['GRAMMAR'] || 0})</SelectItem>
+              <SelectItem value="USUL_FIQH">Usul al-Fiqh ({categoryCounts['USUL_FIQH'] || 0})</SelectItem>
+              <SelectItem value="ADAB">Adab ({categoryCounts['ADAB'] || 0})</SelectItem>
+              <SelectItem value="POETRY">Poésie ({categoryCounts['POETRY'] || 0})</SelectItem>
+              <SelectItem value="GENERAL">Autres ({categoryCounts['GENERAL'] || 0})</SelectItem>
             </SelectContent>
           </Select>
           <div className="flex gap-1">
