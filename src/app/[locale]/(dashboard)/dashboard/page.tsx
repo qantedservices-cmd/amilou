@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, Minus, Sun, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight, Library } from 'lucide-react'
+import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight, Library } from 'lucide-react'
 import { toast } from 'sonner'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import {
@@ -298,7 +298,6 @@ export default function DashboardPage() {
   // Interactive today programs
   const [localTodayPrograms, setLocalTodayPrograms] = useState<TodayProgram[]>([])
   const [programsMap, setProgramsMap] = useState<Record<string, string>>({}) // code -> id
-  const [togglingProgram, setTogglingProgram] = useState<string | null>(null)
 
   // Interactive week grid
   const [localWeekGrid, setLocalWeekGrid] = useState<Record<string, boolean[]>>({})
@@ -363,6 +362,7 @@ export default function DashboardPage() {
     id: string
     title: string
     titleAr?: string
+    sourceRef?: string | null
     totalItems: number
     completedItems: number
     percentage: number
@@ -781,55 +781,6 @@ export default function DashboardPage() {
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
     return `${year}-${month}-${day}`
-  }
-
-  async function toggleTodayProgram(code: string) {
-    const programId = programsMap[code]
-    if (!programId || togglingProgram) return
-
-    setTogglingProgram(code)
-
-    const program = localTodayPrograms.find(p => p.code === code)
-    const newCompleted = !program?.completed
-
-    // Optimistic update
-    const newPrograms = localTodayPrograms.map(p =>
-      p.code === code ? { ...p, completed: newCompleted } : p
-    )
-    setLocalTodayPrograms(newPrograms)
-
-    try {
-      const today = new Date()
-      const dayIndex = today.getDay()
-
-      const res = await fetch('/api/attendance/programs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          completions: {
-            [programId]: {
-              [dayIndex]: {
-                date: formatDateLocal(today),
-                completed: newCompleted
-              }
-            }
-          }
-        })
-      })
-
-      if (res.ok) {
-        toast.success(newCompleted ? `${program?.name} complété ✓` : `${program?.name} retiré`)
-      } else {
-        setLocalTodayPrograms(localTodayPrograms)
-        toast.error('Erreur lors de la sauvegarde')
-      }
-    } catch (error) {
-      console.error('Error toggling program:', error)
-      setLocalTodayPrograms(localTodayPrograms)
-      toast.error('Erreur de connexion')
-    } finally {
-      setTogglingProgram(null)
-    }
   }
 
   async function toggleWeekGridCell(code: string, dayIndex: number) {
@@ -1616,110 +1567,6 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {/* TODAY + THIS WEEK Section */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Aujourd'hui */}
-        <Card className="border-2 border-emerald-200 dark:border-emerald-800">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Sun className="h-5 w-5 text-amber-500" />
-              Aujourd'hui
-              {stats?.trend && stats.trend !== 'stable' && (
-                <Badge variant="outline" className={`ml-auto ${
-                  stats.trend === 'up' ? 'text-emerald-600 border-emerald-300' : 'text-red-600 border-red-300'
-                }`}>
-                  {stats.trend === 'up' ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
-                  {stats.trendPercentage > 0 ? '+' : ''}{stats.trendPercentage}%
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
-              {localTodayPrograms.map((prog) => (
-                <button
-                  key={prog.code}
-                  onClick={() => toggleTodayProgram(prog.code)}
-                  disabled={togglingProgram === prog.code || !programsMap[prog.code] || (!isViewingSelf && !globalCanEdit)}
-                  className={`flex items-center gap-2 p-3 rounded-lg border transition-all duration-200 text-left min-h-[52px] ${
-                    prog.completed
-                      ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/50'
-                      : 'bg-muted/30 border-muted hover:bg-muted/50 hover:border-emerald-300'
-                  } ${togglingProgram === prog.code ? 'opacity-50' : ''} ${
-                    !programsMap[prog.code] ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-                  }`}
-                >
-                  {prog.completed ? (
-                    <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
-                  ) : (
-                    <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
-                  )}
-                  <span className={`text-sm font-medium ${prog.completed ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground'}`}>
-                    {prog.name}
-                  </span>
-                </button>
-              ))}
-            </div>
-            {localTodayPrograms.length > 0 && (
-              <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Progression du jour</span>
-                <span className="font-bold text-lg">
-                  {localTodayPrograms.filter(p => p.completed).length}/{localTodayPrograms.length}
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Objectifs Hebdomadaires */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Target className="h-5 w-5 text-purple-600" />
-              Objectifs Hebdo
-              <Badge variant="outline" className="ml-auto">S{getWeekNumber(new Date()).week}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {localWeeklyObjectives.length > 0 ? (
-              <div className="space-y-2">
-                {localWeeklyObjectives.map((obj) => (
-                  <button
-                    key={obj.id}
-                    onClick={() => toggleWeeklyObjective(obj.id)}
-                    disabled={togglingObjective === obj.id}
-                    className={`w-full flex items-center gap-2 p-3 rounded-lg border transition-all duration-200 text-left ${
-                      obj.completed
-                        ? 'bg-purple-50 border-purple-200 dark:bg-purple-950/30 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-950/50'
-                        : 'bg-muted/30 border-muted hover:bg-muted/50 hover:border-purple-300'
-                    } ${togglingObjective === obj.id ? 'opacity-50' : ''} cursor-pointer`}
-                  >
-                    {togglingObjective === obj.id ? (
-                      <Loader2 className="h-5 w-5 text-purple-600 shrink-0 animate-spin" />
-                    ) : obj.completed ? (
-                      <CheckCircle className="h-5 w-5 text-purple-600 shrink-0" />
-                    ) : (
-                      <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
-                    )}
-                    <span className={`text-sm font-medium ${obj.completed ? 'text-purple-700 dark:text-purple-300' : 'text-muted-foreground'}`}>
-                      {obj.name}
-                    </span>
-                    {obj.isCustom && (
-                      <Badge variant="secondary" className="ml-auto text-xs">Perso</Badge>
-                    )}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-4 text-muted-foreground">
-                <p>Aucun objectif hebdomadaire</p>
-                <p className="text-xs mt-1">Configurez-les dans Assiduité</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Cette Semaine - Grille Programmes */}
       <Card>
         <CardHeader>
@@ -1732,6 +1579,14 @@ export default function DashboardPage() {
               )}
               {viewingOtherUser && !weekGridCanEdit && (
                 <Badge variant="secondary" className="ml-1">Lecture seule</Badge>
+              )}
+              {stats?.trend && stats.trend !== 'stable' && (
+                <Badge variant="outline" className={`ml-auto ${
+                  stats.trend === 'up' ? 'text-emerald-600 border-emerald-300' : 'text-red-600 border-red-300'
+                }`}>
+                  {stats.trend === 'up' ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
+                  {stats.trendPercentage > 0 ? '+' : ''}{stats.trendPercentage}%
+                </Badge>
               )}
             </CardTitle>
             <div className="flex items-center gap-2">
@@ -1870,6 +1725,51 @@ export default function DashboardPage() {
                     </tr>
                   )
                 })}
+                {/* Weekly Objectives as optional rows */}
+                {localWeeklyObjectives.length > 0 && (
+                  <>
+                    <tr>
+                      <td colSpan={9} className="pt-2 pb-1">
+                        <div className="border-t border-dashed border-purple-200 dark:border-purple-800" />
+                      </td>
+                    </tr>
+                    {localWeeklyObjectives.map((obj) => (
+                      <tr key={obj.id} className="border-b last:border-0 bg-purple-50/30 dark:bg-purple-950/10">
+                        <td className="py-2 px-2">
+                          <div className="flex items-center gap-1">
+                            <Target className="h-3 w-3 text-purple-500 shrink-0" />
+                            <span className="text-xs text-purple-600 dark:text-purple-400 font-medium truncate max-w-[100px]">
+                              {obj.name}
+                            </span>
+                            {obj.isCustom && (
+                              <span className="text-[10px] text-purple-400 dark:text-purple-500">*</span>
+                            )}
+                          </div>
+                        </td>
+                        <td colSpan={7} className="text-center py-1 px-1">
+                          <span className="text-[10px] text-purple-400 dark:text-purple-500">objectif hebdo</span>
+                        </td>
+                        <td className="text-center py-1 px-2">
+                          <button
+                            onClick={() => toggleWeeklyObjective(obj.id)}
+                            disabled={togglingObjective === obj.id || (!isViewingSelf && !globalCanEdit)}
+                            className={`p-1 rounded transition-all duration-200 hover:bg-purple-100 dark:hover:bg-purple-900/30 ${
+                              togglingObjective === obj.id ? 'opacity-50' : ''
+                            } ${(!isViewingSelf && !globalCanEdit) ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                          >
+                            {togglingObjective === obj.id ? (
+                              <Loader2 className="h-4 w-4 text-purple-600 mx-auto animate-spin" />
+                            ) : obj.completed ? (
+                              <CheckCircle className="h-4 w-4 text-purple-600 mx-auto" />
+                            ) : (
+                              <Circle className="h-4 w-4 text-purple-300 mx-auto hover:text-purple-400" />
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                )}
               </tbody>
             </table>
           </div>
@@ -1887,50 +1787,6 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Objectifs Hebdo Stats (pour la période) */}
-      {stats?.weeklyObjectivesStats && stats.weeklyObjectivesStats.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-purple-600" />
-              Bilan Objectifs Hebdomadaires - {getPeriodLabel()}
-            </CardTitle>
-            <CardDescription>
-              Taux de complétion des objectifs sur la période
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {stats.weeklyObjectivesStats.map((obj) => (
-                <div key={obj.id} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{obj.name}</span>
-                      {obj.isCustom && <Badge variant="secondary" className="text-xs">Perso</Badge>}
-                    </div>
-                    <span className="text-sm">
-                      <span className="font-bold">{obj.completedWeeks}</span>
-                      <span className="text-muted-foreground">/{obj.totalWeeks} sem.</span>
-                      <span className={`ml-2 font-bold ${obj.rate >= 70 ? 'text-emerald-600' : obj.rate >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
-                        ({obj.rate}%)
-                      </span>
-                    </span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-300 ${
-                        obj.rate >= 70 ? 'bg-purple-500' : obj.rate >= 40 ? 'bg-amber-500' : 'bg-red-400'
-                      }`}
-                      style={{ width: `${obj.rate}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Programmes Journaliers - Stats Période */}
       {stats?.periodProgramStats && stats.periodProgramStats.length > 0 && (
@@ -2112,21 +1968,21 @@ export default function DashboardPage() {
       </Card>
 
       {/* Tafsir Coverage */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <Card className="bg-gradient-to-r from-rose-50 to-pink-50 dark:from-rose-950/30 dark:to-pink-950/30 border-rose-200 dark:border-rose-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <BookOpen className="h-5 w-5 text-rose-600" />
-            Couverture Tafsir
+            Mon Avancement Global - Tafsir
           </CardTitle>
           <CardDescription>
             Versets étudiés avec explication (Tafsir)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Progression globale</span>
-              <span className="font-bold text-lg text-rose-600">{stats?.tafsirCoverage?.percentage || 0}%</span>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Progression</span>
+              <span className="font-bold text-rose-600 text-lg">{stats?.tafsirCoverage?.percentage || 0}%</span>
             </div>
             {tafsirSegments.length > 0 ? (
               <SegmentedProgressBar
@@ -2138,30 +1994,51 @@ export default function DashboardPage() {
             ) : (
               <Progress value={stats?.tafsirCoverage?.percentage || 0} className="h-3" />
             )}
-            <div className="grid grid-cols-3 gap-4 pt-2">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-rose-600">{stats?.tafsirCoverage?.coveredVerses || 0}</p>
-                <p className="text-xs text-muted-foreground">Versets couverts</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-emerald-600">{stats?.tafsirCoverage?.completedSurahs || 0}</p>
-                <p className="text-xs text-muted-foreground">Sourates complètes</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-muted-foreground">6236</p>
-                <p className="text-xs text-muted-foreground">Total versets</p>
-              </div>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{stats?.tafsirCoverage?.coveredVerses || 0} versets</span>
+              <span>{stats?.tafsirCoverage?.completedSurahs || 0} sourates</span>
+              <span>6236 total</span>
             </div>
-            <Button
-              variant="outline"
-              className="w-full mt-2"
-              onClick={() => window.location.href = `/${locale}/tafsir`}
-            >
-              Voir détails par sourate
-            </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* 40 Hadiths Nawawi */}
+      {(() => {
+        const nawawi = userBooks.find(b => b.sourceRef === 'nawawi40')
+        if (!nawawi) return null
+        return (
+          <Card className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200 dark:border-amber-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <FileText className="h-5 w-5 text-amber-600" />
+                40 Hadiths An-Nawawi
+              </CardTitle>
+              <CardDescription>
+                Progression dans la mémorisation des hadiths
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Progression</span>
+                  <span className="font-bold text-amber-600 text-lg">{nawawi.percentage || 0}%</span>
+                </div>
+                <div className="h-3 bg-amber-100 dark:bg-amber-900 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-500 transition-all duration-300 rounded-full"
+                    style={{ width: `${nawawi.percentage || 0}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{nawawi.completedItems || 0} hadiths mémorisés</span>
+                  <span>{nawawi.totalItems} total</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       {/* Mes Livres */}
       {bookSegments.length > 0 && (

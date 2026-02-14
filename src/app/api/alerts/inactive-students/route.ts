@@ -77,8 +77,8 @@ export async function GET(request: Request) {
     }> = []
 
     for (const [memberId, info] of userGroups) {
-      // Find most recent activity across multiple tables
-      const [lastCompletion, lastProgress, lastAttendance] = await Promise.all([
+      // Find most recent activity across ALL relevant tables
+      const [lastCompletion, lastProgress, lastAttendance, lastMastery, lastRecitation, lastSession] = await Promise.all([
         prisma.dailyProgramCompletion.findFirst({
           where: { userId: memberId },
           orderBy: { date: 'desc' },
@@ -93,6 +93,21 @@ export async function GET(request: Request) {
           where: { userId: memberId },
           orderBy: { date: 'desc' },
           select: { date: true }
+        }),
+        prisma.surahMastery.findFirst({
+          where: { userId: memberId },
+          orderBy: { updatedAt: 'desc' },
+          select: { updatedAt: true }
+        }),
+        prisma.surahRecitation.findFirst({
+          where: { userId: memberId },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true }
+        }),
+        prisma.sessionAttendance.findFirst({
+          where: { userId: memberId, present: true },
+          include: { session: { select: { date: true } } },
+          orderBy: { session: { date: 'desc' } }
         })
       ])
 
@@ -100,6 +115,9 @@ export async function GET(request: Request) {
       if (lastCompletion?.date) dates.push(new Date(lastCompletion.date))
       if (lastProgress?.date) dates.push(new Date(lastProgress.date))
       if (lastAttendance?.date) dates.push(new Date(lastAttendance.date))
+      if (lastMastery?.updatedAt) dates.push(new Date(lastMastery.updatedAt))
+      if (lastRecitation?.createdAt) dates.push(new Date(lastRecitation.createdAt))
+      if (lastSession?.session?.date) dates.push(new Date(lastSession.session.date))
 
       const lastActivity = dates.length > 0
         ? new Date(Math.max(...dates.map(d => d.getTime())))
