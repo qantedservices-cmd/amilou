@@ -159,6 +159,7 @@ export default function ProgressPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [filterProgram, setFilterProgram] = useState<string>('all')
+  const [filterSurah, setFilterSurah] = useState<string>('all')
 
   // User selector
   const [manageableUsers, setManageableUsers] = useState<ManageableUser[]>([])
@@ -185,7 +186,6 @@ export default function ProgressPage() {
   const [selectedSurah, setSelectedSurah] = useState('')
   const [verseStart, setVerseStart] = useState('')
   const [verseEnd, setVerseEnd] = useState('')
-  const [repetitions, setRepetitions] = useState('')
   const [comment, setComment] = useState('')
 
   // Load manageable users on mount
@@ -403,7 +403,6 @@ export default function ProgressPage() {
     setSelectedSurah('')
     setVerseStart('')
     setVerseEnd('')
-    setRepetitions('')
     setComment('')
     setEditingId(null)
   }
@@ -415,7 +414,6 @@ export default function ProgressPage() {
     setSelectedSurah(entry.surahNumber.toString())
     setVerseStart(entry.verseStart.toString())
     setVerseEnd(entry.verseEnd.toString())
-    setRepetitions(entry.repetitions?.toString() || '')
     setComment(entry.comment || '')
     setDialogOpen(true)
   }
@@ -431,7 +429,6 @@ export default function ProgressPage() {
       surahNumber: parseInt(selectedSurah),
       verseStart: parseInt(verseStart),
       verseEnd: parseInt(verseEnd),
-      repetitions: repetitions ? parseInt(repetitions) : null,
       comment: comment || null,
     }
 
@@ -482,9 +479,11 @@ export default function ProgressPage() {
     return colors[code] || 'bg-gray-100 text-gray-800'
   }
 
-  const filteredEntries = filterProgram === 'all'
-    ? entries
-    : entries.filter(e => e.programId === filterProgram)
+  const filteredEntries = entries.filter(e => {
+    if (filterProgram !== 'all' && e.programId !== filterProgram) return false
+    if (filterSurah !== 'all' && e.surahNumber.toString() !== filterSurah) return false
+    return true
+  })
 
   const totalVerses = filteredEntries.reduce((sum, e) => sum + (e.verseEnd - e.verseStart + 1), 0)
 
@@ -696,17 +695,6 @@ export default function ProgressPage() {
               )}
 
               <div className="space-y-2">
-                <Label>{t('progress.repetitions')} (optionnel)</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={repetitions}
-                  onChange={(e) => setRepetitions(e.target.value)}
-                  placeholder="Nombre de répétitions"
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label>{t('progress.comment')} (optionnel)</Label>
                 <Input
                   value={comment}
@@ -733,7 +721,7 @@ export default function ProgressPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total entrées</CardTitle>
@@ -748,26 +736,6 @@ export default function ProgressPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-600">{totalVerses}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Filtrer par programme</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Select value={filterProgram} onValueChange={setFilterProgram}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les programmes</SelectItem>
-                {programs.map((prog) => (
-                  <SelectItem key={prog.id} value={prog.id}>
-                    {prog.nameFr}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </CardContent>
         </Card>
       </div>
@@ -862,10 +830,42 @@ export default function ProgressPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('progress.date')}</TableHead>
-                  <TableHead>Programme</TableHead>
-                  <TableHead>{t('progress.surah')}</TableHead>
+                  <TableHead>
+                    <Select value={filterProgram} onValueChange={setFilterProgram}>
+                      <SelectTrigger className="h-7 text-xs border-0 bg-transparent p-0 w-auto gap-1 font-medium">
+                        <SelectValue placeholder="Programme" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous les programmes</SelectItem>
+                        {programs.map((prog) => (
+                          <SelectItem key={prog.id} value={prog.id}>
+                            {prog.nameFr}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableHead>
+                  <TableHead>
+                    <Select value={filterSurah} onValueChange={setFilterSurah}>
+                      <SelectTrigger className="h-7 text-xs border-0 bg-transparent p-0 w-auto gap-1 font-medium">
+                        <SelectValue placeholder="Sourate" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Toutes les sourates</SelectItem>
+                        {(() => {
+                          const usedSurahs = new Set(entries.map(e => e.surahNumber))
+                          return surahs
+                            .filter(s => usedSurahs.has(s.number))
+                            .map((s) => (
+                              <SelectItem key={s.number} value={s.number.toString()}>
+                                {s.number}. {s.nameFr}
+                              </SelectItem>
+                            ))
+                        })()}
+                      </SelectContent>
+                    </Select>
+                  </TableHead>
                   <TableHead>{t('progress.verses')}</TableHead>
-                  <TableHead>{t('progress.repetitions')}</TableHead>
                   {canEdit && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -891,9 +891,6 @@ export default function ProgressPage() {
                       <span className="text-muted-foreground text-xs ml-1">
                         ({entry.verseEnd - entry.verseStart + 1})
                       </span>
-                    </TableCell>
-                    <TableCell>
-                      {entry.repetitions || '-'}
                     </TableCell>
                     <TableCell className="text-right">
                       {canEdit && (
