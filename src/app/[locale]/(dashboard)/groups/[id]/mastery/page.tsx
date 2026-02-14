@@ -179,6 +179,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [reportHomework, setReportHomework] = useState('')
   const [reportSurahs, setReportSurahs] = useState<SurahOption[]>([])
   const [newTopicLabel, setNewTopicLabel] = useState('')
+  const [pdfViewerData, setPdfViewerData] = useState<{ dataUri: string, fileName: string, pdfId: string } | null>(null)
   const [pdfSectionOrder, setPdfSectionOrder] = useState([
     { key: 'pointsAbordes', label: 'Points abordés', enabled: true },
     { key: 'prochaineSourate', label: 'Sourate pour la prochaine séance', enabled: true },
@@ -1384,27 +1385,25 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
 
       const fileName = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-').toLowerCase()}.pdf`
-      const pdfBase64 = doc.output('datauristring').split(',')[1]
+      const dataUri = doc.output('datauristring')
+      const pdfBase64 = dataUri.split(',')[1]
 
-      // Form POST to /api/pdf-viewer → opens viewer HTML in new tab
-      // Synchronous form submission preserves user gesture context (no popup blocker)
-      const form = document.createElement('form')
-      form.method = 'POST'
-      form.action = '/api/pdf-viewer'
-      form.target = '_blank'
-      const dataInput = document.createElement('input')
-      dataInput.type = 'hidden'
-      dataInput.name = 'data'
-      dataInput.value = pdfBase64
-      form.appendChild(dataInput)
-      const nameInput = document.createElement('input')
-      nameInput.type = 'hidden'
-      nameInput.name = 'fileName'
-      nameInput.value = fileName
-      form.appendChild(nameInput)
-      document.body.appendChild(form)
-      form.submit()
-      document.body.removeChild(form)
+      // Upload PDF to server for download link
+      let pdfId = ''
+      try {
+        const uploadRes = await fetch('/api/pdf-download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: pdfBase64, fileName }),
+        })
+        if (uploadRes.ok) {
+          const json = await uploadRes.json()
+          pdfId = json.id
+        }
+      } catch { /* download won't work but viewer still will */ }
+
+      // Show PDF in a dialog on the same page (no new tab)
+      setPdfViewerData({ dataUri, fileName, pdfId })
 
       setSessionReportOpen(false)
     } catch (err) {
@@ -2394,6 +2393,39 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* PDF Viewer Dialog */}
+      {pdfViewerData && (
+        <Dialog open onOpenChange={() => setPdfViewerData(null)}>
+          <DialogContent className="max-w-[95vw] w-[95vw] max-h-[95vh] h-[95vh] p-0 flex flex-col gap-0">
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-800 rounded-t-lg flex-shrink-0">
+              {pdfViewerData.pdfId && (
+                <a
+                  href={`/api/pdf-download/${pdfViewerData.pdfId}`}
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md no-underline"
+                >
+                  Télécharger
+                </a>
+              )}
+              <button
+                onClick={() => {
+                  const iframe = document.getElementById('pdf-viewer-iframe') as HTMLIFrameElement
+                  if (iframe?.contentWindow) iframe.contentWindow.print()
+                }}
+                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-md border-none cursor-pointer"
+              >
+                Imprimer
+              </button>
+              <span className="text-slate-400 text-xs ml-auto">{pdfViewerData.fileName}</span>
+            </div>
+            <iframe
+              id="pdf-viewer-iframe"
+              src={pdfViewerData.dataUri}
+              className="flex-1 w-full border-none"
+              title="PDF Viewer"
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }
