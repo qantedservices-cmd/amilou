@@ -372,7 +372,7 @@ export default function DashboardPage() {
   const [inactiveAlerts, setInactiveAlerts] = useState<Array<{
     userId: string
     name: string
-    daysSinceActivity: number
+    weeksSinceActivity: number
     lastActivityDate: string | null
     groupName: string
   }>>([])
@@ -411,7 +411,7 @@ export default function DashboardPage() {
 
   async function fetchInactiveAlerts() {
     try {
-      const res = await fetch('/api/alerts/inactive-students?threshold=7')
+      const res = await fetch('/api/alerts/inactive-students?threshold=2')
       if (res.ok) {
         const data = await res.json()
         setInactiveAlerts(Array.isArray(data) ? data : [])
@@ -1440,7 +1440,7 @@ export default function DashboardPage() {
                     <span className="text-xs text-muted-foreground ml-2">({alert.groupName})</span>
                   </div>
                   <Badge variant="outline" className="text-orange-700 dark:text-orange-300 border-orange-300">
-                    {alert.daysSinceActivity === 999 ? 'Aucune activité' : `${alert.daysSinceActivity} jours`}
+                    {alert.weeksSinceActivity >= 999 ? 'Aucune activité' : `${alert.weeksSinceActivity} sem.`}
                   </Badge>
                 </div>
               ))}

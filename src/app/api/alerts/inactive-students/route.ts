@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const threshold = parseInt(searchParams.get('threshold') || '7')
+    const threshold = parseInt(searchParams.get('threshold') || '2') // weeks
 
     // Check if user is ADMIN or REFERENT
     const user = await prisma.user.findUnique({
@@ -71,7 +71,7 @@ export async function GET(request: Request) {
     const results: Array<{
       userId: string
       name: string
-      daysSinceActivity: number
+      weeksSinceActivity: number
       lastActivityDate: string | null
       groupName: string
     }> = []
@@ -123,23 +123,23 @@ export async function GET(request: Request) {
         ? new Date(Math.max(...dates.map(d => d.getTime())))
         : null
 
-      const daysSince = lastActivity
-        ? Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24))
+      const weeksSince = lastActivity
+        ? Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24 * 7))
         : 999
 
-      if (daysSince >= threshold) {
+      if (weeksSince >= threshold) {
         results.push({
           userId: memberId,
           name: info.name,
-          daysSinceActivity: daysSince,
+          weeksSinceActivity: weeksSince,
           lastActivityDate: lastActivity ? lastActivity.toISOString() : null,
           groupName: info.groupName
         })
       }
     }
 
-    // Sort by daysSinceActivity descending
-    results.sort((a, b) => b.daysSinceActivity - a.daysSinceActivity)
+    // Sort by weeksSinceActivity descending
+    results.sort((a, b) => b.weeksSinceActivity - a.weeksSinceActivity)
 
     return NextResponse.json(results)
   } catch (error) {
