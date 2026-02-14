@@ -1386,29 +1386,25 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       const fileName = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-').toLowerCase()}.pdf`
       const pdfBase64 = doc.output('datauristring').split(',')[1]
 
-      // Open window immediately (preserves user gesture context)
-      const pdfWindow = window.open('about:blank', '_blank')
-      if (pdfWindow) {
-        pdfWindow.document.write('<html><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#0f172a;color:#94a3b8"><p>Chargement du PDF...</p></body></html>')
-        pdfWindow.document.close()
-      }
-
-      // Upload PDF to server
-      const uploadRes = await fetch('/api/pdf-download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: pdfBase64, fileName }),
-      })
-      if (!uploadRes.ok) {
-        if (pdfWindow) pdfWindow.close()
-        throw new Error('Erreur upload PDF')
-      }
-      const { id: pdfId } = await uploadRes.json()
-
-      // Redirect to server-rendered viewer page (real HTTP page, not about:blank)
-      if (pdfWindow) {
-        pdfWindow.location.href = `${window.location.origin}/api/pdf-viewer/${pdfId}`
-      }
+      // Form POST to /api/pdf-viewer → opens viewer HTML in new tab
+      // Synchronous form submission preserves user gesture context (no popup blocker)
+      const form = document.createElement('form')
+      form.method = 'POST'
+      form.action = '/api/pdf-viewer'
+      form.target = '_blank'
+      const dataInput = document.createElement('input')
+      dataInput.type = 'hidden'
+      dataInput.name = 'data'
+      dataInput.value = pdfBase64
+      form.appendChild(dataInput)
+      const nameInput = document.createElement('input')
+      nameInput.type = 'hidden'
+      nameInput.name = 'fileName'
+      nameInput.value = fileName
+      form.appendChild(nameInput)
+      document.body.appendChild(form)
+      form.submit()
+      document.body.removeChild(form)
 
       setSessionReportOpen(false)
     } catch (err) {
