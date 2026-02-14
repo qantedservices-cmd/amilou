@@ -2396,32 +2396,17 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       {/* PDF Viewer Dialog */}
       {pdfViewerData && (
         <Dialog open onOpenChange={() => setPdfViewerData(null)}>
-          <DialogContent className="max-w-[95vw] w-[95vw] max-h-[95vh] h-[95vh] p-0 flex flex-col gap-0">
+          <DialogContent className="max-w-[95vw] w-[95vw] max-h-[95vh] h-[95vh] p-0 flex flex-col gap-0 [&>button]:z-50">
             <div className="flex items-center gap-2 px-3 py-2 bg-slate-800 rounded-t-lg flex-shrink-0">
-              {pdfViewerData.pdfId && (
-                <a
-                  href={`/api/pdf-download/${pdfViewerData.pdfId}`}
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md no-underline"
-                >
-                  Télécharger
-                </a>
-              )}
-              <button
-                onClick={() => {
-                  const iframe = document.getElementById('pdf-viewer-iframe') as HTMLIFrameElement
-                  if (iframe?.contentWindow) iframe.contentWindow.print()
-                }}
-                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-md border-none cursor-pointer"
-              >
-                Imprimer
-              </button>
-              <span className="text-slate-400 text-xs ml-auto">{pdfViewerData.fileName}</span>
+              <span className="text-slate-300 text-sm font-medium">{pdfViewerData.fileName}</span>
+              <span className="text-slate-500 text-xs ml-auto">
+                Utilisez la barre d&apos;outils du lecteur PDF pour imprimer/télécharger
+              </span>
             </div>
-            <iframe
-              id="pdf-viewer-iframe"
+            <embed
               src={pdfViewerData.dataUri}
-              className="flex-1 w-full border-none"
-              title="PDF Viewer"
+              type="application/pdf"
+              className="flex-1 w-full"
             />
           </DialogContent>
         </Dialog>
