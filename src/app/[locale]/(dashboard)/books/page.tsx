@@ -76,7 +76,8 @@ export default function BooksPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [discipline, setDiscipline] = useState<string>('all')
-  const [view, setView] = useState<'collection' | 'flat' | 'list'>('collection')
+  const [view, setView] = useState<'collection' | 'flat' | 'list'>('list')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [addingBookId, setAddingBookId] = useState<string | null>(null)
 
@@ -124,6 +125,7 @@ export default function BooksPage() {
   }
 
   const filteredBooks = books.filter((book) => {
+    if (typeFilter !== 'all' && book.type !== typeFilter) return false
     if (discipline !== 'all' && book.discipline !== discipline) return false
     if (search) {
       const q = search.toLowerCase()
@@ -290,6 +292,16 @@ export default function BooksPage() {
               className="pl-9"
             />
           </div>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Tous types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous types</SelectItem>
+              <SelectItem value="MATN">Mutun</SelectItem>
+              <SelectItem value="HADITH_COLLECTION">Hadiths</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={discipline} onValueChange={setDiscipline}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder={t('allDisciplines')} />
