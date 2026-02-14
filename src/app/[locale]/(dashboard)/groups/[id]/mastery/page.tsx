@@ -1386,15 +1386,31 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       const fileName = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-').toLowerCase()}.pdf`
       const pdfBase64 = doc.output('datauristring').split(',')[1]
 
-      // Upload PDF to server, then open via GET URL (works on HTTP)
+      // Open window NOW (in user gesture context) before async operations
+      const pdfWindow = window.open('about:blank', '_blank')
+      if (pdfWindow) {
+        pdfWindow.document.write('<html><head><title>' + fileName + '</title></head><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif"><p>Chargement du PDF...</p></body></html>')
+        pdfWindow.document.close()
+      }
+
+      // Upload PDF to server, then redirect the open window to the GET URL
       const uploadRes = await fetch('/api/pdf-download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: pdfBase64, fileName }),
       })
-      if (!uploadRes.ok) throw new Error('Erreur upload PDF')
+      if (!uploadRes.ok) {
+        if (pdfWindow) pdfWindow.close()
+        throw new Error('Erreur upload PDF')
+      }
       const { id: pdfId } = await uploadRes.json()
-      window.open(`/api/pdf-download/${pdfId}`, '_blank')
+
+      if (pdfWindow) {
+        pdfWindow.location.href = `/api/pdf-download/${pdfId}`
+      } else {
+        // Popup bloqué, ouvrir dans l'onglet courant
+        window.location.href = `/api/pdf-download/${pdfId}`
+      }
 
       setSessionReportOpen(false)
     } catch (err) {
