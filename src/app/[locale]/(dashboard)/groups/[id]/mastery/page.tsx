@@ -1386,25 +1386,15 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       const fileName = `seance-${targetSessionNumber}-${data.group.name.replace(/\s+/g, '-').toLowerCase()}.pdf`
       const pdfBase64 = doc.output('datauristring').split(',')[1]
 
-      // Open PDF via server response (form POST → new tab with real HTTP PDF)
-      const form = document.createElement('form')
-      form.method = 'POST'
-      form.action = '/api/pdf-download'
-      form.target = '_blank'
-      form.enctype = 'multipart/form-data'
-      const dataInput = document.createElement('input')
-      dataInput.type = 'hidden'
-      dataInput.name = 'data'
-      dataInput.value = pdfBase64
-      form.appendChild(dataInput)
-      const nameInput = document.createElement('input')
-      nameInput.type = 'hidden'
-      nameInput.name = 'fileName'
-      nameInput.value = fileName
-      form.appendChild(nameInput)
-      document.body.appendChild(form)
-      form.submit()
-      document.body.removeChild(form)
+      // Upload PDF to server, then open via GET URL (works on HTTP)
+      const uploadRes = await fetch('/api/pdf-download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: pdfBase64, fileName }),
+      })
+      if (!uploadRes.ok) throw new Error('Erreur upload PDF')
+      const { id: pdfId } = await uploadRes.json()
+      window.open(`/api/pdf-download/${pdfId}`, '_blank')
 
       setSessionReportOpen(false)
     } catch (err) {
