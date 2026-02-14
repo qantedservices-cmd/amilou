@@ -27,7 +27,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
-import { Library, Search, Plus, BookOpen, Check, List } from 'lucide-react'
+import { Library, Search, Plus, BookOpen, Check, List, X } from 'lucide-react'
 
 interface Book {
   id: string
@@ -75,9 +75,8 @@ export default function BooksPage() {
   const [myBooks, setMyBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [discipline, setDiscipline] = useState<string>('all')
+  const [category, setCategory] = useState<string>('all')
   const [view, setView] = useState<'collection' | 'flat' | 'list'>('list')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [addingBookId, setAddingBookId] = useState<string | null>(null)
 
@@ -106,6 +105,17 @@ export default function BooksPage() {
     }
   }
 
+  async function removeFromMyList(bookId: string) {
+    try {
+      const res = await fetch(`/api/user/books/${bookId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setMyBooks(prev => prev.filter(b => b.id !== bookId))
+      }
+    } catch (e) {
+      console.error('Error removing book:', e)
+    }
+  }
+
   async function addToMyList(bookId: string) {
     setAddingBookId(bookId)
     try {
@@ -125,8 +135,14 @@ export default function BooksPage() {
   }
 
   const filteredBooks = books.filter((book) => {
-    if (typeFilter !== 'all' && book.type !== typeFilter) return false
-    if (discipline !== 'all' && book.discipline !== discipline) return false
+    if (category !== 'all') {
+      // category can be a type (MATN, HADITH_COLLECTION) or a discipline
+      if (category === 'MATN' || category === 'HADITH_COLLECTION') {
+        if (book.type !== category) return false
+      } else {
+        if (book.discipline !== category) return false
+      }
+    }
     if (search) {
       const q = search.toLowerCase()
       if (
@@ -270,9 +286,67 @@ export default function BooksPage() {
         <div>
           <h2 className="text-lg font-semibold mb-3">{t('myBooks')}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {myBooks.map((book) => (
-              <BookCard key={`my-${book.id}`} book={book} />
-            ))}
+            {myBooks.map((book) => {
+              const pct = book.percentage || 0
+              return (
+                <Card
+                  key={`my-${book.id}`}
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => router.push(`/${locale}/books/${book.id}`)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm truncate">{book.title}</h3>
+                        {book.titleAr && (
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate" dir="rtl">
+                            {book.titleAr}
+                          </p>
+                        )}
+                        {book.author && (
+                          <p className="text-xs text-muted-foreground mt-1">{book.author}</p>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="shrink-0 h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeFromMyList(book.id)
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      <Badge variant="outline" className={`text-[10px] ${DISCIPLINE_COLORS[book.discipline] || ''}`}>
+                        {t(`disciplines.${book.discipline}`)}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        {book.totalItems} {t('items')}
+                      </Badge>
+                    </div>
+
+                    {pct > 0 && (
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+                          <span>{t('progress')}</span>
+                          <span>{pct}%</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 rounded-full transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         </div>
       )}
@@ -292,27 +366,23 @@ export default function BooksPage() {
               className="pl-9"
             />
           </div>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Tous types" />
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Toutes catégories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous types</SelectItem>
-              <SelectItem value="MATN">Mutun</SelectItem>
-              <SelectItem value="HADITH_COLLECTION">Hadiths</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={discipline} onValueChange={setDiscipline}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder={t('allDisciplines')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('allDisciplines')}</SelectItem>
-              {DISCIPLINES.map((d) => (
-                <SelectItem key={d} value={d}>
-                  {t(`disciplines.${d}`)}
-                </SelectItem>
-              ))}
+              <SelectItem value="all">Toutes catégories</SelectItem>
+              <SelectItem value="MATN">Mutun (collection)</SelectItem>
+              <SelectItem value="HADITH_COLLECTION">Collections de hadiths</SelectItem>
+              <SelectItem value="AQEEDAH">Croyance (Aqeedah)</SelectItem>
+              <SelectItem value="HADITH">Hadiths</SelectItem>
+              <SelectItem value="FIQH">Jurisprudence (Fiqh)</SelectItem>
+              <SelectItem value="TAJWEED">Tajweed</SelectItem>
+              <SelectItem value="GRAMMAR">Grammaire</SelectItem>
+              <SelectItem value="USUL_FIQH">Fondements du Fiqh</SelectItem>
+              <SelectItem value="ADAB">Adab</SelectItem>
+              <SelectItem value="POETRY">Poésie</SelectItem>
+              <SelectItem value="GENERAL">Autres</SelectItem>
             </SelectContent>
           </Select>
           <div className="flex gap-1">
