@@ -484,8 +484,7 @@ export async function GET(request: Request) {
         where: { userId, isActive: true },
         include: {
           completions: {
-            where: { weekStartDate: weekStart },
-            take: 1
+            where: { weekStartDate: { gte: weekStart, lt: weekEnd } }
           }
         }
       })
@@ -576,18 +575,40 @@ export async function GET(request: Request) {
     // =============================================
     // currentWeekObjectives is already fetched in the second parallel batch above
 
-    const weeklyObjectivesStatus = currentWeekObjectives.map(obj => ({
-      id: obj.id,
-      name: obj.name,
-      isCustom: obj.isCustom,
-      completed: obj.completions[0]?.completed || false
-    }))
+    const weeklyObjectivesStatus = currentWeekObjectives.map(obj => {
+      // Build daily grid: 7 booleans (Sun-Sat)
+      const dailyGrid = [false, false, false, false, false, false, false]
+      for (const completion of obj.completions) {
+        if (completion.completed) {
+          const dayIndex = Math.floor((completion.weekStartDate.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000))
+          if (dayIndex >= 0 && dayIndex < 7) {
+            dailyGrid[dayIndex] = true
+          }
+        }
+      }
+      const completedCount = dailyGrid.filter(Boolean).length
+      return {
+        id: obj.id,
+        name: obj.name,
+        isCustom: obj.isCustom,
+        completed: completedCount > 0,
+        dailyGrid
+      }
+    })
 
     // Calculate weekly objectives rate for the period
     const weeksInPeriod = Math.max(1, Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (7 * 24 * 60 * 60 * 1000)))
 
     const weeklyObjectivesStats = weeklyObjectives.map(obj => {
-      const completedWeeks = obj.completions.filter(c => c.completed).length
+      // Count distinct weeks with at least 1 daily completion
+      const completedWeekKeys = new Set<string>()
+      for (const c of obj.completions) {
+        if (c.completed) {
+          const sunday = getWeekStartDate(new Date(c.weekStartDate))
+          completedWeekKeys.add(sunday.toISOString().split('T')[0])
+        }
+      }
+      const completedWeeks = completedWeekKeys.size
       return {
         id: obj.id,
         name: obj.name,
@@ -634,10 +655,12 @@ export async function GET(request: Request) {
       orderBy: { weekStartDate: 'desc' }
     })
 
-    // Group by week
+    // Group by week (find the Sunday of each completion date)
     const weeklyCompletionsByWeek: Record<string, Set<string>> = {}
     for (const c of allWeeklyCompletions) {
-      const weekKey = c.weekStartDate.toISOString().split('T')[0]
+      const completionDate = new Date(c.weekStartDate)
+      const sunday = getWeekStartDate(completionDate)
+      const weekKey = sunday.toISOString().split('T')[0]
       if (!weeklyCompletionsByWeek[weekKey]) {
         weeklyCompletionsByWeek[weekKey] = new Set()
       }

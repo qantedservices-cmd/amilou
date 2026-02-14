@@ -133,6 +133,7 @@ interface WeeklyObjectiveStatus {
   name: string
   isCustom: boolean
   completed: boolean
+  dailyGrid: boolean[]
 }
 
 interface WeeklyObjectiveStat {
@@ -536,6 +537,10 @@ export default function DashboardPage() {
         } else {
           setLocalWeekGrid(data.weekGrid || {})
         }
+        // Sync objectives for the navigated week
+        if (data.weeklyObjectivesStatus) {
+          setLocalWeeklyObjectives(data.weeklyObjectivesStatus)
+        }
       }
     } catch (error) {
       console.error('Error fetching week data:', error)
@@ -869,48 +874,67 @@ export default function DashboardPage() {
     }
   }
 
-  async function toggleWeeklyObjective(objectiveId: string) {
+  async function toggleWeeklyObjective(objectiveId: string, dayIndex: number) {
+    const toggleKey = `${objectiveId}-${dayIndex}`
     if (togglingObjective) return
 
-    setTogglingObjective(objectiveId)
+    setTogglingObjective(toggleKey)
 
     const objective = localWeeklyObjectives.find(o => o.id === objectiveId)
-    const newCompleted = !objective?.completed
+    if (!objective) return
+    const newCompleted = !objective.dailyGrid[dayIndex]
 
     // Optimistic update
     setLocalWeeklyObjectives(prev =>
-      prev.map(o => o.id === objectiveId ? { ...o, completed: newCompleted } : o)
+      prev.map(o => {
+        if (o.id !== objectiveId) return o
+        const newGrid = [...o.dailyGrid]
+        newGrid[dayIndex] = newCompleted
+        return { ...o, dailyGrid: newGrid, completed: newGrid.some(Boolean) }
+      })
     )
 
     try {
-      // Get current week start (Sunday)
-      const now = new Date()
-      const weekStart = new Date(now)
-      weekStart.setDate(now.getDate() - now.getDay())
-      weekStart.setHours(0, 0, 0, 0)
+      // Compute the actual date from weekStartDate + dayIndex
+      if (!weekStartDate) return
+      const date = new Date(weekStartDate)
+      date.setDate(date.getDate() + dayIndex)
 
       const res = await fetch('/api/attendance/weekly-objectives', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           objectiveId,
-          weekStart: weekStart.toISOString(),
-          completed: newCompleted
+          date: date.toISOString(),
+          completed: newCompleted,
+          ...(viewingOtherUser && selectedUserId ? { userId: selectedUserId } : {})
         })
       })
 
       if (res.ok) {
-        toast.success(newCompleted ? `${objective?.name} complété ✓` : `${objective?.name} retiré`)
+        toast.success(newCompleted ? `${objective.name} ✓` : `${objective.name} retiré`)
       } else {
+        // Rollback
         setLocalWeeklyObjectives(prev =>
-          prev.map(o => o.id === objectiveId ? { ...o, completed: !newCompleted } : o)
+          prev.map(o => {
+            if (o.id !== objectiveId) return o
+            const newGrid = [...o.dailyGrid]
+            newGrid[dayIndex] = !newCompleted
+            return { ...o, dailyGrid: newGrid, completed: newGrid.some(Boolean) }
+          })
         )
         toast.error('Erreur lors de la sauvegarde')
       }
     } catch (error) {
       console.error('Error toggling objective:', error)
+      // Rollback
       setLocalWeeklyObjectives(prev =>
-        prev.map(o => o.id === objectiveId ? { ...o, completed: !newCompleted } : o)
+        prev.map(o => {
+          if (o.id !== objectiveId) return o
+          const newGrid = [...o.dailyGrid]
+          newGrid[dayIndex] = !newCompleted
+          return { ...o, dailyGrid: newGrid, completed: newGrid.some(Boolean) }
+        })
       )
       toast.error('Erreur de connexion')
     } finally {
@@ -1725,7 +1749,7 @@ export default function DashboardPage() {
                     </tr>
                   )
                 })}
-                {/* Weekly Objectives as optional rows */}
+                {/* Weekly Objectives as daily rows (like programs but visually distinct) */}
                 {localWeeklyObjectives.length > 0 && (
                   <>
                     <tr>
@@ -1733,41 +1757,55 @@ export default function DashboardPage() {
                         <div className="border-t border-dashed border-purple-200 dark:border-purple-800" />
                       </td>
                     </tr>
-                    {localWeeklyObjectives.map((obj) => (
-                      <tr key={obj.id} className="border-b last:border-0 bg-purple-50/30 dark:bg-purple-950/10">
-                        <td className="py-2 px-2">
-                          <div className="flex items-center gap-1">
-                            <Target className="h-3 w-3 text-purple-500 shrink-0" />
-                            <span className="text-xs text-purple-600 dark:text-purple-400 font-medium truncate max-w-[100px]">
-                              {obj.name}
+                    {localWeeklyObjectives.map((obj) => {
+                      const completedCount = obj.dailyGrid.filter(Boolean).length
+                      return (
+                        <tr key={obj.id} className="border-b last:border-0 bg-purple-50/30 dark:bg-purple-950/10">
+                          <td className="py-2 px-2">
+                            <div className="flex items-center gap-1">
+                              <Target className="h-3 w-3 text-purple-500 shrink-0" />
+                              <span className="text-xs text-purple-600 dark:text-purple-400 font-medium truncate max-w-[100px]">
+                                {obj.name}
+                              </span>
+                              {obj.isCustom && (
+                                <span className="text-[10px] text-purple-400 dark:text-purple-500">*</span>
+                              )}
+                            </div>
+                          </td>
+                          {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
+                            const completed = obj.dailyGrid[dayIndex]
+                            const toggleKey = `${obj.id}-${dayIndex}`
+                            const isToggling = togglingObjective === toggleKey
+                            return (
+                              <td key={dayIndex} className={`text-center py-1 px-1 ${
+                                dayIndex === new Date().getDay() ? 'bg-purple-50 dark:bg-purple-950/30' : ''
+                              }`}>
+                                <button
+                                  onClick={() => toggleWeeklyObjective(obj.id, dayIndex)}
+                                  disabled={isToggling || (!isViewingSelf && !globalCanEdit)}
+                                  className={`p-1 rounded transition-all duration-200 hover:bg-purple-100 dark:hover:bg-purple-900/30 ${
+                                    isToggling ? 'opacity-50' : ''
+                                  } ${(!isViewingSelf && !globalCanEdit) ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                                >
+                                  {isToggling ? (
+                                    <Loader2 className="h-5 w-5 text-purple-600 mx-auto animate-spin" />
+                                  ) : completed ? (
+                                    <CheckCircle className="h-5 w-5 text-purple-600 mx-auto" />
+                                  ) : (
+                                    <Circle className="h-5 w-5 text-purple-300/30 mx-auto hover:text-purple-400" />
+                                  )}
+                                </button>
+                              </td>
+                            )
+                          })}
+                          <td className="text-center py-2 px-2">
+                            <span className={`font-bold ${completedCount >= 5 ? 'text-purple-600' : completedCount >= 3 ? 'text-purple-400' : 'text-muted-foreground'}`}>
+                              {completedCount}/7
                             </span>
-                            {obj.isCustom && (
-                              <span className="text-[10px] text-purple-400 dark:text-purple-500">*</span>
-                            )}
-                          </div>
-                        </td>
-                        <td colSpan={7} className="text-center py-1 px-1">
-                          <span className="text-[10px] text-purple-400 dark:text-purple-500">objectif hebdo</span>
-                        </td>
-                        <td className="text-center py-1 px-2">
-                          <button
-                            onClick={() => toggleWeeklyObjective(obj.id)}
-                            disabled={togglingObjective === obj.id || (!isViewingSelf && !globalCanEdit)}
-                            className={`p-1 rounded transition-all duration-200 hover:bg-purple-100 dark:hover:bg-purple-900/30 ${
-                              togglingObjective === obj.id ? 'opacity-50' : ''
-                            } ${(!isViewingSelf && !globalCanEdit) ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                          >
-                            {togglingObjective === obj.id ? (
-                              <Loader2 className="h-4 w-4 text-purple-600 mx-auto animate-spin" />
-                            ) : obj.completed ? (
-                              <CheckCircle className="h-4 w-4 text-purple-600 mx-auto" />
-                            ) : (
-                              <Circle className="h-4 w-4 text-purple-300 mx-auto hover:text-purple-400" />
-                            )}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </>
                 )}
               </tbody>

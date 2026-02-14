@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const { userId, objectiveId, weekStart, completed } = await request.json()
+    const { userId, objectiveId, weekStart, date, completed } = await request.json()
 
     // Check permissions for modifying another user
     const targetUserId = userId || session.user.id
@@ -150,21 +150,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Objectif non trouvé' }, { status: 404 })
     }
 
-    const weekStartDate = new Date(weekStart)
-    weekStartDate.setHours(0, 0, 0, 0)
+    // Support both daily (date) and legacy weekly (weekStart)
+    const targetDate = new Date(date || weekStart)
+    targetDate.setHours(0, 0, 0, 0)
 
     if (completed) {
       await prisma.weeklyObjectiveCompletion.upsert({
         where: {
           weeklyObjectiveId_weekStartDate: {
             weeklyObjectiveId: objectiveId,
-            weekStartDate: weekStartDate
+            weekStartDate: targetDate
           }
         },
         update: { completed: true },
         create: {
           weeklyObjectiveId: objectiveId,
-          weekStartDate: weekStartDate,
+          weekStartDate: targetDate,
           completed: true,
           createdBy: session.user.id
         }
@@ -173,7 +174,7 @@ export async function POST(request: Request) {
       await prisma.weeklyObjectiveCompletion.deleteMany({
         where: {
           weeklyObjectiveId: objectiveId,
-          weekStartDate: weekStartDate
+          weekStartDate: targetDate
         }
       })
     }
