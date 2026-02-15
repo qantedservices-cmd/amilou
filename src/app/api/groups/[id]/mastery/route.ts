@@ -42,12 +42,25 @@ async function findOrCreateWeekSession(groupId: string, createdBy: string) {
 
   if (existing) return existing
 
+  // Get group members (students only) for attendance records
+  const members = await prisma.groupMember.findMany({
+    where: { groupId, role: { notIn: ['REFERENT', 'ADMIN'] } },
+    select: { userId: true },
+  })
+
   return prisma.groupSession.create({
     data: {
       groupId,
       date: today,
       weekNumber: getISOWeekNumber(today),
-      createdBy
+      createdBy,
+      attendance: {
+        create: members.map(m => ({
+          userId: m.userId,
+          present: false,
+          excused: false,
+        })),
+      },
     }
   })
 }

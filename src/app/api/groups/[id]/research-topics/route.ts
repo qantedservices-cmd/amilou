@@ -39,8 +39,26 @@ async function resolveSessionId(groupId: string, sessionNumber: number, effectiv
   const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1))
   const weekNumber = Math.ceil(((utcDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
 
+  // Get group members (students only) for attendance records
+  const members = await prisma.groupMember.findMany({
+    where: { groupId, role: { notIn: ['REFERENT', 'ADMIN'] } },
+    select: { userId: true },
+  })
+
   const newSession = await prisma.groupSession.create({
-    data: { groupId, date: today, weekNumber, createdBy: effectiveUserId }
+    data: {
+      groupId,
+      date: today,
+      weekNumber,
+      createdBy: effectiveUserId,
+      attendance: {
+        create: members.map(m => ({
+          userId: m.userId,
+          present: false,
+          excused: false,
+        })),
+      },
+    }
   })
 
   return newSession.id
