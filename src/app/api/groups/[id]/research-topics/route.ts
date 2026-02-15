@@ -169,15 +169,15 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { sessionNumber, assignedTo, question, answer, isValidated } = body
+    const { sessionNumber, sessionId: directSessionId, assignedTo, question, answer, isValidated } = body
 
     if (!assignedTo || !question) {
       return NextResponse.json({ error: 'Élève et question requis' }, { status: 400 })
     }
 
-    // Resolve sessionId from sessionNumber
-    let sessionId: string | null = null
-    if (sessionNumber) {
+    // Resolve sessionId from sessionNumber or use direct sessionId
+    let sessionId: string | null = directSessionId || null
+    if (!sessionId && sessionNumber) {
       sessionId = await resolveSessionId(groupId, sessionNumber, effectiveUserId)
     }
 

@@ -104,7 +104,8 @@ export async function GET(
         weekNumber: true,
         nextSurahNumber: true,
         homework: true,
-        sessionTopics: true
+        sessionTopics: true,
+        tafsirEntries: true
       }
     })
 
@@ -156,6 +157,7 @@ export async function GET(
       nextSurahNumber: targetSession?.nextSurahNumber || null,
       homework: targetSession?.homework || defaultHomework,
       sessionTopics: (targetSession?.sessionTopics as any[]) || defaultTopics,
+      tafsirEntries: (targetSession?.tafsirEntries as any[]) || [],
       defaultHomework,
       surahs,
       totalSessions: allSessions.length

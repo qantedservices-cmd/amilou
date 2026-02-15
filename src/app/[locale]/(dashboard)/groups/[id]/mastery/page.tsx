@@ -179,13 +179,16 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [reportHomework, setReportHomework] = useState('')
   const [reportSurahs, setReportSurahs] = useState<SurahOption[]>([])
   const [newTopicLabel, setNewTopicLabel] = useState('')
+  const [reportTafsirEntries, setReportTafsirEntries] = useState<Array<{ type: string; surahNumber: number; verseStart: number; verseEnd: number }>>([])
   const [pdfViewerData, setPdfViewerData] = useState<{ blobUrl: string, fileName: string, pdfId: string } | null>(null)
   const [pdfSectionOrder, setPdfSectionOrder] = useState([
     { key: 'pointsAbordes', label: 'Points abordés', enabled: true },
     { key: 'prochaineSourate', label: 'Sourate pour la prochaine séance', enabled: true },
+    { key: 'devoirs', label: 'Devoirs Quotidiens', enabled: true },
+    { key: 'sensDesVersets', label: 'Lecture sens des versets', enabled: true },
+    { key: 'tafsir', label: 'Tafsir', enabled: true },
     { key: 'classement', label: 'Classement élèves', enabled: true },
     { key: 'suiviIndividuel', label: 'Suivi individuel', enabled: true },
-    { key: 'devoirs', label: 'Devoirs Quotidiens', enabled: true },
     { key: 'grille', label: 'Grille de suivi', enabled: true },
     { key: 'annexeCommentaires', label: 'Annexe 1 - Commentaires sur récitations', enabled: true },
     { key: 'annexeRecherche', label: 'Annexe 2 - Sujets de recherche suite échanges', enabled: true },
@@ -571,6 +574,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         setReportNextSurah(json.nextSurahNumber?.toString() || '')
         setReportHomework(json.homework || '')
         setReportSurahs(json.surahs || [])
+        setReportTafsirEntries(json.tafsirEntries || [])
 
       }
     } catch (err) {
@@ -837,12 +841,18 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
 
       // Map section keys to TOC labels and availability conditions
+      // Tafsir entries for PDF
+      const pdfSensEntries = reportTafsirEntries.filter(e => e.type === 'SENS')
+      const pdfTafsirEntries = reportTafsirEntries.filter(e => e.type === 'TAFSIR')
+
       const sectionTocLabel: Record<string, string> = {
         pointsAbordes: 'Points abordés de la séance',
         prochaineSourate: 'Sourate pour la prochaine séance',
+        devoirs: 'Devoirs Quotidiens',
+        sensDesVersets: 'Lecture sens des versets',
+        tafsir: 'Tafsir',
         classement: 'Classement des élèves',
         suiviIndividuel: 'Suivi individuel de mémorisation',
-        devoirs: 'Devoirs Quotidiens',
         grille: 'Grille de suivi',
         annexeCommentaires: 'Annexe 1 - Commentaires sur récitations',
         annexeRecherche: 'Annexe 2 - Sujets de recherche suite échanges',
@@ -851,9 +861,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       const sectionHasContent: Record<string, boolean> = {
         pointsAbordes: true,
         prochaineSourate: !!(reportNextSurah && reportNextSurah !== 'none'),
+        devoirs: !!reportHomework.trim(),
+        sensDesVersets: pdfSensEntries.length > 0,
+        tafsir: pdfTafsirEntries.length > 0,
         classement: true,
         suiviIndividuel: sessionRows.length > 0,
-        devoirs: !!reportHomework.trim(),
         grille: true,
         annexeCommentaires: membersWithComments.length > 0,
         annexeRecherche: allResearchTopics.length > 0,
@@ -979,6 +991,33 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             }
           }
           // else: already rendered with pointsAbordes
+        } else if (sec.key === 'sensDesVersets') {
+          // Render on the current page if there's room, or on a new page
+          doc.addPage()
+          sectionPages['Lecture sens des versets'] = doc.getNumberOfPages()
+          drawSectionHeader('Lecture sens des versets')
+          yPos = 28
+          doc.setFontSize(13)
+          doc.setFont(pdfFont, 'normal')
+          for (const entry of pdfSensEntries) {
+            const surahInfo = reportSurahs.find(s => s.number === entry.surahNumber)
+            const surahName = surahInfo ? `${surahInfo.nameFr}` : `Sourate ${entry.surahNumber}`
+            doc.text(`- Sourate ${entry.surahNumber} (${surahName}), versets ${entry.verseStart}-${entry.verseEnd}`, 14, yPos)
+            yPos += 6
+          }
+        } else if (sec.key === 'tafsir') {
+          doc.addPage()
+          sectionPages['Tafsir'] = doc.getNumberOfPages()
+          drawSectionHeader('Tafsir')
+          yPos = 28
+          doc.setFontSize(13)
+          doc.setFont(pdfFont, 'normal')
+          for (const entry of pdfTafsirEntries) {
+            const surahInfo = reportSurahs.find(s => s.number === entry.surahNumber)
+            const surahName = surahInfo ? `${surahInfo.nameFr}` : `Sourate ${entry.surahNumber}`
+            doc.text(`- Sourate ${entry.surahNumber} (${surahName}), versets ${entry.verseStart}-${entry.verseEnd}`, 14, yPos)
+            yPos += 6
+          }
         } else if (sec.key === 'classement') {
           doc.addPage()
           sectionPages['Classement des élèves'] = doc.getNumberOfPages()

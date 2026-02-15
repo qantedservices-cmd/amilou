@@ -39,6 +39,9 @@ export async function GET(
             { surahNumber: 'desc' }
           ]
         },
+        researchTopics: {
+          orderBy: { createdAt: 'asc' }
+        },
       },
     })
 
@@ -79,11 +82,11 @@ export async function PUT(
     }
 
     const { id } = await params
-    const { attendance, notes } = await request.json()
+    const { attendance, notes, tafsirEntries } = await request.json()
 
     const groupSession = await prisma.groupSession.findUnique({
       where: { id },
-      select: { groupId: true },
+      select: { groupId: true, date: true },
     })
 
     if (!groupSession) {
@@ -114,12 +117,68 @@ export async function PUT(
       }
     }
 
-    // Update session notes if provided
-    if (notes !== undefined) {
+    // Update session notes and tafsirEntries if provided
+    const updateData: any = {}
+    if (notes !== undefined) updateData.notes = notes
+    if (tafsirEntries !== undefined) updateData.tafsirEntries = tafsirEntries
+
+    if (Object.keys(updateData).length > 0) {
       await prisma.groupSession.update({
         where: { id },
-        data: { notes },
+        data: updateData,
       })
+    }
+
+    // Create Progress TAFSIR entries for each present student + referent
+    if (tafsirEntries && Array.isArray(tafsirEntries)) {
+      const tafsirOnly = tafsirEntries.filter((e: any) => e.type === 'TAFSIR')
+      if (tafsirOnly.length > 0) {
+        // Find TAFSIR program
+        const tafsirProgram = await prisma.program.findUnique({
+          where: { code: 'TAFSIR' }
+        })
+        if (tafsirProgram) {
+          // Get present user IDs from attendance
+          const presentAttendance = await prisma.sessionAttendance.findMany({
+            where: { sessionId: id, present: true },
+            select: { userId: true }
+          })
+          const userIds = new Set(presentAttendance.map(a => a.userId))
+          // Add the referent (current user) who might not be in the attendance list
+          userIds.add(session.user.id)
+
+          const sessionDate = groupSession.date
+
+          for (const entry of tafsirOnly) {
+            for (const userId of userIds) {
+              // Check for duplicate
+              const existing = await prisma.progress.findFirst({
+                where: {
+                  userId,
+                  programId: tafsirProgram.id,
+                  surahNumber: entry.surahNumber,
+                  verseStart: entry.verseStart,
+                  verseEnd: entry.verseEnd,
+                  date: sessionDate
+                }
+              })
+              if (!existing) {
+                await prisma.progress.create({
+                  data: {
+                    userId,
+                    programId: tafsirProgram.id,
+                    surahNumber: entry.surahNumber,
+                    verseStart: entry.verseStart,
+                    verseEnd: entry.verseEnd,
+                    date: sessionDate,
+                    createdBy: session.user.id
+                  }
+                })
+              }
+            }
+          }
+        }
+      }
     }
 
     // Update attendance records
@@ -154,6 +213,19 @@ export async function PUT(
               },
             },
           },
+        },
+        recitations: {
+          include: {
+            user: { select: { id: true, name: true } },
+            surah: { select: { number: true, nameFr: true, nameAr: true, totalVerses: true } }
+          },
+          orderBy: [
+            { userId: 'asc' },
+            { surahNumber: 'desc' }
+          ]
+        },
+        researchTopics: {
+          orderBy: { createdAt: 'asc' }
         },
       },
     })

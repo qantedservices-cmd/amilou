@@ -261,6 +261,7 @@ model GroupSession {
   nextSurahNumber Int?     // Prochaine sourate à mémoriser annoncée
   homework        String?  // Devoirs spécifiques à cette séance
   sessionTopics   Json?    // Checklist des points abordés [{label, checked}]
+  tafsirEntries   Json?    // [{type: 'SENS'|'TAFSIR', surahNumber, verseStart, verseEnd}]
   createdBy       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
