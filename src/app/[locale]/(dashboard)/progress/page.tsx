@@ -187,6 +187,7 @@ export default function ProgressPage() {
   const [verseStart, setVerseStart] = useState('')
   const [verseEnd, setVerseEnd] = useState('')
   const [comment, setComment] = useState('')
+  const [saving, setSaving] = useState(false)
 
   // Load manageable users on mount
   useEffect(() => {
@@ -421,8 +422,9 @@ export default function ProgressPage() {
   const selectedSurahData = surahs.find(s => s.number === parseInt(selectedSurah))
 
   async function handleSubmit() {
-    if (!selectedProgram || !selectedSurah || !verseStart || !verseEnd) return
+    if (!selectedProgram || !selectedSurah || !verseStart || !verseEnd || saving) return
 
+    setSaving(true)
     const payload = {
       programId: selectedProgram,
       date: selectedDate,
@@ -452,6 +454,8 @@ export default function ProgressPage() {
       }
     } catch (error) {
       console.error('Error saving progress:', error)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -709,10 +713,10 @@ export default function ProgressPage() {
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={!selectedProgram || !selectedSurah || !verseStart || !verseEnd}
+                disabled={saving || !selectedProgram || !selectedSurah || !verseStart || !verseEnd}
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
-                {t('common.save')}
+                {saving ? 'Enregistrement...' : t('common.save')}
               </Button>
             </DialogFooter>
           </DialogContent>

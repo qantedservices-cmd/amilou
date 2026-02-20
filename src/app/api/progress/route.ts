@@ -140,48 +140,6 @@ export async function POST(request: Request) {
       },
     })
 
-    // Auto-complete Tafsir weekly objective if this is a TAFSIR progress entry
-    if (progress.program?.code === 'TAFSIR') {
-      try {
-        // Find user's Tafsir weekly objective
-        const tafsirObjective = await prisma.weeklyObjective.findFirst({
-          where: {
-            userId: targetUserId,
-            programId: programId,
-            isActive: true
-          }
-        })
-
-        if (tafsirObjective) {
-          // Calculate week start (Sunday)
-          const progressDate = date ? new Date(date) : new Date()
-          const weekStart = new Date(progressDate)
-          weekStart.setDate(progressDate.getDate() - progressDate.getDay())
-          weekStart.setHours(0, 0, 0, 0)
-
-          // Auto-complete the weekly objective
-          await prisma.weeklyObjectiveCompletion.upsert({
-            where: {
-              weeklyObjectiveId_weekStartDate: {
-                weeklyObjectiveId: tafsirObjective.id,
-                weekStartDate: weekStart
-              }
-            },
-            update: { completed: true },
-            create: {
-              weeklyObjectiveId: tafsirObjective.id,
-              weekStartDate: weekStart,
-              completed: true,
-              createdBy: session.user.id
-            }
-          })
-        }
-      } catch (autoCompleteError) {
-        // Log but don't fail the main operation
-        console.error('Error auto-completing Tafsir objective:', autoCompleteError)
-      }
-    }
-
     return NextResponse.json(progress)
   } catch (error) {
     console.error('Error creating progress:', error)
