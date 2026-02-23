@@ -732,53 +732,80 @@ export default function SettingsPage() {
                 Historique des objectifs
               </h4>
               <div className="space-y-3">
-                {/* Group history by snapshotDate, fill incomplete snapshots */}
+                {/* Group history by snapshotDate, fill gaps, detect changes */}
                 {(() => {
-                  const snapshots: Record<string, ProgramSetting[]> = {}
+                  // 1. Group by snapshotDate
+                  const snapshotMap: Record<string, ProgramSetting[]> = {}
                   settingsHistory.forEach(s => {
                     const key = s.snapshotDate || s.endDate || s.startDate
-                    if (!snapshots[key]) snapshots[key] = []
-                    snapshots[key].push(s)
+                    if (!snapshotMap[key]) snapshotMap[key] = []
+                    snapshotMap[key].push(s)
                   })
-                  // Sort by date ascending (oldest first) to fill forward
-                  const sortedSnapshots = Object.entries(snapshots).sort(
+
+                  // 2. Sort chronologically (oldest first)
+                  const chronological = Object.entries(snapshotMap).sort(
                     ([a], [b]) => new Date(a).getTime() - new Date(b).getTime()
                   )
 
-                  // Build complete snapshots by carrying forward values
-                  // Start from the oldest complete snapshot and fill gaps
-                  const programState: Record<string, ProgramSetting> = {}
-                  const completeSnapshots: Array<{ key: string; items: ProgramSetting[]; filledProgramIds: Set<string> }> = []
+                  // 3. Fill forward to get complete snapshots
+                  const state: Record<string, ProgramSetting> = {}
+                  const filled: Array<{ key: string; items: ProgramSetting[]; origItems: ProgramSetting[] }> = []
 
-                  for (const [snapshotKey, items] of sortedSnapshots) {
-                    const filledProgramIds = new Set<string>()
-                    // Update state with this snapshot's values
+                  for (const [key, items] of chronological) {
                     for (const item of items) {
-                      programState[item.programId] = item
+                      state[item.programId] = item
                     }
-                    // Build complete list: real items + filled from state
-                    const snapshotProgramIds = new Set(items.map(s => s.programId))
-                    const completeItems: ProgramSetting[] = [...items]
-                    for (const [progId, stateItem] of Object.entries(programState)) {
-                      if (!snapshotProgramIds.has(progId)) {
-                        completeItems.push({ ...stateItem, wasModified: false })
-                        filledProgramIds.add(progId)
+                    const progIds = new Set(items.map(s => s.programId))
+                    const complete = [...items]
+                    for (const [pid, s] of Object.entries(state)) {
+                      if (!progIds.has(pid)) {
+                        complete.push({ ...s, wasModified: false })
                       }
                     }
-                    completeSnapshots.push({ key: snapshotKey, items: completeItems, filledProgramIds })
+                    filled.push({ key, items: complete, origItems: items })
                   }
 
-                  // Display in reverse chronological order
-                  return completeSnapshots.reverse().map(({ key: snapshotKey, items, filledProgramIds }) => {
-                    const sortedItems = [...items].sort((a, b) =>
+                  // 4. Build display rows: compare each snapshot with next state
+                  // Next state = next snapshot for older ones, current active for most recent
+                  const activeByProg: Record<string, ProgramSetting> = {}
+                  programSettings.forEach(s => { activeByProg[s.programId] = s })
+
+                  const rows = []
+                  for (let i = filled.length - 1; i >= 0; i--) {
+                    const { key, items, origItems } = filled[i]
+
+                    // Next state: next snapshot or current active settings
+                    const nextItems = i < filled.length - 1
+                      ? filled[i + 1].items
+                      : Object.values(activeByProg)
+                    const nextByProg: Record<string, { quantity: number; unit: string; period: string }> = {}
+                    nextItems.forEach(s => {
+                      nextByProg[s.programId] = { quantity: s.quantity, unit: s.unit, period: s.period }
+                    })
+
+                    // Build display items: detect changes by comparing with next state
+                    const displayItems = items.map(item => {
+                      const next = nextByProg[item.programId]
+                      const changed = next && (
+                        item.quantity !== next.quantity ||
+                        item.unit !== next.unit ||
+                        item.period !== next.period
+                      )
+                      if (changed) {
+                        // Show the NEW value (what it changed to)
+                        return { ...item, quantity: next.quantity, unit: next.unit, period: next.period, wasModified: true }
+                      }
+                      return { ...item, wasModified: false }
+                    })
+
+                    const sortedItems = displayItems.sort((a, b) =>
                       a.program.nameFr.localeCompare(b.program.nameFr)
                     )
                     const modifiedCount = sortedItems.filter(s => s.wasModified).length
-                    // Use dates from real items (not filled ones)
-                    const realItems = sortedItems.filter(s => !filledProgramIds.has(s.programId))
-                    const dateSource = realItems.length > 0 ? realItems[0] : sortedItems[0]
-                    return (
-                      <div key={snapshotKey} className="rounded-lg bg-muted/50 p-3">
+                    const dateSource = origItems[0] || items[0]
+
+                    rows.push(
+                      <div key={key} className="rounded-lg bg-muted/50 p-3">
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-xs text-muted-foreground">
                             {new Date(dateSource.startDate).toLocaleDateString('fr-FR')}
@@ -793,7 +820,7 @@ export default function SettingsPage() {
                         <div className="flex flex-wrap gap-2">
                           {sortedItems.map(s => (
                             <Badge
-                              key={`${snapshotKey}-${s.programId}`}
+                              key={`${key}-${s.programId}`}
                               variant={s.wasModified ? "default" : "outline"}
                               className={`text-xs ${
                                 s.wasModified
@@ -807,7 +834,9 @@ export default function SettingsPage() {
                         </div>
                       </div>
                     )
-                  })
+                  }
+
+                  return rows
                 })()}
               </div>
             </div>
