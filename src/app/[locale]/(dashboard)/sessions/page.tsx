@@ -29,6 +29,7 @@ interface SessionEntry {
   status?: string | null
   comment?: string | null
   program?: string
+  createdAt?: string
 }
 
 interface SessionParticipant {
@@ -696,6 +697,11 @@ export default function SessionsPage() {
                                             </p>
                                             <p className="text-sm text-muted-foreground">
                                               Versets {entry.verseStart} - {entry.verseEnd}
+                                              {entry.createdAt && (
+                                                <span className="ml-2">
+                                                  — {new Date(entry.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                </span>
+                                              )}
                                             </p>
                                           </div>
                                           {entry.status && (

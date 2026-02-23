@@ -168,7 +168,8 @@ export async function GET(request: Request) {
             verseStart: r.verseStart,
             verseEnd: r.verseEnd,
             status: r.status,
-            comment: r.comment
+            comment: r.comment,
+            createdAt: r.createdAt.toISOString()
           }))
         }
       })
