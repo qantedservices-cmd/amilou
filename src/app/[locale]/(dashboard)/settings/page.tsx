@@ -732,32 +732,57 @@ export default function SettingsPage() {
                 Historique des objectifs
               </h4>
               <div className="space-y-3">
-                {/* Group history by snapshotDate */}
+                {/* Group history by snapshotDate, fill incomplete snapshots */}
                 {(() => {
                   const snapshots: Record<string, ProgramSetting[]> = {}
                   settingsHistory.forEach(s => {
-                    // Use snapshotDate if available, otherwise fall back to endDate
                     const key = s.snapshotDate || s.endDate || s.startDate
                     if (!snapshots[key]) snapshots[key] = []
                     snapshots[key].push(s)
                   })
-                  // Sort by date descending (most recent first)
+                  // Sort by date ascending (oldest first) to fill forward
                   const sortedSnapshots = Object.entries(snapshots).sort(
-                    ([a], [b]) => new Date(b).getTime() - new Date(a).getTime()
+                    ([a], [b]) => new Date(a).getTime() - new Date(b).getTime()
                   )
-                  return sortedSnapshots.map(([snapshotKey, items]) => {
-                    // Sort items by program name for consistent display
+
+                  // Build complete snapshots by carrying forward values
+                  // Start from the oldest complete snapshot and fill gaps
+                  const programState: Record<string, ProgramSetting> = {}
+                  const completeSnapshots: Array<{ key: string; items: ProgramSetting[]; filledProgramIds: Set<string> }> = []
+
+                  for (const [snapshotKey, items] of sortedSnapshots) {
+                    const filledProgramIds = new Set<string>()
+                    // Update state with this snapshot's values
+                    for (const item of items) {
+                      programState[item.programId] = item
+                    }
+                    // Build complete list: real items + filled from state
+                    const snapshotProgramIds = new Set(items.map(s => s.programId))
+                    const completeItems: ProgramSetting[] = [...items]
+                    for (const [progId, stateItem] of Object.entries(programState)) {
+                      if (!snapshotProgramIds.has(progId)) {
+                        completeItems.push({ ...stateItem, wasModified: false })
+                        filledProgramIds.add(progId)
+                      }
+                    }
+                    completeSnapshots.push({ key: snapshotKey, items: completeItems, filledProgramIds })
+                  }
+
+                  // Display in reverse chronological order
+                  return completeSnapshots.reverse().map(({ key: snapshotKey, items, filledProgramIds }) => {
                     const sortedItems = [...items].sort((a, b) =>
                       a.program.nameFr.localeCompare(b.program.nameFr)
                     )
-                    // Find how many were modified
                     const modifiedCount = sortedItems.filter(s => s.wasModified).length
+                    // Use dates from real items (not filled ones)
+                    const realItems = sortedItems.filter(s => !filledProgramIds.has(s.programId))
+                    const dateSource = realItems.length > 0 ? realItems[0] : sortedItems[0]
                     return (
                       <div key={snapshotKey} className="rounded-lg bg-muted/50 p-3">
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-xs text-muted-foreground">
-                            {new Date(items[0].startDate).toLocaleDateString('fr-FR')}
-                            {items[0].endDate && ` → ${new Date(items[0].endDate).toLocaleDateString('fr-FR')}`}
+                            {new Date(dateSource.startDate).toLocaleDateString('fr-FR')}
+                            {dateSource.endDate && ` → ${new Date(dateSource.endDate).toLocaleDateString('fr-FR')}`}
                           </p>
                           {modifiedCount > 0 && (
                             <span className="text-xs text-amber-600 dark:text-amber-400">
@@ -768,7 +793,7 @@ export default function SettingsPage() {
                         <div className="flex flex-wrap gap-2">
                           {sortedItems.map(s => (
                             <Badge
-                              key={s.id}
+                              key={`${snapshotKey}-${s.programId}`}
                               variant={s.wasModified ? "default" : "outline"}
                               className={`text-xs ${
                                 s.wasModified
