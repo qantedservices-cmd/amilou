@@ -450,8 +450,8 @@ export async function GET(request: Request) {
     weekEnd.setDate(weekEnd.getDate() + 7)
     const weekInfo = getWeekNumber(weekStart)
 
-    // Calculate if we can navigate forward (not beyond current week)
-    const canGoForward = weekStart < currentWeekStart
+    // Allow navigating forward (including future weeks for pre-entry)
+    const canGoForward = true
 
     // Use allPrograms from parallel queries, filter for daily programs
     const dailyProgramsList = allPrograms.filter(p => DAILY_PROGRAMS.includes(p.code))
