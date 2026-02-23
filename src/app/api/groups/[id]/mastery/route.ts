@@ -607,6 +607,30 @@ export async function POST(
       }
     })
 
+    // Mark student as present in the session
+    await prisma.sessionAttendance.updateMany({
+      where: {
+        sessionId: sessionRecord.id,
+        userId
+      },
+      data: { present: true }
+    })
+
+    // If no attendance record exists (e.g. member added after session creation), create one
+    const attendanceExists = await prisma.sessionAttendance.findFirst({
+      where: { sessionId: sessionRecord.id, userId }
+    })
+    if (!attendanceExists) {
+      await prisma.sessionAttendance.create({
+        data: {
+          sessionId: sessionRecord.id,
+          userId,
+          present: true,
+          excused: false
+        }
+      })
+    }
+
     // Calculate session number for response
     const allSessionsForNumber = await prisma.groupSession.findMany({
       where: { groupId },
