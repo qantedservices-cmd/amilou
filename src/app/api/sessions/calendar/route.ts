@@ -203,7 +203,8 @@ export async function GET(request: Request) {
     const progressEntries = await prisma.progress.findMany({
       where: {
         userId: { in: memberUserIds },
-        date: { gte: startDate, lte: endDate }
+        date: { gte: startDate, lte: endDate },
+        program: { code: { not: 'TAFSIR' } }
       },
       include: {
         user: { select: { id: true, name: true } },
