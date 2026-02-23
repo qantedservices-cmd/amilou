@@ -17,7 +17,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { Calendar, ChevronLeft, ChevronRight, Users, Check, X, BookOpen, Plus, Pencil, ChevronDown, LayoutGrid } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Users, Check, X, BookOpen, Plus, Pencil, ChevronDown, LayoutGrid, Grid3X3 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface SessionEntry {
@@ -458,10 +458,14 @@ export default function SessionsPage() {
 
               {/* Legend - Clickable filters (dynamic based on user's groups) */}
               {(() => {
-                // Extract unique groups from the actual data
-                const userGroups = calendarData?.sessions
-                  ? [...new Set(calendarData.sessions.map(s => s.groupName))]
-                  : []
+                // Extract unique groups from the actual data with their IDs
+                const groupMap = new Map<string, string>()
+                calendarData?.sessions?.forEach(s => {
+                  if (s.groupName && s.groupId && !groupMap.has(s.groupName)) {
+                    groupMap.set(s.groupName, s.groupId)
+                  }
+                })
+                const userGroups = [...groupMap.keys()]
 
                 if (userGroups.length === 0) return null
 
@@ -470,24 +474,35 @@ export default function SessionsPage() {
                     <span className="text-muted-foreground">Filtrer :</span>
                     {userGroups.map((name, index) => {
                       const color = getGroupColor(name, index)
+                      const groupId = groupMap.get(name)
                       return (
-                        <button
-                          key={name}
-                          onClick={() => toggleFilter(name)}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all hover:bg-muted`}
-                          style={{
-                            backgroundColor: filterGroup === name ? `${color}20` : undefined,
-                            boxShadow: filterGroup === name ? `0 0 0 2px white, 0 0 0 4px ${color}` : undefined
-                          }}
-                        >
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: color }}
-                          />
-                          <span className={filterGroup === name ? 'font-medium' : ''}>
-                            {name.replace('Cours ', '').replace('Groupe ', '')}
-                          </span>
-                        </button>
+                        <div key={name} className="flex items-center gap-1">
+                          <button
+                            onClick={() => toggleFilter(name)}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all hover:bg-muted`}
+                            style={{
+                              backgroundColor: filterGroup === name ? `${color}20` : undefined,
+                              boxShadow: filterGroup === name ? `0 0 0 2px white, 0 0 0 4px ${color}` : undefined
+                            }}
+                          >
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: color }}
+                            />
+                            <span className={filterGroup === name ? 'font-medium' : ''}>
+                              {name.replace('Cours ', '').replace('Groupe ', '')}
+                            </span>
+                          </button>
+                          {groupId && (
+                            <button
+                              onClick={() => router.push(`/${locale}/groups/${groupId}/mastery`)}
+                              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                              title={`Grille de suivi - ${name}`}
+                            >
+                              <Grid3X3 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
                       )
                     })}
                     {filterGroup && (

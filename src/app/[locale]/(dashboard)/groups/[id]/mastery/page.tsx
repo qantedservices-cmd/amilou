@@ -1554,7 +1554,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             disabled={exporting}
           >
             <FileText className="h-4 w-4 mr-2" />
-            PDF Séance
+            PDF Séance {data.nextSessionNumber - 1}
           </Button>
           {data.isReferent && (
             <Button

@@ -342,7 +342,21 @@ export default function GroupsPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">{group.memberCount} membres</span>
                   </div>
-                  <Badge variant="outline">{getFrequencyLabel(group.sessionFrequency)}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        window.location.href = `/${locale}/groups/${group.id}/mastery`
+                      }}
+                    >
+                      <Grid3X3 className="h-3.5 w-3.5 mr-1" />
+                      Grille
+                    </Button>
+                    <Badge variant="outline">{getFrequencyLabel(group.sessionFrequency)}</Badge>
+                  </div>
                 </div>
               </CardContent>
             </Card>
