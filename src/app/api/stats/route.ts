@@ -120,7 +120,7 @@ export async function GET(request: Request) {
       programSettings,
       todayLogs,
       allPrograms,
-      allEvolutionLogs,
+      _unusedEvolutionLogs,
       weeklyObjectives,
       allCompletions,
       completionCycles,
@@ -361,7 +361,7 @@ export async function GET(request: Request) {
 
     const progressByProgram = aggregateByProgram(periodProgress)
 
-    // Build evolution data for last 12 weeks (using data from parallel queries)
+    // Build evolution data for last 12 weeks (using Progress entries)
     const evolutionData = []
     for (let i = 11; i >= 0; i--) {
       const weekStartDate = new Date(now)
@@ -371,10 +371,10 @@ export async function GET(request: Request) {
       const weekEndDate = new Date(weekStartDate)
       weekEndDate.setDate(weekStartDate.getDate() + 7)
 
-      // Filter logs for this week in memory
-      const weekLogs = allEvolutionLogs.filter(log => {
-        const logDate = new Date(log.date)
-        return logDate >= weekStartDate && logDate < weekEndDate
+      // Filter progress entries for this week
+      const weekEntries = progressEntries.filter(entry => {
+        const entryDate = new Date(entry.date)
+        return entryDate >= weekStartDate && entryDate < weekEndDate
       })
 
       const weekData: Record<string, number> = {
@@ -385,15 +385,10 @@ export async function GET(request: Request) {
         TAFSIR: 0
       }
 
-      weekLogs.forEach(log => {
-        let pages = log.quantity
-        if (log.unit === 'HIZB') pages = log.quantity * 10
-        else if (log.unit === 'DEMI_HIZB') pages = log.quantity * 5
-        else if (log.unit === 'QUART') pages = log.quantity * 2.5
-        else if (log.unit === 'JUZ') pages = log.quantity * 20
-
-        if (weekData[log.program.code] !== undefined) {
-          weekData[log.program.code] += pages
+      weekEntries.forEach(entry => {
+        const verses = entry.verseEnd - entry.verseStart + 1
+        if (weekData[entry.program.code] !== undefined) {
+          weekData[entry.program.code] += verses
         }
       })
 
@@ -521,54 +516,59 @@ export async function GET(request: Request) {
       }
     })
 
-    // Calculate for the period (month/year)
-    let periodProgramStats: typeof weekProgramStats = []
-    if (period !== 'global') {
-      // Use adoption date from parallel queries (firstAttendance, firstCompletion)
-      let adoptionDate: Date | null = null
-      if (firstAttendance) adoptionDate = firstAttendance.date
-      if (firstCompletion && (!adoptionDate || firstCompletion.date < adoptionDate)) {
-        adoptionDate = firstCompletion.date
-      }
+    // Calculate for both month and year (always compute both)
+    let adoptionDate: Date | null = null
+    if (firstAttendance) adoptionDate = firstAttendance.date
+    if (firstCompletion && (!adoptionDate || firstCompletion.date < adoptionDate)) {
+      adoptionDate = firstCompletion.date
+    }
 
-      // Effective start = max(periodStart, adoptionDate)
-      const effectiveStart = adoptionDate && adoptionDate > periodStart ? adoptionDate : periodStart
-      // Effective end = min(periodEnd, now)
-      const effectiveEnd = periodEnd > now ? now : periodEnd
-
-      const periodCompletions = await prisma.dailyProgramCompletion.findMany({
-        where: {
-          userId,
-          date: { gte: periodStart, lt: periodEnd },
-          completed: true
-        },
-        include: { program: true }
-      })
-
-      // Count unique days per program
+    function computeProgramStats(pStart: Date, pEnd: Date, completions: Array<{ date: Date; program: { code: string } }>) {
+      const effStart = adoptionDate && adoptionDate > pStart ? adoptionDate : pStart
+      const effEnd = pEnd > now ? now : pEnd
       const programDays: Record<string, Set<string>> = {}
       for (const code of DAILY_PROGRAMS) {
         programDays[code] = new Set()
       }
-
-      for (const c of periodCompletions) {
+      for (const c of completions) {
         const dateKey = c.date.toISOString().split('T')[0]
         if (programDays[c.program.code]) {
           programDays[c.program.code].add(dateKey)
         }
       }
-
-      // Use effective period for rate calculation
-      const totalDaysInPeriod = Math.max(1, Math.ceil((effectiveEnd.getTime() - effectiveStart.getTime()) / (24 * 60 * 60 * 1000)))
-
-      periodProgramStats = DAILY_PROGRAMS.map(code => ({
+      const totalDays = Math.max(1, Math.ceil((effEnd.getTime() - effStart.getTime()) / (24 * 60 * 60 * 1000)))
+      return DAILY_PROGRAMS.map(code => ({
         code,
         name: programMap.get(code)?.nameFr || code,
         daysCompleted: programDays[code].size,
-        totalDays: totalDaysInPeriod,
-        rate: Math.round((programDays[code].size / totalDaysInPeriod) * 100)
+        totalDays,
+        rate: Math.round((programDays[code].size / totalDays) * 100)
       }))
     }
+
+    // Month boundaries (selected month or current month)
+    const monthStart = new Date(paramYear, paramMonth - 1, 1)
+    const monthEnd = new Date(paramYear, paramMonth, 1)
+    // Year boundaries
+    const yearStart = new Date(paramYear, 0, 1)
+    const yearEnd = new Date(paramYear + 1, 0, 1)
+
+    // Fetch completions for the entire year (covers month too)
+    const yearCompletions = await prisma.dailyProgramCompletion.findMany({
+      where: {
+        userId,
+        date: { gte: yearStart, lt: yearEnd },
+        completed: true
+      },
+      include: { program: true }
+    })
+
+    const monthCompletions = yearCompletions.filter(c => c.date >= monthStart && c.date < monthEnd)
+
+    const monthProgramStats = computeProgramStats(monthStart, monthEnd, monthCompletions)
+    const yearProgramStats = computeProgramStats(yearStart, yearEnd, yearCompletions)
+    // Keep periodProgramStats for backward compatibility
+    const periodProgramStats = period === 'month' ? monthProgramStats : yearProgramStats
 
     // =============================================
     // Weekly Objectives stats (using weeklyObjectives from parallel queries)
@@ -847,6 +847,8 @@ export async function GET(request: Request) {
       weekGrid,
       weekProgramStats,
       periodProgramStats,
+      monthProgramStats,
+      yearProgramStats,
       weekStartDate: weekStart.toISOString().split('T')[0],
       weekNumber: weekInfo.week,
       weekYear: weekInfo.year,

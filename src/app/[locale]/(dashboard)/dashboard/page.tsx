@@ -179,6 +179,8 @@ interface Stats {
   weekGrid: Record<string, boolean[]>
   weekProgramStats: ProgramStat[]
   periodProgramStats: ProgramStat[]
+  monthProgramStats: ProgramStat[]
+  yearProgramStats: ProgramStat[]
   weekStartDate: string
   weekNumber: number
   weekYear: number
@@ -2372,17 +2374,17 @@ export default function DashboardPage() {
             </div>
             <div className="text-center border-x">
               <p className="text-2xl font-bold text-purple-600">
-                {stats?.periodProgramStats?.length && period === 'month'
-                  ? Math.round(stats.periodProgramStats.reduce((sum, p) => sum + p.rate, 0) / stats.periodProgramStats.length)
-                  : '-'}%
+                {stats?.monthProgramStats?.length
+                  ? Math.round(stats.monthProgramStats.reduce((sum, p) => sum + p.rate, 0) / stats.monthProgramStats.length)
+                  : 0}%
               </p>
               <p className="text-xs text-muted-foreground">Ce mois</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-emerald-600">
-                {stats?.periodProgramStats?.length && period === 'year'
-                  ? Math.round(stats.periodProgramStats.reduce((sum, p) => sum + p.rate, 0) / stats.periodProgramStats.length)
-                  : '-'}%
+                {stats?.yearProgramStats?.length
+                  ? Math.round(stats.yearProgramStats.reduce((sum, p) => sum + p.rate, 0) / stats.yearProgramStats.length)
+                  : 0}%
               </p>
               <p className="text-xs text-muted-foreground">Cette année</p>
             </div>
@@ -2391,7 +2393,8 @@ export default function DashboardPage() {
           {/* Programme breakdown */}
           <div className="space-y-3">
             {stats?.weekProgramStats?.map((prog) => {
-              const periodProg = stats?.periodProgramStats?.find(p => p.code === prog.code)
+              const monthProg = stats?.monthProgramStats?.find(p => p.code === prog.code)
+              const yearProg = stats?.yearProgramStats?.find(p => p.code === prog.code)
               return (
                 <div key={prog.code} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
@@ -2401,10 +2404,16 @@ export default function DashboardPage() {
                         <span className="font-bold text-blue-600">{prog.rate}%</span>
                         <span className="text-muted-foreground ml-1">sem</span>
                       </span>
-                      {periodProg && (
-                        <span title={period === 'month' ? 'Ce mois' : 'Cette année'}>
-                          <span className="font-bold text-purple-600">{periodProg.rate}%</span>
-                          <span className="text-muted-foreground ml-1">{period === 'month' ? 'mois' : 'an'}</span>
+                      {monthProg && (
+                        <span title="Ce mois">
+                          <span className="font-bold text-purple-600">{monthProg.rate}%</span>
+                          <span className="text-muted-foreground ml-1">mois</span>
+                        </span>
+                      )}
+                      {yearProg && (
+                        <span title="Cette année">
+                          <span className="font-bold text-emerald-600">{yearProg.rate}%</span>
+                          <span className="text-muted-foreground ml-1">an</span>
                         </span>
                       )}
                     </div>
@@ -2430,7 +2439,7 @@ export default function DashboardPage() {
             Évolution sur 12 semaines
           </CardTitle>
           <CardDescription>
-            Pages travaillées par programme (toutes activités confondues)
+            Versets travaillés par programme (toutes activités confondues)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -2453,7 +2462,7 @@ export default function DashboardPage() {
                                   className="w-3 h-3 rounded"
                                   style={{ backgroundColor: entry.color }}
                                 />
-                                <span>{entry.name}: {Number(entry.value).toFixed(1)} pages</span>
+                                <span>{entry.name}: {Number(entry.value)} versets</span>
                               </div>
                             ))}
                           </div>
