@@ -157,16 +157,22 @@ export async function POST(request: Request) {
         }
       })
 
-      // Mark the ones that were actually modified
-      const idsToMarkAsModified = currentSettings
-        .filter(s => changedProgramIds.includes(s.programId))
-        .map(s => s.id)
-
-      if (idsToMarkAsModified.length > 0) {
-        await prisma.userProgramSettings.updateMany({
-          where: { id: { in: idsToMarkAsModified } },
-          data: { wasModified: true }
-        })
+      // Mark the ones that were actually modified and update with NEW values
+      for (const setting of currentSettings) {
+        if (changedProgramIds.includes(setting.programId)) {
+          const newValues = incomingMap.get(setting.programId)
+          if (newValues) {
+            await prisma.userProgramSettings.update({
+              where: { id: setting.id },
+              data: {
+                wasModified: true,
+                quantity: newValues.quantity,
+                unit: newValues.unit,
+                period: newValues.period
+              }
+            })
+          }
+        }
       }
     }
 
