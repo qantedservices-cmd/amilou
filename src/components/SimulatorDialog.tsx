@@ -36,6 +36,12 @@ export interface MemorizationPace {
     juz: number
     surah: number
   }>
+  objectiveAdherence: {
+    percentage: number
+    weeksMet: number
+    totalWeeks: number
+    objectiveLabel: string
+  } | null
 }
 
 interface SimulatorDialogProps {
@@ -286,11 +292,17 @@ export function SimulatorDialog({
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="size-4" />
-            <span>
-              Rythme actuel : {currentPaceDisplay} (régularité :{' '}
-              {Math.round(memorizationPace.consistency * 100)}%)
-            </span>
+            <span>Rythme actuel : {currentPaceDisplay}</span>
           </div>
+          {memorizationPace.objectiveAdherence && (
+            <p className="text-xs text-muted-foreground">
+              Objectif ({memorizationPace.objectiveAdherence.objectiveLabel}) respecté :{' '}
+              <span className={memorizationPace.objectiveAdherence.percentage >= 75 ? 'text-emerald-600 font-medium' : memorizationPace.objectiveAdherence.percentage >= 50 ? 'text-amber-600 font-medium' : 'text-red-500 font-medium'}>
+                {memorizationPace.objectiveAdherence.percentage}%
+              </span>
+              {' '}({memorizationPace.objectiveAdherence.weeksMet}/{memorizationPace.objectiveAdherence.totalWeeks} semaines)
+            </p>
+          )}
 
           <div className="flex items-end gap-2">
             <div className="space-y-1">

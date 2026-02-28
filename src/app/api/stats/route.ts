@@ -728,6 +728,12 @@ export async function GET(request: Request) {
       remainingHizbs: number
       remainingJuz: number
       verseMilestones: Array<{ verses: number; page: number; hizb: number; juz: number; surah: number }>
+      objectiveAdherence: {
+        percentage: number
+        weeksMet: number
+        totalWeeks: number
+        objectiveLabel: string
+      } | null
     } | null = null
 
     const ninetyDaysAgo = new Date(now)
@@ -803,6 +809,71 @@ export async function GET(request: Request) {
         })
       }
 
+      // Calculate objective adherence (% of weeks where memorization objective was met)
+      let objectiveAdherence: { percentage: number; weeksMet: number; totalWeeks: number; objectiveLabel: string } | null = null
+      const memSetting = programSettings.find(s => s.program.code === 'MEMORIZATION')
+      if (memSetting) {
+        // Convert objective to verses per week
+        const qty = memSetting.quantity
+        const unit = memSetting.unit // PAGE, QUART, DEMI_HIZB, HIZB, JUZ
+        const period = memSetting.period // DAY, WEEK, MONTH
+
+        // Convert to verses using remaining ratios
+        let versesPerUnit = 1
+        if (unit === 'PAGE' && remainingPages > 0) {
+          versesPerUnit = nonMemorizedVerses.length / remainingPages
+        } else if (unit === 'QUART' && remainingHizbs > 0) {
+          versesPerUnit = (nonMemorizedVerses.length / remainingHizbs) * 0.25
+        } else if (unit === 'DEMI_HIZB' && remainingHizbs > 0) {
+          versesPerUnit = (nonMemorizedVerses.length / remainingHizbs) * 0.5
+        } else if (unit === 'HIZB' && remainingHizbs > 0) {
+          versesPerUnit = nonMemorizedVerses.length / remainingHizbs
+        } else if (unit === 'JUZ' && remainingJuz > 0) {
+          versesPerUnit = nonMemorizedVerses.length / remainingJuz
+        }
+
+        let weeklyTarget = qty * versesPerUnit
+        if (period === 'DAY') weeklyTarget *= 7
+        else if (period === 'MONTH') weeklyTarget /= 4.33
+
+        // Group memorization entries by week (last ~13 weeks)
+        const weeklyVerses = new Map<string, number>()
+        for (const entry of recentMemorizationEntries) {
+          const d = new Date(entry.date)
+          // Week key: ISO week start (Sunday)
+          const dayOfWeek = d.getDay()
+          const weekStart = new Date(d)
+          weekStart.setDate(d.getDate() - dayOfWeek)
+          const weekKey = weekStart.toISOString().split('T')[0]
+          const verses = entry.verseEnd - entry.verseStart + 1
+          weeklyVerses.set(weekKey, (weeklyVerses.get(weekKey) || 0) + verses)
+        }
+
+        const totalWeeks = weeklyVerses.size
+        let weeksMet = 0
+        for (const verses of weeklyVerses.values()) {
+          if (verses >= weeklyTarget) weeksMet++
+        }
+
+        // Build objective label
+        const unitLabels: Record<string, string> = {
+          PAGE: 'page', QUART: 'quart', DEMI_HIZB: 'demi-hizb', HIZB: 'hizb', JUZ: 'juz'
+        }
+        const periodLabels: Record<string, string> = {
+          DAY: 'jour', WEEK: 'semaine', MONTH: 'mois'
+        }
+        const unitLabel = unitLabels[unit] || unit.toLowerCase()
+        const periodLabel = periodLabels[period] || period.toLowerCase()
+        const objectiveLabel = `${qty} ${unitLabel}/${periodLabel}`
+
+        objectiveAdherence = {
+          percentage: totalWeeks > 0 ? Math.round((weeksMet / totalWeeks) * 100) : 0,
+          weeksMet,
+          totalWeeks,
+          objectiveLabel
+        }
+      }
+
       memorizationPace = {
         activeDays,
         totalDays: 90,
@@ -813,7 +884,8 @@ export async function GET(request: Request) {
         remainingPages,
         remainingHizbs,
         remainingJuz,
-        verseMilestones
+        verseMilestones,
+        objectiveAdherence
       }
     }
 

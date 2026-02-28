@@ -230,6 +230,12 @@ interface Stats {
     remainingHizbs: number
     remainingJuz: number
     verseMilestones: Array<{ verses: number; page: number; hizb: number; juz: number; surah: number }>
+    objectiveAdherence: {
+      percentage: number
+      weeksMet: number
+      totalWeeks: number
+      objectiveLabel: string
+    } | null
   } | null
 }
 
