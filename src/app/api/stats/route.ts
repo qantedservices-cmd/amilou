@@ -715,6 +715,107 @@ export async function GET(request: Request) {
       : null
 
     // =============================================
+    // Memorization Pace (rythme de mémorisation)
+    // =============================================
+    let memorizationPace: {
+      activeDays: number
+      totalNewVerses: number
+      versesPerDay: number
+      consistency: number
+      remainingVerses: number
+      remainingPages: number
+      remainingHizbs: number
+      remainingJuz: number
+      verseMilestones: Array<{ verses: number; page: number; hizb: number; juz: number; surah: number }>
+    } | null = null
+
+    const ninetyDaysAgo = new Date(now)
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+
+    const recentMemorizationEntries = memorizationEntries.filter(e => new Date(e.date) >= ninetyDaysAgo)
+
+    if (recentMemorizationEntries.length > 0) {
+      // Count unique verses per day
+      const versesPerDayMap = new Map<string, Set<string>>()
+      for (const entry of recentMemorizationEntries) {
+        const dateKey = new Date(entry.date).toISOString().split('T')[0]
+        if (!versesPerDayMap.has(dateKey)) {
+          versesPerDayMap.set(dateKey, new Set())
+        }
+        const daySet = versesPerDayMap.get(dateKey)!
+        for (let v = entry.verseStart; v <= entry.verseEnd; v++) {
+          daySet.add(`${entry.surahNumber}:${v}`)
+        }
+      }
+
+      const activeDays = versesPerDayMap.size
+      let totalNewVerses = 0
+      for (const daySet of versesPerDayMap.values()) {
+        totalNewVerses += daySet.size
+      }
+      const versesPerDay = Math.round((totalNewVerses / activeDays) * 10) / 10
+      const consistency = Math.round((activeDays / 90) * 100) / 100
+
+      // Query ALL verses to compute remaining pages/hizbs/juz
+      const allVerses = await prisma.verse.findMany({
+        select: { surahNumber: true, verseNumber: true, page: true, hizb: true, juz: true }
+      })
+
+      // Find non-memorized verses
+      const nonMemorizedVerses = allVerses.filter(
+        v => !memorizedVerses.has(`${v.surahNumber}:${v.verseNumber}`)
+      )
+
+      const remainingPages = new Set(nonMemorizedVerses.map(v => v.page)).size
+      const remainingHizbs = new Set(nonMemorizedVerses.filter(v => v.hizb != null).map(v => Math.ceil(v.hizb!))).size
+      const remainingJuz = new Set(nonMemorizedVerses.filter(v => v.juz != null).map(v => v.juz!)).size
+
+      // Build verseMilestones: ~50 milestones sampled from non-memorized verses
+      // Order by surahNumber, verseNumber
+      const orderedNonMemorized = nonMemorizedVerses.sort((a, b) =>
+        a.surahNumber !== b.surahNumber ? a.surahNumber - b.surahNumber : a.verseNumber - b.verseNumber
+      )
+
+      const milestoneCount = 50
+      const verseMilestones: Array<{ verses: number; page: number; hizb: number; juz: number; surah: number }> = []
+
+      if (orderedNonMemorized.length > 0) {
+        const step = Math.max(1, Math.floor(orderedNonMemorized.length / milestoneCount))
+        for (let i = 0; i < orderedNonMemorized.length && verseMilestones.length < milestoneCount - 1; i += step) {
+          const v = orderedNonMemorized[i]
+          verseMilestones.push({
+            verses: i + 1,
+            page: v.page,
+            hizb: v.hizb != null ? Math.ceil(v.hizb) : 0,
+            juz: v.juz ?? 0,
+            surah: v.surahNumber
+          })
+        }
+        // Always include the last verse
+        const last = orderedNonMemorized[orderedNonMemorized.length - 1]
+        verseMilestones.push({
+          verses: orderedNonMemorized.length,
+          page: last.page,
+          hizb: last.hizb != null ? Math.ceil(last.hizb) : 0,
+          juz: last.juz ?? 0,
+          surah: last.surahNumber
+        })
+      }
+
+      memorizationPace = {
+        activeDays,
+        totalNewVerses,
+        versesPerDay,
+        consistency,
+        remainingVerses: nonMemorizedVerses.length,
+        remainingPages,
+        remainingHizbs,
+        remainingJuz,
+        verseMilestones
+      }
+    }
+
+    // =============================================
     // Tafsir Coverage (using tafsirProgram from parallel queries + progressEntries)
     // =============================================
     let tafsirCoverage = { percentage: 0, coveredVerses: 0, completedSurahs: 0 }
@@ -881,6 +982,8 @@ export async function GET(request: Request) {
       },
       // NEW: Tafsir Coverage
       tafsirCoverage,
+      // NEW: Memorization Pace
+      memorizationPace,
     })
   } catch (error) {
     console.error('Error fetching stats:', error)
