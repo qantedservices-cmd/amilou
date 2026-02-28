@@ -74,11 +74,12 @@ export function SimulatorCard({
   }
 
   // Case 3: Normal — compute estimated end date
+  // versesPerDay is per active day; multiply by consistency to get calendar rate
   const pagesPerWeek = computePagesPerWeek(memorizationPace)
-  const effectiveVersesPerDay =
+  const calendarVersesPerDay =
     memorizationPace.versesPerDay * memorizationPace.consistency
   const daysRemaining = Math.ceil(
-    memorizationPace.remainingVerses / effectiveVersesPerDay
+    memorizationPace.remainingVerses / calendarVersesPerDay
   )
   const endDate = new Date()
   endDate.setDate(endDate.getDate() + daysRemaining)
@@ -108,14 +109,18 @@ export function SimulatorCard({
                 {pagesPerWeek} pages/semaine
               </span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-violet-600 dark:text-violet-400">
-                Restant
-              </span>
-              <span className="font-medium text-violet-700 dark:text-violet-300">
-                {memorizationPace.remainingPages.toLocaleString('fr-FR')}{' '}
-                pages
-              </span>
+            <div className="text-sm">
+              <div className="flex justify-between">
+                <span className="text-violet-600 dark:text-violet-400">
+                  Restant
+                </span>
+                <span className="font-medium text-violet-700 dark:text-violet-300">
+                  {memorizationPace.remainingHizbs} hizbs
+                </span>
+              </div>
+              <p className="text-xs text-violet-500 dark:text-violet-400/70 text-right">
+                {memorizationPace.remainingVerses.toLocaleString('fr-FR')} versets
+              </p>
             </div>
             <div className="text-sm">
               <div className="flex justify-between">

@@ -220,14 +220,15 @@ export function SimulatorDialog({
     return `${formatNumber(ppw)} pages/semaine`
   }, [memorizationPace])
 
+  // The rhythm input is already the EFFECTIVE (real-world) rate
+  // Do NOT multiply by consistency again — it's already factored in
   const effectiveVpd = useMemo(() => {
-    const rawVpd = toVersesPerDay(
+    return toVersesPerDay(
       rhythmQuantity,
       rhythmUnit,
       rhythmPeriod,
       memorizationPace
     )
-    return rawVpd * memorizationPace.consistency
   }, [rhythmQuantity, rhythmUnit, rhythmPeriod, memorizationPace])
 
   // Tab 1: Completion date
@@ -345,8 +346,7 @@ export function SimulatorDialog({
 
           {effectiveVpd > 0 && (
             <p className="text-xs text-muted-foreground">
-              ≈ {formatNumber(Math.round(effectiveVpd * 100) / 100)} versets
-              effectifs/jour (avec régularité)
+              ≈ {formatNumber(Math.round(effectiveVpd * 100) / 100)} versets/jour
             </p>
           )}
         </div>
