@@ -719,6 +719,7 @@ export async function GET(request: Request) {
     // =============================================
     let memorizationPace: {
       activeDays: number
+      totalDays: number
       totalNewVerses: number
       versesPerDay: number
       consistency: number
@@ -804,6 +805,7 @@ export async function GET(request: Request) {
 
       memorizationPace = {
         activeDays,
+        totalDays: 90,
         totalNewVerses,
         versesPerDay,
         consistency,
