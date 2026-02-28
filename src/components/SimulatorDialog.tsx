@@ -379,9 +379,10 @@ export function SimulatorDialog({
                   {formatDate(completionResult.date)}
                 </p>
                 <p className="text-sm text-violet-600 dark:text-violet-400">
-                  Dans {formatDuration(completionResult.days)} (
-                  {formatNumber(memorizationPace.remainingVerses)} versets
-                  restants)
+                  Dans {formatDuration(completionResult.days)}
+                </p>
+                <p className="text-xs text-violet-500 dark:text-violet-400/70">
+                  {memorizationPace.remainingHizbs} hizbs restants ({Math.round((1 - memorizationPace.remainingPages / 604) * 1000) / 10}% mémorisé) — {formatNumber(memorizationPace.remainingVerses)} versets
                 </p>
               </div>
             ) : (

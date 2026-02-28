@@ -115,7 +115,7 @@ export function SimulatorCard({
                   Restant
                 </span>
                 <span className="font-medium text-violet-700 dark:text-violet-300">
-                  {memorizationPace.remainingHizbs} hizbs
+                  {memorizationPace.remainingHizbs} hizbs ({Math.round((1 - memorizationPace.remainingPages / 604) * 1000) / 10}% mémorisé)
                 </span>
               </div>
               <p className="text-xs text-violet-500 dark:text-violet-400/70 text-right">
