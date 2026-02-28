@@ -218,6 +218,19 @@ interface Stats {
     coveredVerses: number
     completedSurahs: number
   }
+  // NEW: Memorization Pace
+  memorizationPace: {
+    versesPerDay: number
+    activeDays: number
+    totalDays: number
+    totalNewVerses: number
+    consistency: number
+    remainingVerses: number
+    remainingPages: number
+    remainingHizbs: number
+    remainingJuz: number
+    verseMilestones: Array<{ verses: number; page: number; hizb: number; juz: number; surah: number }>
+  } | null
 }
 
 interface ManageableUser {
