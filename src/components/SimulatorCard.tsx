@@ -4,7 +4,21 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { TrendingUp, Calculator } from 'lucide-react'
-import { SimulatorDialog, type MemorizationPace } from './SimulatorDialog'
+import { SimulatorDialog, computePagesPerWeek, type MemorizationPace } from './SimulatorDialog'
+
+function formatDurationDetailed(days: number): string {
+  const weeks = Math.round(days / 7)
+  const months = Math.floor(days / 30)
+  const years = Math.floor(months / 12)
+  const remainingMonths = months % 12
+
+  const parts: string[] = []
+  if (years > 0) parts.push(`${years} an${years > 1 ? 's' : ''}`)
+  if (remainingMonths > 0) parts.push(`${remainingMonths} mois`)
+  if (years === 0 && months === 0) parts.push(`${Math.round(days)} jours`)
+
+  return `≈ ${parts.join(' et ')} (${weeks.toLocaleString('fr-FR')} semaines)`
+}
 
 interface SimulatorCardProps {
   memorizationPace: MemorizationPace | null
@@ -25,15 +39,15 @@ export function SimulatorCard({
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <TrendingUp className="size-4 text-amber-600 dark:text-amber-400" />
-            Projection memorisation
+            Projection mémorisation
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-lg font-bold text-amber-700 dark:text-amber-300">
-            Felicitations !
+            Félicitations !
           </p>
           <p className="text-sm text-amber-600 dark:text-amber-400">
-            Vous avez memorise l&apos;integralite du Coran.
+            Vous avez mémorisé l&apos;intégralité du Coran.
           </p>
         </CardContent>
       </Card>
@@ -47,12 +61,12 @@ export function SimulatorCard({
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <TrendingUp className="size-4 text-slate-600 dark:text-slate-400" />
-            Projection memorisation
+            Projection mémorisation
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            Pas assez de donnees
+            Pas assez de données sur les 3 derniers mois pour projeter.
           </p>
         </CardContent>
       </Card>
@@ -60,6 +74,7 @@ export function SimulatorCard({
   }
 
   // Case 3: Normal — compute estimated end date
+  const pagesPerWeek = computePagesPerWeek(memorizationPace)
   const effectiveVersesPerDay =
     memorizationPace.versesPerDay * memorizationPace.consistency
   const daysRemaining = Math.ceil(
@@ -80,7 +95,7 @@ export function SimulatorCard({
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <TrendingUp className="size-4 text-violet-600 dark:text-violet-400" />
-            Projection memorisation
+            Projection mémorisation
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -90,8 +105,7 @@ export function SimulatorCard({
                 Rythme actuel
               </span>
               <span className="font-medium text-violet-700 dark:text-violet-300">
-                {Math.round(memorizationPace.versesPerDay * 100) / 100}{' '}
-                versets/jour
+                {pagesPerWeek} pages/semaine
               </span>
             </div>
             <div className="flex justify-between text-sm">
@@ -99,17 +113,22 @@ export function SimulatorCard({
                 Restant
               </span>
               <span className="font-medium text-violet-700 dark:text-violet-300">
-                {memorizationPace.remainingVerses.toLocaleString('fr-FR')}{' '}
-                versets
+                {memorizationPace.remainingPages.toLocaleString('fr-FR')}{' '}
+                pages
               </span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-violet-600 dark:text-violet-400">
-                Fin estimee
-              </span>
-              <span className="font-medium text-violet-700 dark:text-violet-300">
-                {capitalizedEndDate}
-              </span>
+            <div className="text-sm">
+              <div className="flex justify-between">
+                <span className="text-violet-600 dark:text-violet-400">
+                  Fin estimée
+                </span>
+                <span className="font-medium text-violet-700 dark:text-violet-300">
+                  {capitalizedEndDate}
+                </span>
+              </div>
+              <p className="text-xs text-violet-500 dark:text-violet-400/70 text-right mt-0.5">
+                {formatDurationDetailed(daysRemaining)}
+              </p>
             </div>
           </div>
           <Button

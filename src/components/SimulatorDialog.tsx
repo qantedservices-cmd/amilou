@@ -44,14 +44,16 @@ interface SimulatorDialogProps {
   memorizationPace: MemorizationPace
 }
 
-type Unit = 'versets' | 'pages' | 'hizbs' | 'juz'
+type Unit = 'versets' | 'pages' | 'quart' | 'demi_hizb' | 'hizbs' | 'juz'
 type Period = 'jour' | 'semaine' | 'mois'
 
 const UNIT_LABELS: Record<Unit, string> = {
-  versets: 'versets',
-  pages: 'pages',
-  hizbs: 'hizbs',
-  juz: 'juz',
+  versets: 'Versets',
+  pages: 'Pages',
+  quart: 'Quart de hizb',
+  demi_hizb: 'Demi-hizb',
+  hizbs: 'Hizb',
+  juz: 'Juz',
 }
 
 const PERIOD_LABELS: Record<Period, string> = {
@@ -60,39 +62,44 @@ const PERIOD_LABELS: Record<Period, string> = {
   mois: 'mois',
 }
 
+// 1 hizb = 2 demi-hizbs = 4 quarts
+function unitToHizbFactor(unit: Unit): number | null {
+  switch (unit) {
+    case 'quart': return 0.25
+    case 'demi_hizb': return 0.5
+    case 'hizbs': return 1
+    case 'juz': return 2
+    default: return null
+  }
+}
+
 function toVersesPerDay(
   quantity: number,
   unit: Unit,
   period: Period,
   pace: MemorizationPace
 ): number {
-  // Convert quantity in given unit to verses
   let versesPerPeriod: number
-  switch (unit) {
-    case 'versets':
-      versesPerPeriod = quantity
-      break
-    case 'pages':
-      versesPerPeriod =
-        pace.remainingPages > 0
-          ? quantity * (pace.remainingVerses / pace.remainingPages)
-          : 0
-      break
-    case 'hizbs':
-      versesPerPeriod =
-        pace.remainingHizbs > 0
-          ? quantity * (pace.remainingVerses / pace.remainingHizbs)
-          : 0
-      break
-    case 'juz':
-      versesPerPeriod =
-        pace.remainingJuz > 0
-          ? quantity * (pace.remainingVerses / pace.remainingJuz)
-          : 0
-      break
+
+  const hizbFactor = unitToHizbFactor(unit)
+  if (unit === 'versets') {
+    versesPerPeriod = quantity
+  } else if (unit === 'pages') {
+    versesPerPeriod =
+      pace.remainingPages > 0
+        ? quantity * (pace.remainingVerses / pace.remainingPages)
+        : 0
+  } else if (hizbFactor !== null) {
+    // Convert to hizbs then to verses
+    const quantityInHizbs = quantity * hizbFactor
+    versesPerPeriod =
+      pace.remainingHizbs > 0
+        ? quantityInHizbs * (pace.remainingVerses / pace.remainingHizbs)
+        : 0
+  } else {
+    versesPerPeriod = 0
   }
 
-  // Convert period to days
   switch (period) {
     case 'jour':
       return versesPerPeriod
@@ -101,6 +108,27 @@ function toVersesPerDay(
     case 'mois':
       return versesPerPeriod / 30
   }
+}
+
+function targetToVerses(
+  quantity: number,
+  unit: Unit,
+  pace: MemorizationPace
+): number {
+  const hizbFactor = unitToHizbFactor(unit)
+  if (unit === 'versets') return quantity
+  if (unit === 'pages') {
+    return pace.remainingPages > 0
+      ? quantity * (pace.remainingVerses / pace.remainingPages)
+      : 0
+  }
+  if (hizbFactor !== null) {
+    const quantityInHizbs = quantity * hizbFactor
+    return pace.remainingHizbs > 0
+      ? quantityInHizbs * (pace.remainingVerses / pace.remainingHizbs)
+      : 0
+  }
+  return 0
 }
 
 function findMilestone(
@@ -154,17 +182,28 @@ function formatDuration(days: number): string {
   return parts.join(' et ')
 }
 
+/** Compute pages/week from versesPerDay and remaining data */
+export function computePagesPerWeek(pace: MemorizationPace): number {
+  if (pace.remainingPages <= 0 || pace.remainingVerses <= 0) return 0
+  const vpd = pace.versesPerDay * pace.consistency
+  const pagesPerDay = vpd * (pace.remainingPages / pace.remainingVerses)
+  return Math.round(pagesPerDay * 7 * 10) / 10
+}
+
 export function SimulatorDialog({
   open,
   onOpenChange,
   memorizationPace,
 }: SimulatorDialogProps) {
-  // All hooks must be called before any early return
-  const [rhythmQuantity, setRhythmQuantity] = useState<number>(
-    memorizationPace.versesPerDay
+  // Default rhythm: show pages/semaine with computed value
+  const defaultPagesPerWeek = useMemo(
+    () => computePagesPerWeek(memorizationPace),
+    [memorizationPace]
   )
-  const [rhythmUnit, setRhythmUnit] = useState<Unit>('versets')
-  const [rhythmPeriod, setRhythmPeriod] = useState<Period>('jour')
+
+  const [rhythmQuantity, setRhythmQuantity] = useState<number>(defaultPagesPerWeek)
+  const [rhythmUnit, setRhythmUnit] = useState<Unit>('pages')
+  const [rhythmPeriod, setRhythmPeriod] = useState<Period>('semaine')
 
   const [targetQuantity, setTargetQuantity] = useState<number>(1)
   const [targetUnit, setTargetUnit] = useState<Unit>('juz')
@@ -174,6 +213,12 @@ export function SimulatorDialog({
     d.setFullYear(d.getFullYear() + 1)
     return d.toISOString().split('T')[0]
   })
+
+  // Formatted current pace display
+  const currentPaceDisplay = useMemo(() => {
+    const ppw = computePagesPerWeek(memorizationPace)
+    return `${formatNumber(ppw)} pages/semaine`
+  }, [memorizationPace])
 
   const effectiveVpd = useMemo(() => {
     const rawVpd = toVersesPerDay(
@@ -197,40 +242,12 @@ export function SimulatorDialog({
   // Tab 2: Target date
   const targetResult = useMemo(() => {
     if (effectiveVpd <= 0) return null
-    let targetVerses: number
-    switch (targetUnit) {
-      case 'versets':
-        targetVerses = targetQuantity
-        break
-      case 'pages':
-        targetVerses =
-          memorizationPace.remainingPages > 0
-            ? targetQuantity *
-              (memorizationPace.remainingVerses /
-                memorizationPace.remainingPages)
-            : 0
-        break
-      case 'hizbs':
-        targetVerses =
-          memorizationPace.remainingHizbs > 0
-            ? targetQuantity *
-              (memorizationPace.remainingVerses /
-                memorizationPace.remainingHizbs)
-            : 0
-        break
-      case 'juz':
-        targetVerses =
-          memorizationPace.remainingJuz > 0
-            ? targetQuantity *
-              (memorizationPace.remainingVerses / memorizationPace.remainingJuz)
-            : 0
-        break
-    }
-    if (targetVerses <= 0) return null
-    const days = targetVerses / effectiveVpd
+    const tv = targetToVerses(targetQuantity, targetUnit, memorizationPace)
+    if (tv <= 0) return null
+    const days = tv / effectiveVpd
     const date = new Date()
     date.setDate(date.getDate() + days)
-    return { date, days, targetVerses: Math.round(targetVerses) }
+    return { date, days, targetVerses: Math.round(tv) }
   }, [effectiveVpd, targetQuantity, targetUnit, memorizationPace])
 
   // Tab 3: Date projection
@@ -261,7 +278,7 @@ export function SimulatorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Simulateur de progression</DialogTitle>
+          <DialogTitle>Simulateur de mémorisation</DialogTitle>
         </DialogHeader>
 
         {/* Rhythm controls */}
@@ -269,22 +286,18 @@ export function SimulatorDialog({
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="size-4" />
             <span>
-              Rythme actuel :{' '}
-              {formatNumber(
-                Math.round(memorizationPace.versesPerDay * 100) / 100
-              )}{' '}
-              versets/jour (regularite :{' '}
+              Rythme actuel : {currentPaceDisplay} (régularité :{' '}
               {Math.round(memorizationPace.consistency * 100)}%)
             </span>
           </div>
 
           <div className="flex items-end gap-2">
             <div className="space-y-1">
-              <Label className="text-xs">Quantite</Label>
+              <Label className="text-xs">Quantité</Label>
               <Input
                 type="number"
                 min={0}
-                step={0.5}
+                step={0.25}
                 value={rhythmQuantity}
                 onChange={(e) =>
                   setRhythmQuantity(Math.max(0, parseFloat(e.target.value) || 0))
@@ -293,12 +306,12 @@ export function SimulatorDialog({
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Unite</Label>
+              <Label className="text-xs">Unité</Label>
               <Select
                 value={rhythmUnit}
                 onValueChange={(v) => setRhythmUnit(v as Unit)}
               >
-                <SelectTrigger className="w-28">
+                <SelectTrigger className="w-36">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -332,8 +345,8 @@ export function SimulatorDialog({
 
           {effectiveVpd > 0 && (
             <p className="text-xs text-muted-foreground">
-              = {formatNumber(Math.round(effectiveVpd * 100) / 100)} versets
-              effectifs/jour (avec regularite)
+              ≈ {formatNumber(Math.round(effectiveVpd * 100) / 100)} versets
+              effectifs/jour (avec régularité)
             </p>
           )}
         </div>
@@ -358,7 +371,7 @@ export function SimulatorDialog({
           {/* Tab 1: Fin ? */}
           <TabsContent value="fin" className="mt-4 space-y-3">
             <p className="text-sm text-muted-foreground">
-              A ce rythme, quand aurez-vous termine la memorisation du Coran ?
+              À ce rythme, quand aurez-vous terminé la mémorisation du Coran ?
             </p>
             {completionResult ? (
               <div className="rounded-lg bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 p-4 space-y-2">
@@ -375,7 +388,7 @@ export function SimulatorDialog({
               <div className="rounded-lg bg-muted p-4">
                 <p className="text-sm text-muted-foreground">
                   {memorizationPace.remainingVerses <= 0
-                    ? 'Felicitations, vous avez termine la memorisation !'
+                    ? 'Félicitations, vous avez terminé la mémorisation !'
                     : 'Ajustez le rythme pour voir la projection.'}
                 </p>
               </div>
@@ -385,7 +398,7 @@ export function SimulatorDialog({
           {/* Tab 2: Cible ? */}
           <TabsContent value="cible" className="mt-4 space-y-3">
             <p className="text-sm text-muted-foreground">
-              Combien souhaitez-vous memoriser ? On vous dit quand ce sera fait.
+              Combien souhaitez-vous mémoriser ? On vous dit quand ce sera fait.
             </p>
             <div className="flex items-end gap-2">
               <div className="space-y-1">
@@ -404,12 +417,12 @@ export function SimulatorDialog({
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Unite</Label>
+                <Label className="text-xs">Unité</Label>
                 <Select
                   value={targetUnit}
                   onValueChange={(v) => setTargetUnit(v as Unit)}
                 >
-                  <SelectTrigger className="w-28">
+                  <SelectTrigger className="w-36">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -445,7 +458,7 @@ export function SimulatorDialog({
           {/* Tab 3: Date ? */}
           <TabsContent value="date" className="mt-4 space-y-3">
             <p className="text-sm text-muted-foreground">
-              Choisissez une date pour voir ou vous en serez.
+              Choisissez une date pour voir où vous en serez.
             </p>
             <div className="space-y-1">
               <Label className="text-xs">Date cible</Label>
@@ -466,7 +479,7 @@ export function SimulatorDialog({
                 </p>
                 <p className="text-sm text-emerald-600 dark:text-emerald-400">
                   +{formatNumber(dateResult.projectedVerses)} versets
-                  supplementaires en {formatDuration(dateResult.diffDays)}
+                  supplémentaires en {formatDuration(dateResult.diffDays)}
                 </p>
                 {dateResult.milestone && (
                   <div className="text-xs text-emerald-600 dark:text-emerald-400 space-y-0.5 pt-1 border-t border-emerald-200 dark:border-emerald-800">
