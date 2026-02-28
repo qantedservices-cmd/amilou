@@ -31,6 +31,7 @@ import { Label } from '@/components/ui/label'
 import { Calendar as CalendarPicker } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { fr } from 'date-fns/locale'
+import { SimulatorCard } from '@/components/SimulatorCard'
 
 interface Program {
   id: string
@@ -1571,6 +1572,12 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Projection Mémorisation */}
+      <SimulatorCard
+        memorizationPace={stats?.memorizationPace || null}
+        memorizedPercentage={stats?.globalProgress?.percentage || 0}
+      />
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
