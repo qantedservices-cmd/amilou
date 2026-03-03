@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { User, Lock, Mail, Calendar, Shield, Check, X, Target, Save, History, Eye, EyeOff } from 'lucide-react'
+import { User, Lock, Mail, Calendar, Shield, Check, X, Target, Save, History, Eye, EyeOff, BookOpen, LayoutList } from 'lucide-react'
 
 interface UserProfile {
   id: string
@@ -30,6 +30,17 @@ interface UserProfile {
   privateProgress: boolean
   privateStats: boolean
   privateEvaluations: boolean
+  memorizationStartSurah: number | null
+  memorizationStartVerse: number | null
+  memorizationDirection: string | null
+  enabledPrograms: string[]
+}
+
+interface SurahInfo {
+  number: number
+  nameAr: string
+  nameFr: string
+  totalVerses: number
 }
 
 interface Program {
@@ -106,6 +117,19 @@ export default function SettingsPage() {
   const [savingPrivacy, setSavingPrivacy] = useState(false)
   const [privacyMessage, setPrivacyMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // Memorization start settings
+  const [surahs, setSurahs] = useState<SurahInfo[]>([])
+  const [memStartSurah, setMemStartSurah] = useState<string>('')
+  const [memStartVerse, setMemStartVerse] = useState<string>('1')
+  const [memDirection, setMemDirection] = useState<string>('FORWARD')
+  const [savingMem, setSavingMem] = useState(false)
+  const [memMessage, setMemMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Enabled programs
+  const [enabledPrograms, setEnabledPrograms] = useState<string[]>([])
+  const [savingPrograms, setSavingPrograms] = useState(false)
+  const [programsMessage, setProgramsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   // Program settings
   const [programs, setPrograms] = useState<Program[]>([])
   const [programSettings, setProgramSettings] = useState<ProgramSetting[]>([])
@@ -118,6 +142,7 @@ export default function SettingsPage() {
     fetchProfile()
     fetchPrograms()
     fetchProgramSettings()
+    fetchSurahs()
   }, [])
 
   async function fetchProfile() {
@@ -132,11 +157,29 @@ export default function SettingsPage() {
         setPrivateProgress(data.privateProgress || false)
         setPrivateStats(data.privateStats || false)
         setPrivateEvaluations(data.privateEvaluations || false)
+        // Set memorization settings
+        setMemStartSurah(data.memorizationStartSurah?.toString() || '')
+        setMemStartVerse(data.memorizationStartVerse?.toString() || '1')
+        setMemDirection(data.memorizationDirection || 'FORWARD')
+        // Set enabled programs
+        setEnabledPrograms(data.enabledPrograms || [])
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function fetchSurahs() {
+    try {
+      const res = await fetch('/api/surahs')
+      if (res.ok) {
+        const data = await res.json()
+        setSurahs(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Error fetching surahs:', error)
     }
   }
 
@@ -351,6 +394,91 @@ export default function SettingsPage() {
       setPrivacyMessage({ type: 'error', text: 'Erreur lors de la sauvegarde' })
     } finally {
       setSavingPrivacy(false)
+    }
+  }
+
+  const ALL_PROGRAM_CODES = ['MEMORIZATION', 'CONSOLIDATION', 'REVISION', 'READING', 'TAFSIR']
+  const PROGRAM_LABELS: Record<string, string> = {
+    MEMORIZATION: 'Mémorisation',
+    CONSOLIDATION: 'Consolidation',
+    REVISION: 'Révision',
+    READING: 'Lecture',
+    TAFSIR: 'Tafsir',
+  }
+
+  function isProgramEnabled(code: string) {
+    return enabledPrograms.length === 0 || enabledPrograms.includes(code)
+  }
+
+  function toggleProgram(code: string) {
+    setEnabledPrograms(prev => {
+      // If currently "all enabled" (empty array), switch to explicit with one removed
+      if (prev.length === 0) {
+        return ALL_PROGRAM_CODES.filter(c => c !== code)
+      }
+      if (prev.includes(code)) {
+        // Remove it, but don't allow removing all
+        const next = prev.filter(c => c !== code)
+        return next.length === 0 ? prev : next
+      }
+      // Add it back
+      const next = [...prev, code]
+      // If all are now enabled, reset to empty (= all)
+      return next.length === ALL_PROGRAM_CODES.length ? [] : next
+    })
+  }
+
+  async function handleMemorizationSubmit() {
+    setSavingMem(true)
+    setMemMessage(null)
+
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          memorizationStartSurah: memStartSurah ? parseInt(memStartSurah) : null,
+          memorizationStartVerse: memStartVerse ? parseInt(memStartVerse) : null,
+          memorizationDirection: memDirection,
+        }),
+      })
+
+      if (res.ok) {
+        setMemMessage({ type: 'success', text: 'Avancement mémorisation enregistré' })
+        setTimeout(() => setMemMessage(null), 3000)
+      } else {
+        const data = await res.json()
+        setMemMessage({ type: 'error', text: data.error || 'Erreur' })
+      }
+    } catch (error) {
+      setMemMessage({ type: 'error', text: 'Erreur lors de la sauvegarde' })
+    } finally {
+      setSavingMem(false)
+    }
+  }
+
+  async function handleProgramsSubmit() {
+    setSavingPrograms(true)
+    setProgramsMessage(null)
+
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabledPrograms }),
+      })
+
+      if (res.ok) {
+        setProgramsMessage({ type: 'success', text: 'Programmes enregistrés' })
+        setTimeout(() => setProgramsMessage(null), 3000)
+      } else {
+        const data = await res.json()
+        setProgramsMessage({ type: 'error', text: data.error || 'Erreur' })
+      }
+    } catch (error) {
+      setProgramsMessage({ type: 'error', text: 'Erreur lors de la sauvegarde' })
+    } finally {
+      setSavingPrograms(false)
     }
   }
 
@@ -618,6 +746,134 @@ export default function SettingsPage() {
             disabled={savingPrivacy}
           >
             {savingPrivacy ? t('common.loading') : 'Enregistrer'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Memorization Start Settings Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5" />
+            Mon avancement mémorisation
+          </CardTitle>
+          <CardDescription>
+            Indiquez votre point de départ si vous aviez déjà mémorisé avant d&apos;utiliser l&apos;application
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {memMessage && (
+            <div className={`flex items-center gap-2 rounded-md p-3 text-sm ${
+              memMessage.type === 'success'
+                ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+            }`}>
+              {memMessage.type === 'success' ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+              {memMessage.text}
+            </div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label>Sourate de départ</Label>
+              <Select value={memStartSurah} onValueChange={setMemStartSurah}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une sourate" />
+                </SelectTrigger>
+                <SelectContent>
+                  {surahs.map((s) => (
+                    <SelectItem key={s.number} value={s.number.toString()}>
+                      {s.number}. {s.nameAr}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Verset de départ</Label>
+              <Input
+                type="number"
+                min={1}
+                value={memStartVerse}
+                onChange={(e) => setMemStartVerse(e.target.value)}
+                placeholder="1"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Sens de mémorisation</Label>
+              <Select value={memDirection} onValueChange={setMemDirection}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="FORWARD">Vers An-Nas (en avant)</SelectItem>
+                  <SelectItem value="BACKWARD">Vers Al-Fatiha (en arrière)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleMemorizationSubmit}
+            className="bg-emerald-600 hover:bg-emerald-700"
+            disabled={savingMem}
+          >
+            {savingMem ? t('common.loading') : 'Enregistrer'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Enabled Programs Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LayoutList className="h-5 w-5" />
+            Mes programmes
+          </CardTitle>
+          <CardDescription>
+            Sélectionnez les programmes que vous suivez. Le dashboard n&apos;affichera que les programmes activés.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {programsMessage && (
+            <div className={`flex items-center gap-2 rounded-md p-3 text-sm ${
+              programsMessage.type === 'success'
+                ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+            }`}>
+              {programsMessage.type === 'success' ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+              {programsMessage.text}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {ALL_PROGRAM_CODES.map((code) => (
+              <div key={code} className="flex items-center justify-between rounded-lg border p-4">
+                <div className="flex items-center gap-3">
+                  <Badge className={getProgramColor(code)}>
+                    {PROGRAM_LABELS[code]}
+                  </Badge>
+                </div>
+                <Switch
+                  checked={isProgramEnabled(code)}
+                  onCheckedChange={() => toggleProgram(code)}
+                />
+              </div>
+            ))}
+          </div>
+
+          <Button
+            onClick={handleProgramsSubmit}
+            className="bg-emerald-600 hover:bg-emerald-700"
+            disabled={savingPrograms}
+          >
+            {savingPrograms ? t('common.loading') : 'Enregistrer'}
           </Button>
         </CardContent>
       </Card>

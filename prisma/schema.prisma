@@ -35,6 +35,9 @@ model User {
   memorizationStartVerse  Int?    // Starting verse (default: 1)
   memorizationDirection   String? // "FORWARD" (towards Nas) or "BACKWARD" (towards Fatiha)
 
+  // Enabled programs (empty = all enabled, for backward compat)
+  enabledPrograms         String[] @default([])
+
   accounts                Account[]
   sessions                Session[]
   groupMembers            GroupMember[]

@@ -237,6 +237,8 @@ interface Stats {
       objectiveLabel: string
     } | null
   } | null
+  // Enabled programs
+  enabledPrograms?: string[]
 }
 
 interface ManageableUser {
@@ -1297,6 +1299,12 @@ export default function DashboardPage() {
     return data.entries
   }, [])
 
+  // Helper: check if a program is enabled for the user
+  const isProgramEnabled = useCallback((code: string) => {
+    const ep = stats?.enabledPrograms
+    return !ep || ep.length === 0 || ep.includes(code)
+  }, [stats?.enabledPrograms])
+
   const statCards = [
     {
       title: t('dashboard.stats.totalVerses'),
@@ -1551,52 +1559,56 @@ export default function DashboardPage() {
       </Card>
 
       {/* Global Progress Bar */}
-      <Card className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-950/30 dark:to-blue-950/30 border-emerald-200 dark:border-emerald-800">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Award className="h-5 w-5 text-emerald-600" />
-            Mon Avancement Global - Mémorisation
-          </CardTitle>
-          <CardDescription>
-            Progression dans la mémorisation du Coran
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Progression</span>
-              <span className="font-bold text-emerald-600 text-lg">
-                {stats?.globalProgress?.percentage || 0}%
-              </span>
+      {isProgramEnabled('MEMORIZATION') && (
+        <Card className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-950/30 dark:to-blue-950/30 border-emerald-200 dark:border-emerald-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Award className="h-5 w-5 text-emerald-600" />
+              Mon Avancement Global - Mémorisation
+            </CardTitle>
+            <CardDescription>
+              Progression dans la mémorisation du Coran
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Progression</span>
+                <span className="font-bold text-emerald-600 text-lg">
+                  {stats?.globalProgress?.percentage || 0}%
+                </span>
+              </div>
+              {memorizationSegments.length > 0 ? (
+                <SegmentedProgressBar
+                  segments={memorizationSegments}
+                  cursorPosition={memorizationCursor}
+                  mode="compact"
+                  colorScheme="memorization"
+                  onBarClick={() => window.location.href = `/${locale}/progress`}
+                />
+              ) : (
+                <Progress
+                  value={stats?.globalProgress?.percentage || 0}
+                  className="h-4 bg-emerald-100 dark:bg-emerald-900"
+                />
+              )}
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{stats?.globalProgress?.memorizedPages || 0} pages</span>
+                <span>{stats?.globalProgress?.memorizedSurahs || 0} sourates</span>
+                <span>{stats?.globalProgress?.memorizedVerses || 0} versets</span>
+              </div>
             </div>
-            {memorizationSegments.length > 0 ? (
-              <SegmentedProgressBar
-                segments={memorizationSegments}
-                cursorPosition={memorizationCursor}
-                mode="compact"
-                colorScheme="memorization"
-                onBarClick={() => window.location.href = `/${locale}/progress`}
-              />
-            ) : (
-              <Progress
-                value={stats?.globalProgress?.percentage || 0}
-                className="h-4 bg-emerald-100 dark:bg-emerald-900"
-              />
-            )}
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{stats?.globalProgress?.memorizedPages || 0} pages</span>
-              <span>{stats?.globalProgress?.memorizedSurahs || 0} sourates</span>
-              <span>{stats?.globalProgress?.memorizedVerses || 0} versets</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Projection Mémorisation */}
-      <SimulatorCard
-        memorizationPace={stats?.memorizationPace || null}
-        memorizedPercentage={stats?.globalProgress?.percentage || 0}
-      />
+      {isProgramEnabled('MEMORIZATION') && (
+        <SimulatorCard
+          memorizationPace={stats?.memorizationPace || null}
+          memorizedPercentage={stats?.globalProgress?.percentage || 0}
+        />
+      )}
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -1727,7 +1739,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {stats?.weekProgramStats?.map((prog) => {
+                {stats?.weekProgramStats?.filter(p => isProgramEnabled(p.code)).map((prog) => {
                   const gridRow = localWeekGrid[prog.code] || [false, false, false, false, false, false, false]
                   const completedCount = gridRow.filter(Boolean).length
                   const objective = getObjectiveForProgram(prog.code)
@@ -1894,7 +1906,7 @@ export default function DashboardPage() {
       )}
 
       {/* Cycles de Complétion (Révision & Lecture) */}
-      <Card className="border-2 border-amber-200 dark:border-amber-800">
+      {(isProgramEnabled('REVISION') || isProgramEnabled('READING')) && <Card className="border-2 border-amber-200 dark:border-amber-800">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <RotateCcw className="h-5 w-5 text-amber-600" />
@@ -2031,43 +2043,45 @@ export default function DashboardPage() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Tafsir Coverage */}
-      <Card className="bg-gradient-to-r from-rose-50 to-pink-50 dark:from-rose-950/30 dark:to-pink-950/30 border-rose-200 dark:border-rose-800">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <BookOpen className="h-5 w-5 text-rose-600" />
-            Mon Avancement Global - Tafsir
-          </CardTitle>
-          <CardDescription>
-            Versets étudiés avec explication (Tafsir)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Progression</span>
-              <span className="font-bold text-rose-600 text-lg">{stats?.tafsirCoverage?.percentage || 0}%</span>
+      {isProgramEnabled('TAFSIR') && (
+        <Card className="bg-gradient-to-r from-rose-50 to-pink-50 dark:from-rose-950/30 dark:to-pink-950/30 border-rose-200 dark:border-rose-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <BookOpen className="h-5 w-5 text-rose-600" />
+              Mon Avancement Global - Tafsir
+            </CardTitle>
+            <CardDescription>
+              Versets étudiés avec explication (Tafsir)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Progression</span>
+                <span className="font-bold text-rose-600 text-lg">{stats?.tafsirCoverage?.percentage || 0}%</span>
+              </div>
+              {tafsirSegments.length > 0 ? (
+                <SegmentedProgressBar
+                  segments={tafsirSegments}
+                  mode="compact"
+                  colorScheme="tafsir"
+                  onBarClick={() => window.location.href = `/${locale}/tafsir`}
+                />
+              ) : (
+                <Progress value={stats?.tafsirCoverage?.percentage || 0} className="h-3" />
+              )}
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{stats?.tafsirCoverage?.coveredVerses || 0} versets</span>
+                <span>{stats?.tafsirCoverage?.completedSurahs || 0} sourates</span>
+                <span>6236 total</span>
+              </div>
             </div>
-            {tafsirSegments.length > 0 ? (
-              <SegmentedProgressBar
-                segments={tafsirSegments}
-                mode="compact"
-                colorScheme="tafsir"
-                onBarClick={() => window.location.href = `/${locale}/tafsir`}
-              />
-            ) : (
-              <Progress value={stats?.tafsirCoverage?.percentage || 0} className="h-3" />
-            )}
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{stats?.tafsirCoverage?.coveredVerses || 0} versets</span>
-              <span>{stats?.tafsirCoverage?.completedSurahs || 0} sourates</span>
-              <span>6236 total</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 40 Hadiths Nawawi */}
       {(() => {
@@ -2392,25 +2406,28 @@ export default function DashboardPage() {
           <div className="grid grid-cols-3 gap-4 mb-4 p-3 rounded-lg bg-muted/30">
             <div className="text-center">
               <p className="text-2xl font-bold text-blue-600">
-                {stats?.weekProgramStats?.reduce((sum, p) => sum + p.rate, 0)
-                  ? Math.round((stats.weekProgramStats.reduce((sum, p) => sum + p.rate, 0) / stats.weekProgramStats.length))
-                  : 0}%
+                {(() => {
+                  const filtered = stats?.weekProgramStats?.filter(p => isProgramEnabled(p.code)) || []
+                  return filtered.length ? Math.round(filtered.reduce((sum, p) => sum + p.rate, 0) / filtered.length) : 0
+                })()}%
               </p>
               <p className="text-xs text-muted-foreground">Cette semaine</p>
             </div>
             <div className="text-center border-x">
               <p className="text-2xl font-bold text-purple-600">
-                {stats?.monthProgramStats?.length
-                  ? Math.round(stats.monthProgramStats.reduce((sum, p) => sum + p.rate, 0) / stats.monthProgramStats.length)
-                  : 0}%
+                {(() => {
+                  const filtered = stats?.monthProgramStats?.filter(p => isProgramEnabled(p.code)) || []
+                  return filtered.length ? Math.round(filtered.reduce((sum, p) => sum + p.rate, 0) / filtered.length) : 0
+                })()}%
               </p>
               <p className="text-xs text-muted-foreground">Ce mois</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-emerald-600">
-                {stats?.yearProgramStats?.length
-                  ? Math.round(stats.yearProgramStats.reduce((sum, p) => sum + p.rate, 0) / stats.yearProgramStats.length)
-                  : 0}%
+                {(() => {
+                  const filtered = stats?.yearProgramStats?.filter(p => isProgramEnabled(p.code)) || []
+                  return filtered.length ? Math.round(filtered.reduce((sum, p) => sum + p.rate, 0) / filtered.length) : 0
+                })()}%
               </p>
               <p className="text-xs text-muted-foreground">Cette année</p>
             </div>
@@ -2418,7 +2435,7 @@ export default function DashboardPage() {
 
           {/* Programme breakdown */}
           <div className="space-y-3">
-            {stats?.weekProgramStats?.map((prog) => {
+            {stats?.weekProgramStats?.filter(p => isProgramEnabled(p.code)).map((prog) => {
               const monthProg = stats?.monthProgramStats?.find(p => p.code === prog.code)
               const yearProg = stats?.yearProgramStats?.find(p => p.code === prog.code)
               return (
@@ -2498,11 +2515,11 @@ export default function DashboardPage() {
                     }}
                   />
                   <Legend />
-                  <Area type="monotone" dataKey="MEMORIZATION" name="Mémorisation" stackId="1" stroke={CHART_COLORS.MEMORIZATION} fill={CHART_COLORS.MEMORIZATION} fillOpacity={0.6} />
-                  <Area type="monotone" dataKey="CONSOLIDATION" name="Consolidation" stackId="1" stroke={CHART_COLORS.CONSOLIDATION} fill={CHART_COLORS.CONSOLIDATION} fillOpacity={0.6} />
-                  <Area type="monotone" dataKey="REVISION" name="Révision" stackId="1" stroke={CHART_COLORS.REVISION} fill={CHART_COLORS.REVISION} fillOpacity={0.6} />
-                  <Area type="monotone" dataKey="READING" name="Lecture" stackId="1" stroke={CHART_COLORS.READING} fill={CHART_COLORS.READING} fillOpacity={0.6} />
-                  <Area type="monotone" dataKey="TAFSIR" name="Tafsir" stackId="1" stroke={CHART_COLORS.TAFSIR} fill={CHART_COLORS.TAFSIR} fillOpacity={0.6} />
+                  {isProgramEnabled('MEMORIZATION') && <Area type="monotone" dataKey="MEMORIZATION" name="Mémorisation" stackId="1" stroke={CHART_COLORS.MEMORIZATION} fill={CHART_COLORS.MEMORIZATION} fillOpacity={0.6} />}
+                  {isProgramEnabled('CONSOLIDATION') && <Area type="monotone" dataKey="CONSOLIDATION" name="Consolidation" stackId="1" stroke={CHART_COLORS.CONSOLIDATION} fill={CHART_COLORS.CONSOLIDATION} fillOpacity={0.6} />}
+                  {isProgramEnabled('REVISION') && <Area type="monotone" dataKey="REVISION" name="Révision" stackId="1" stroke={CHART_COLORS.REVISION} fill={CHART_COLORS.REVISION} fillOpacity={0.6} />}
+                  {isProgramEnabled('READING') && <Area type="monotone" dataKey="READING" name="Lecture" stackId="1" stroke={CHART_COLORS.READING} fill={CHART_COLORS.READING} fillOpacity={0.6} />}
+                  {isProgramEnabled('TAFSIR') && <Area type="monotone" dataKey="TAFSIR" name="Tafsir" stackId="1" stroke={CHART_COLORS.TAFSIR} fill={CHART_COLORS.TAFSIR} fillOpacity={0.6} />}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -2527,7 +2544,7 @@ export default function DashboardPage() {
           {stats?.progressByProgram && Object.keys(stats.progressByProgram).length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {PROGRAM_ORDER
-                .filter(code => stats.progressByProgram[code] !== undefined)
+                .filter(code => stats.progressByProgram[code] !== undefined && isProgramEnabled(code))
                 .map(code => (
                   <div key={code} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <Badge className={getProgramColor(code)}>

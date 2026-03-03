@@ -111,6 +111,13 @@ export async function GET(request: Request) {
     evolutionStartDate.setDate(now.getDate() - now.getDay() - (11 * 7))
     evolutionStartDate.setHours(0, 0, 0, 0)
 
+    // Fetch user's enabledPrograms
+    const userData = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { enabledPrograms: true }
+    })
+    const enabledPrograms = userData?.enabledPrograms || []
+
     // Parallel fetch of all independent data
     const [
       progressEntries,
@@ -1058,6 +1065,8 @@ export async function GET(request: Request) {
       tafsirCoverage,
       // NEW: Memorization Pace
       memorizationPace,
+      // Enabled programs
+      enabledPrograms,
     })
   } catch (error) {
     console.error('Error fetching stats:', error)

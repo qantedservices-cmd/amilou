@@ -26,6 +26,10 @@ export async function GET() {
         privateProgress: true,
         privateStats: true,
         privateEvaluations: true,
+        memorizationStartSurah: true,
+        memorizationStartVerse: true,
+        memorizationDirection: true,
+        enabledPrograms: true,
       },
     })
 
@@ -54,7 +58,11 @@ export async function PUT(request: Request) {
     const { userId: effectiveUserId } = await getEffectiveUserId()
 
     const body = await request.json()
-    const { name, privateAttendance, privateProgress, privateStats, privateEvaluations } = body
+    const {
+      name, privateAttendance, privateProgress, privateStats, privateEvaluations,
+      memorizationStartSurah, memorizationStartVerse, memorizationDirection,
+      enabledPrograms,
+    } = body
 
     // Build update data
     const updateData: Record<string, unknown> = {}
@@ -72,6 +80,35 @@ export async function PUT(request: Request) {
     if (privateStats !== undefined) updateData.privateStats = privateStats
     if (privateEvaluations !== undefined) updateData.privateEvaluations = privateEvaluations
 
+    // Memorization settings
+    if (memorizationStartSurah !== undefined) {
+      if (memorizationStartSurah !== null && (memorizationStartSurah < 1 || memorizationStartSurah > 114)) {
+        return NextResponse.json({ error: 'Sourate invalide (1-114)' }, { status: 400 })
+      }
+      updateData.memorizationStartSurah = memorizationStartSurah
+    }
+    if (memorizationStartVerse !== undefined) {
+      if (memorizationStartVerse !== null && memorizationStartVerse < 1) {
+        return NextResponse.json({ error: 'Verset invalide (>= 1)' }, { status: 400 })
+      }
+      updateData.memorizationStartVerse = memorizationStartVerse
+    }
+    if (memorizationDirection !== undefined) {
+      if (memorizationDirection !== null && !['FORWARD', 'BACKWARD'].includes(memorizationDirection)) {
+        return NextResponse.json({ error: 'Direction invalide (FORWARD ou BACKWARD)' }, { status: 400 })
+      }
+      updateData.memorizationDirection = memorizationDirection
+    }
+
+    // Enabled programs
+    if (enabledPrograms !== undefined) {
+      const validCodes = ['MEMORIZATION', 'CONSOLIDATION', 'REVISION', 'READING', 'TAFSIR']
+      if (!Array.isArray(enabledPrograms) || !enabledPrograms.every((c: string) => validCodes.includes(c))) {
+        return NextResponse.json({ error: 'Codes de programme invalides' }, { status: 400 })
+      }
+      updateData.enabledPrograms = enabledPrograms
+    }
+
     const user = await prisma.user.update({
       where: { id: effectiveUserId! },
       data: updateData,
@@ -85,6 +122,10 @@ export async function PUT(request: Request) {
         privateProgress: true,
         privateStats: true,
         privateEvaluations: true,
+        memorizationStartSurah: true,
+        memorizationStartVerse: true,
+        memorizationDirection: true,
+        enabledPrograms: true,
       },
     })
 
