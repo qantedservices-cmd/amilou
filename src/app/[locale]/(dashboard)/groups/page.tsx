@@ -24,12 +24,13 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Users, Plus, Settings, UserPlus, LogOut, Trash2, Crown, Grid3X3 } from 'lucide-react'
+import { Users, Plus, Settings, UserPlus, LogOut, Trash2, Crown, Grid3X3, UserCheck, UserX } from 'lucide-react'
 import { useParams } from 'next/navigation'
 
 interface GroupMember {
   id: string
   role: string
+  isActive: boolean
   user: {
     id: string
     name: string
@@ -169,6 +170,27 @@ export default function GroupsPage() {
       }
     } catch (error) {
       console.error('Error removing member:', error)
+    }
+  }
+
+  async function handleToggleMember(memberId: string, isActive: boolean) {
+    if (!selectedGroup) return
+
+    try {
+      const res = await fetch(`/api/groups/${selectedGroup.id}/members`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId, isActive }),
+      })
+
+      if (res.ok) {
+        const updatedGroups = await fetch('/api/groups').then(r => r.json())
+        setGroups(Array.isArray(updatedGroups) ? updatedGroups : [])
+        const updated = (updatedGroups as Group[]).find((g: Group) => g.id === selectedGroup.id)
+        if (updated) setSelectedGroup(updated)
+      }
+    } catch (error) {
+      console.error('Error toggling member:', error)
     }
   }
 
@@ -404,11 +426,15 @@ export default function GroupsPage() {
                     )}
                   </div>
 
-                  <div className="space-y-2 max-h-[200px] overflow-auto">
+                  <div className="space-y-2 max-h-[300px] overflow-auto">
                     {selectedGroup.members.map((member) => (
                       <div
                         key={member.id}
-                        className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
+                        className={`flex items-center justify-between p-2 rounded-lg ${
+                          member.isActive === false
+                            ? 'bg-red-50 dark:bg-red-950/20 opacity-60'
+                            : 'bg-muted/50'
+                        }`}
                       >
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8">
@@ -417,17 +443,43 @@ export default function GroupsPage() {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="text-sm font-medium">{member.user.name || 'Sans nom'}</p>
+                            <p className="text-sm font-medium">
+                              {member.user.name || 'Sans nom'}
+                              {member.isActive === false && (
+                                <span className="ml-2 text-xs text-red-600 dark:text-red-400">(inactif)</span>
+                              )}
+                            </p>
                             <p className="text-xs text-muted-foreground">{member.user.email}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           {getRoleBadge(member.role)}
+                          {/* Activer/Désactiver - REFERENT ou ADMIN, pas sur soi-même ni sur un ADMIN */}
                           {['ADMIN', 'REFERENT'].includes(selectedGroup.myRole) && member.role !== 'ADMIN' && (
                             <Button
                               size="icon"
                               variant="ghost"
+                              className={`h-8 w-8 ${
+                                member.isActive === false
+                                  ? 'text-emerald-600 hover:text-emerald-700'
+                                  : 'text-amber-600 hover:text-amber-700'
+                              }`}
+                              title={member.isActive === false ? 'Réactiver' : 'Désactiver'}
+                              onClick={() => handleToggleMember(member.user.id, !member.isActive)}
+                            >
+                              {member.isActive === false
+                                ? <UserCheck className="h-4 w-4" />
+                                : <UserX className="h-4 w-4" />
+                              }
+                            </Button>
+                          )}
+                          {/* Supprimer - ADMIN seulement */}
+                          {selectedGroup.myRole === 'ADMIN' && member.role !== 'ADMIN' && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
                               className="h-8 w-8 text-destructive hover:text-destructive"
+                              title="Supprimer définitivement"
                               onClick={() => handleRemoveMember(member.user.id)}
                             >
                               <Trash2 className="h-4 w-4" />

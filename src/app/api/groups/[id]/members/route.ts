@@ -87,6 +87,67 @@ export async function POST(
   }
 }
 
+// PATCH: Toggle isActive (activate/deactivate) - ADMIN or REFERENT
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    const { id } = await params
+    const { memberId, isActive } = await request.json()
+
+    if (!memberId || typeof isActive !== 'boolean') {
+      return NextResponse.json({ error: 'memberId et isActive requis' }, { status: 400 })
+    }
+
+    // Check if user is admin or referent of this group
+    const membership = await prisma.groupMember.findFirst({
+      where: {
+        groupId: id,
+        userId: session.user.id,
+        role: { in: ['ADMIN', 'REFERENT'] },
+      },
+    })
+
+    if (!membership) {
+      return NextResponse.json(
+        { error: 'Vous devez être administrateur ou référent pour modifier les membres' },
+        { status: 403 }
+      )
+    }
+
+    // Cannot deactivate yourself
+    if (memberId === session.user.id && !isActive) {
+      return NextResponse.json(
+        { error: 'Vous ne pouvez pas vous désactiver vous-même' },
+        { status: 400 }
+      )
+    }
+
+    await prisma.groupMember.updateMany({
+      where: {
+        groupId: id,
+        userId: memberId,
+      },
+      data: { isActive },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error toggling member:', error)
+    return NextResponse.json(
+      { error: 'Erreur lors de la modification du membre' },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE: Remove member permanently - ADMIN only (or self-removal)
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -105,23 +166,25 @@ export async function DELETE(
       return NextResponse.json({ error: 'ID du membre requis' }, { status: 400 })
     }
 
-    // Check if user is admin or referent of this group
-    const membership = await prisma.groupMember.findFirst({
-      where: {
-        groupId: id,
-        userId: session.user.id,
-        role: { in: ['ADMIN', 'REFERENT'] },
-      },
-    })
-
     // Allow user to remove themselves
     const isSelf = memberId === session.user.id
 
-    if (!membership && !isSelf) {
-      return NextResponse.json(
-        { error: 'Vous devez être administrateur ou référent pour retirer des membres' },
-        { status: 403 }
-      )
+    if (!isSelf) {
+      // Only ADMIN can delete members
+      const membership = await prisma.groupMember.findFirst({
+        where: {
+          groupId: id,
+          userId: session.user.id,
+          role: 'ADMIN',
+        },
+      })
+
+      if (!membership) {
+        return NextResponse.json(
+          { error: 'Seul un administrateur peut supprimer des membres' },
+          { status: 403 }
+        )
+      }
     }
 
     await prisma.groupMember.deleteMany({

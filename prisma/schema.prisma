@@ -131,6 +131,7 @@ model GroupMember {
   userId   String
   groupId  String
   role     String   @default("MEMBER")
+  isActive Boolean  @default(true)
   joinedAt DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
