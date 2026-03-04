@@ -15,18 +15,18 @@ export async function POST(
     const { id } = await params
     const { email, role } = await request.json()
 
-    // Check if user is admin of this group
+    // Check if user is admin or referent of this group
     const membership = await prisma.groupMember.findFirst({
       where: {
         groupId: id,
         userId: session.user.id,
-        role: 'ADMIN',
+        role: { in: ['ADMIN', 'REFERENT'] },
       },
     })
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Vous devez être administrateur pour ajouter des membres' },
+        { error: 'Vous devez être administrateur ou référent pour ajouter des membres' },
         { status: 403 }
       )
     }
@@ -105,12 +105,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'ID du membre requis' }, { status: 400 })
     }
 
-    // Check if user is admin of this group
+    // Check if user is admin or referent of this group
     const membership = await prisma.groupMember.findFirst({
       where: {
         groupId: id,
         userId: session.user.id,
-        role: 'ADMIN',
+        role: { in: ['ADMIN', 'REFERENT'] },
       },
     })
 
@@ -119,7 +119,7 @@ export async function DELETE(
 
     if (!membership && !isSelf) {
       return NextResponse.json(
-        { error: 'Vous devez être administrateur pour retirer des membres' },
+        { error: 'Vous devez être administrateur ou référent pour retirer des membres' },
         { status: 403 }
       )
     }

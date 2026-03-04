@@ -372,7 +372,7 @@ export default function GroupsPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   {selectedGroup.name}
-                  {selectedGroup.myRole === 'ADMIN' && (
+                  {['ADMIN', 'REFERENT'].includes(selectedGroup.myRole) && (
                     <Crown className="h-4 w-4 text-amber-500" />
                   )}
                 </DialogTitle>
@@ -392,7 +392,7 @@ export default function GroupsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Membres ({selectedGroup.members.length})</span>
-                    {selectedGroup.myRole === 'ADMIN' && (
+                    {['ADMIN', 'REFERENT'].includes(selectedGroup.myRole) && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -423,7 +423,7 @@ export default function GroupsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           {getRoleBadge(member.role)}
-                          {selectedGroup.myRole === 'ADMIN' && member.role !== 'ADMIN' && (
+                          {['ADMIN', 'REFERENT'].includes(selectedGroup.myRole) && member.role !== 'ADMIN' && (
                             <Button
                               size="icon"
                               variant="ghost"
@@ -442,7 +442,7 @@ export default function GroupsPage() {
 
               <DialogFooter className="flex justify-between sm:justify-between gap-2">
                 <div className="flex gap-2">
-                  {selectedGroup.myRole === 'ADMIN' ? (
+                  {['ADMIN', 'REFERENT'].includes(selectedGroup.myRole) ? (
                     <Button
                       variant="destructive"
                       size="sm"

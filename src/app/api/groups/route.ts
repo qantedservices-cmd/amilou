@@ -118,7 +118,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Nom du groupe requis' }, { status: 400 })
     }
 
-    // Create group and add creator as admin
+    // Create group and add creator as referent
     const group = await prisma.group.create({
       data: {
         name,
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
         members: {
           create: {
             userId: session.user.id,
-            role: 'ADMIN',
+            role: 'REFERENT',
           },
         },
       },
@@ -152,7 +152,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ...group,
-      myRole: 'ADMIN',
+      myRole: 'REFERENT',
       memberCount: group._count.members,
     })
   } catch (error) {
