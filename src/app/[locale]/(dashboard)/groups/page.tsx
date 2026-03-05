@@ -67,6 +67,7 @@ export default function GroupsPage() {
   const [creating, setCreating] = useState(false)
 
   // Add member form
+  const [memberName, setMemberName] = useState('')
   const [memberEmail, setMemberEmail] = useState('')
   const [memberRole, setMemberRole] = useState('MEMBER')
   const [addingMember, setAddingMember] = useState(false)
@@ -130,6 +131,7 @@ export default function GroupsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: memberEmail,
+          name: memberName,
           role: memberRole,
         }),
       })
@@ -142,6 +144,7 @@ export default function GroupsPage() {
         const updated = groups.find(g => g.id === selectedGroup.id)
         if (updated) setSelectedGroup(updated)
         setAddMemberDialogOpen(false)
+        setMemberName('')
         setMemberEmail('')
         setMemberRole('MEMBER')
       } else {
@@ -552,6 +555,15 @@ export default function GroupsPage() {
                 {memberError}
               </div>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="memberName">Prénom</Label>
+              <Input
+                id="memberName"
+                value={memberName}
+                onChange={(e) => setMemberName(e.target.value)}
+                placeholder="Ex: Mohamed"
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input

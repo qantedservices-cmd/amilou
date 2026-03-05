@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import bcrypt from 'bcryptjs'
 
 export async function POST(
   request: Request,
@@ -13,7 +14,11 @@ export async function POST(
     }
 
     const { id } = await params
-    const { email, role } = await request.json()
+    const { email, name, role } = await request.json()
+
+    if (!email) {
+      return NextResponse.json({ error: 'Email requis' }, { status: 400 })
+    }
 
     // Check if user is admin or referent of this group
     const membership = await prisma.groupMember.findFirst({
@@ -31,17 +36,29 @@ export async function POST(
       )
     }
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
+    // Find or create user by email
+    let user = await prisma.user.findUnique({
       where: { email },
       select: { id: true, name: true, email: true },
     })
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'Utilisateur non trouvé avec cet email' },
-        { status: 404 }
-      )
+      // Create the user with a default password
+      const defaultPassword = await bcrypt.hash('changeme123', 12)
+      user = await prisma.user.create({
+        data: {
+          email,
+          name: name || email.split('@')[0],
+          password: defaultPassword,
+        },
+        select: { id: true, name: true, email: true },
+      })
+    } else if (name && !user.name) {
+      // Update name if user exists but has no name
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { name },
+      })
     }
 
     // Check if already a member
