@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -15,10 +16,37 @@ import {
   Sparkles,
   Target,
   Clock,
-  TrendingUp
+  TrendingUp,
+  LayoutDashboard,
+  Settings,
+  Users,
+  Shield,
+  Navigation,
+  BarChart3,
+  CalendarCheck,
+  Library,
+  Grid3X3,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
+  Info,
+  List
 } from 'lucide-react'
 
+const guideSections = [
+  { id: 'guide-dashboard', icon: LayoutDashboard, label: 'Le Tableau de Bord', color: 'text-blue-600' },
+  { id: 'guide-programmes', icon: CalendarCheck, label: 'Programmes Journaliers', color: 'text-emerald-600' },
+  { id: 'guide-objectifs', icon: Target, label: 'Objectifs & Paramètres', color: 'text-amber-600' },
+  { id: 'guide-tracker', icon: Navigation, label: 'Tracker Révision & Lecture', color: 'text-teal-600' },
+  { id: 'guide-cycles', icon: RefreshCw, label: 'Cycles de Complétion', color: 'text-purple-600' },
+  { id: 'guide-mastery', icon: Grid3X3, label: 'Grille de Suivi (Mastery)', color: 'text-indigo-600' },
+  { id: 'guide-livres', icon: Library, label: 'Livres (Mutun & Hadiths)', color: 'text-rose-600' },
+  { id: 'guide-roles', icon: Shield, label: 'Rôles & Permissions', color: 'text-slate-600' },
+]
+
 export default function PresentationPage() {
+  const [guideExpanded, setGuideExpanded] = useState(true)
+
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       {/* Header */}
@@ -380,6 +408,490 @@ export default function PresentationPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ====================================== */}
+      {/* GUIDE DE L'APPLICATION                 */}
+      {/* ====================================== */}
+
+      <div className="relative py-8">
+        <Separator />
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center">
+          <span className="bg-background px-4 text-sm font-medium text-muted-foreground">Guide Pratique</span>
+        </div>
+      </div>
+
+      {/* Table des matières */}
+      <Card id="guide" className="border-2 border-slate-200 dark:border-slate-700">
+        <CardHeader
+          className="cursor-pointer select-none"
+          onClick={() => setGuideExpanded(!guideExpanded)}
+        >
+          <CardTitle className="flex items-center gap-2">
+            <List className="h-6 w-6 text-slate-600" />
+            Guide de l'Application
+            <span className="ml-auto">
+              {guideExpanded
+                ? <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                : <ChevronDown className="h-5 w-5 text-muted-foreground" />
+              }
+            </span>
+          </CardTitle>
+          <CardDescription>
+            Comment utiliser Amilou pour suivre votre apprentissage du Coran
+          </CardDescription>
+        </CardHeader>
+        {guideExpanded && (
+          <CardContent>
+            <nav className="grid gap-2 sm:grid-cols-2">
+              {guideSections.map((section) => (
+                <a
+                  key={section.id}
+                  href={`#${section.id}`}
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors group"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }}
+                >
+                  <section.icon className={`h-5 w-5 ${section.color} group-hover:scale-110 transition-transform`} />
+                  <span className="text-sm font-medium">{section.label}</span>
+                </a>
+              ))}
+            </nav>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Section 1 : Le Tableau de Bord */}
+      <Card id="guide-dashboard">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LayoutDashboard className="h-5 w-5 text-blue-600" />
+            Le Tableau de Bord
+          </CardTitle>
+          <CardDescription>Votre centre de contrôle quotidien</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Le tableau de bord est la page principale de l'application. Il regroupe toutes vos statistiques et votre avancement en un coup d'oeil.
+          </p>
+
+          <div className="space-y-3">
+            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30">
+              <h4 className="font-semibold text-sm mb-1">Sélecteur de période</h4>
+              <p className="text-xs text-muted-foreground">
+                En haut de la page, choisissez la période d'affichage : <strong>Année</strong>, <strong>Mois</strong>, ou <strong>Global</strong> (tout l'historique). Toutes les statistiques s'adaptent automatiquement à la période choisie.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30">
+              <h4 className="font-semibold text-sm mb-1">Avancement Global</h4>
+              <p className="text-xs text-muted-foreground">
+                La barre de progression en haut montre votre pourcentage total de mémorisation du Coran (versets, pages, hizbs). Elle est toujours globale, indépendante de la période.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30">
+              <h4 className="font-semibold text-sm mb-1">Cartes statistiques</h4>
+              <p className="text-xs text-muted-foreground">
+                4 cartes rapides affichent : les versets de la période, les pages, la série quotidienne (streak) et la série hebdomadaire. La série quotidienne compte les jours consécutifs avec au moins un programme complété.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30">
+              <h4 className="font-semibold text-sm mb-1">Navigation par semaine</h4>
+              <p className="text-xs text-muted-foreground">
+                Utilisez les flèches ou le calendrier pour naviguer entre les semaines dans la grille des programmes journaliers. Le numéro de semaine (S1, S2...) s'affiche en haut.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 2 : Programmes Journaliers */}
+      <Card id="guide-programmes">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarCheck className="h-5 w-5 text-emerald-600" />
+            Programmes Journaliers
+          </CardTitle>
+          <CardDescription>Cocher ses programmes chaque jour</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Chaque jour, cochez les programmes que vous avez complétés. C'est le coeur du suivi quotidien.
+          </p>
+
+          <div className="space-y-3">
+            <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30">
+              <h4 className="font-semibold text-sm mb-1">La grille hebdomadaire</h4>
+              <p className="text-xs text-muted-foreground">
+                Une grille 7 jours x 4 programmes (Mémorisation, Consolidation, Révision, Lecture) s'affiche.
+                Cliquez sur une case pour cocher/décocher. Les cases vertes = complété, grises = non fait.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30">
+              <h4 className="font-semibold text-sm mb-1">Objectifs hebdomadaires</h4>
+              <p className="text-xs text-muted-foreground">
+                Sous la grille, vos objectifs hebdomadaires (Tafsir, Hadith, etc.) apparaissent.
+                Cochez-les quand la semaine est terminée. Vous pouvez en créer de nouveaux dans les Paramètres.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30">
+              <h4 className="font-semibold text-sm mb-1">Taux de complétion</h4>
+              <p className="text-xs text-muted-foreground">
+                Sous la grille, un résumé montre le taux de complétion par programme sur la semaine, le mois et l'année.
+                Ce taux est calculé depuis votre <strong>date d'adoption</strong> (premier jour d'utilisation).
+              </p>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
+              <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                <strong>Astuce :</strong> Seuls les programmes que vous avez activés dans les Paramètres apparaissent dans la grille. Si un programme ne s'affiche pas, vérifiez vos paramètres.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 3 : Objectifs & Paramètres */}
+      <Card id="guide-objectifs">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-amber-600" />
+            Objectifs & Paramètres
+          </CardTitle>
+          <CardDescription>Configurer ses objectifs et préférences</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Allez dans <strong>Paramètres</strong> (menu latéral) pour configurer votre profil, vos objectifs et vos préférences.
+          </p>
+
+          <div className="space-y-3">
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30">
+              <h4 className="font-semibold text-sm mb-1">Objectifs par programme</h4>
+              <p className="text-xs text-muted-foreground">
+                Définissez votre objectif pour chaque programme : quantité (1, 2...) + unité (page, hizb, juz...) + période (jour, semaine...).
+                Exemple : "2 hizbs par jour" pour la Révision. Ces objectifs sont utilisés par le simulateur et le tracker d'avancement.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30">
+              <h4 className="font-semibold text-sm mb-1">Programmes activés</h4>
+              <p className="text-xs text-muted-foreground">
+                Activez ou désactivez les programmes qui vous concernent. Un programme désactivé ne s'affichera plus dans la grille journalière ni dans les statistiques.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30">
+              <h4 className="font-semibold text-sm mb-1">Point de départ mémorisation</h4>
+              <p className="text-xs text-muted-foreground">
+                Indiquez la sourate et le verset où vous avez commencé votre mémorisation, et le sens (vers An-Nas ou vers Al-Fatiha).
+                Cela permet de calculer automatiquement votre zone mémorisée et le nombre de hizbs.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30">
+              <h4 className="font-semibold text-sm mb-1">Confidentialité</h4>
+              <p className="text-xs text-muted-foreground">
+                Choisissez quelles données rendre privées : assiduité, avancement, statistiques, évaluations.
+                Les données privées restent visibles pour vous, votre référent et l'administrateur.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30">
+              <h4 className="font-semibold text-sm mb-1">Historique des objectifs</h4>
+              <p className="text-xs text-muted-foreground">
+                Chaque modification d'objectif est sauvegardée dans l'historique. Vous pouvez ainsi suivre l'évolution de vos objectifs dans le temps.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 4 : Tracker Révision & Lecture */}
+      <Card id="guide-tracker">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Navigation className="h-5 w-5 text-teal-600" />
+            Tracker Révision & Lecture
+          </CardTitle>
+          <CardDescription>Suivre sa position dans les cycles en cours</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Le tracker affiche en temps réel votre position actuelle dans les cycles de Révision et de Lecture (sourate, verset, hizb, page, pourcentage).
+          </p>
+
+          <div className="space-y-3">
+            <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-950/30">
+              <h4 className="font-semibold text-sm mb-1">Comment ça marche</h4>
+              <p className="text-xs text-muted-foreground">
+                Chaque jour où vous cochez "Révision" ou "Lecture" dans la grille, votre position avance selon l'objectif que vous avez défini.
+                Exemple : si votre objectif est "2 hizbs/jour" en Révision, chaque jour coché avance de 2 hizbs.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-950/30">
+              <h4 className="font-semibold text-sm mb-1">Recalculer</h4>
+              <p className="text-xs text-muted-foreground">
+                Le bouton <strong>Recalculer</strong> recompte les jours complétés depuis votre dernier cycle et met à jour votre position. Si votre position dépasse la fin d'un cycle, un nouveau cycle est automatiquement créé.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-950/30">
+              <h4 className="font-semibold text-sm mb-1">Modifier manuellement</h4>
+              <p className="text-xs text-muted-foreground">
+                Cliquez sur <strong>Modifier</strong> pour ajuster votre position si elle ne correspond pas à la réalité (ex : vous avez avancé plus vite certains jours).
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg border-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+              <h4 className="font-semibold text-sm mb-1 flex items-center gap-1">
+                <Info className="h-4 w-4 text-amber-600" />
+                Phase combinée
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Quand votre lecture (Tilawa) entre dans votre zone mémorisée, la Révision se suspend automatiquement car vous révisez de fait via la Lecture.
+                Pendant cette phase, la Lecture avance à vitesse doublée. Quand elle sort de la zone mémorisée, un cycle de Révision est créé automatiquement
+                et la Révision reprend là où elle s'était arrêtée.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 5 : Cycles de Complétion */}
+      <Card id="guide-cycles">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="h-5 w-5 text-purple-600" />
+            Cycles de Complétion
+          </CardTitle>
+          <CardDescription>Comptabiliser les tours complets du Coran</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Un cycle représente un tour complet : soit de votre zone mémorisée (Révision), soit du Coran entier (Lecture/Khatma).
+          </p>
+
+          <div className="space-y-3">
+            <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/30">
+              <h4 className="font-semibold text-sm mb-1">Ajouter un cycle</h4>
+              <p className="text-xs text-muted-foreground">
+                Cliquez sur <strong>Ajouter</strong> dans la carte Révision ou Lecture pour enregistrer un nouveau cycle. Indiquez la date de complétion et une note optionnelle.
+                Pour la Révision, le nombre de hizbs est calculé automatiquement depuis votre progression.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/30">
+              <h4 className="font-semibold text-sm mb-1">Historique</h4>
+              <p className="text-xs text-muted-foreground">
+                Cliquez sur la carte pour voir l'historique complet de vos cycles. Vous pouvez modifier la date, les notes, ou supprimer un cycle.
+                Le nombre de jours entre chaque cycle est recalculé automatiquement.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/30">
+              <h4 className="font-semibold text-sm mb-1">Statistiques affichées</h4>
+              <p className="text-xs text-muted-foreground">
+                Pour chaque type : nombre total de cycles, date du dernier, jours écoulés depuis, et moyenne de jours par cycle.
+                La couleur des jours change selon l'urgence (vert, orange, rouge).
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 6 : Grille de Suivi (Mastery) */}
+      <Card id="guide-mastery">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Grid3X3 className="h-5 w-5 text-indigo-600" />
+            Grille de Suivi (Mastery)
+          </CardTitle>
+          <CardDescription>Vue matricielle du niveau de maîtrise par sourate</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Accessible depuis la page d'un groupe, la grille de suivi montre le niveau de maîtrise de chaque élève pour chaque sourate.
+          </p>
+
+          <div className="space-y-3">
+            <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-950/30">
+              <h4 className="font-semibold text-sm mb-2">Codes de statut</h4>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100 text-xs px-1.5">V7</Badge>
+                  <span className="text-muted-foreground">Validé semaine 7</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 text-xs px-1.5">C</Badge>
+                  <span className="text-muted-foreground">Supposé connu, à valider</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200 text-xs px-1.5">90%</Badge>
+                  <span className="text-muted-foreground">90% maîtrisé</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 text-xs px-1.5">50%</Badge>
+                  <span className="text-muted-foreground">Partiellement maîtrisé</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100 text-xs px-1.5">AM</Badge>
+                  <span className="text-muted-foreground">À mémoriser</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-100 text-xs px-1.5">S7</Badge>
+                  <span className="text-muted-foreground">Récité à un élève sem. 7</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-950/30">
+              <h4 className="font-semibold text-sm mb-1">Commentaires</h4>
+              <p className="text-xs text-muted-foreground">
+                Un point orange sur une cellule indique des commentaires (ex : "Hésitation v.8").
+                Cliquez sur la cellule pour les voir. Le référent peut ajouter, modifier ou supprimer les commentaires.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-950/30">
+              <h4 className="font-semibold text-sm mb-1">Export</h4>
+              <p className="text-xs text-muted-foreground">
+                La grille peut être exportée en <strong>PNG</strong> (image haute qualité) ou en <strong>PDF</strong> (A4 paysage avec les commentaires en annexe).
+              </p>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
+              <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                Seul le <strong>référent</strong> du groupe peut modifier les statuts et les commentaires. Les membres voient la grille en lecture seule.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 7 : Livres */}
+      <Card id="guide-livres">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Library className="h-5 w-5 text-rose-600" />
+            Livres (Mutun & Hadiths)
+          </CardTitle>
+          <CardDescription>Suivre sa progression dans les textes islamiques</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            La section Livres permet de suivre votre avancement dans les textes de science islamique (Mutun, collections de hadiths).
+          </p>
+
+          <div className="space-y-3">
+            <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30">
+              <h4 className="font-semibold text-sm mb-1">Catalogue</h4>
+              <p className="text-xs text-muted-foreground">
+                Parcourez le catalogue par discipline (Aqeedah, Hadith, Fiqh...) ou par collection (ex : Mutun Talib al-'Ilm par niveau).
+                Ajoutez un livre à votre liste personnelle pour commencer le suivi.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30">
+              <h4 className="font-semibold text-sm mb-1">Progression par item</h4>
+              <p className="text-xs text-muted-foreground">
+                Chaque livre contient des chapitres et des items (hadiths, points, versets). Cochez chaque item complété.
+                La progression se calcule en cascade : items terminés = % du chapitre = % du livre.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30">
+              <h4 className="font-semibold text-sm mb-1">Livres de groupe</h4>
+              <p className="text-xs text-muted-foreground">
+                Le référent peut assigner des livres au groupe. Une matrice montre la progression de chaque membre.
+                Les livres de groupe apparaissent automatiquement dans "Mes Livres" pour chaque membre.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 8 : Rôles & Permissions */}
+      <Card id="guide-roles">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-slate-600" />
+            Rôles & Permissions
+          </CardTitle>
+          <CardDescription>Qui peut voir et faire quoi</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            L'application distingue 3 niveaux d'accès pour protéger vos données tout en permettant le suivi collectif.
+          </p>
+
+          <div className="space-y-3">
+            <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="h-4 w-4 text-slate-600" />
+                <h4 className="font-semibold text-sm">Utilisateur (USER)</h4>
+              </div>
+              <ul className="text-xs text-muted-foreground space-y-1 ml-6 list-disc">
+                <li>Voit et modifie ses propres données</li>
+                <li>Voit les données publiques des membres de son groupe en lecture seule</li>
+                <li>Ne voit pas les données marquées comme privées des autres membres</li>
+              </ul>
+            </div>
+
+            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-700">
+              <div className="flex items-center gap-2 mb-2">
+                <Star className="h-4 w-4 text-blue-600" />
+                <h4 className="font-semibold text-sm">Référent (REFERENT)</h4>
+              </div>
+              <ul className="text-xs text-muted-foreground space-y-1 ml-6 list-disc">
+                <li>Tout ce qu'un utilisateur peut faire</li>
+                <li>Voit et modifie les données de tous les membres de son groupe (y compris privées)</li>
+                <li>Gère la grille de suivi (mastery) : statuts et commentaires</li>
+                <li>Assigne des livres au groupe</li>
+                <li>Ajoute/active/désactive des membres du groupe</li>
+              </ul>
+            </div>
+
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700">
+              <div className="flex items-center gap-2 mb-2">
+                <Shield className="h-4 w-4 text-amber-600" />
+                <h4 className="font-semibold text-sm">Administrateur (ADMIN)</h4>
+              </div>
+              <ul className="text-xs text-muted-foreground space-y-1 ml-6 list-disc">
+                <li>Accès total à toutes les données de tous les utilisateurs</li>
+                <li>Gestion des utilisateurs (création, modification, suppression)</li>
+                <li>Fonction "Voir en tant que" (impersonation) pour dépanner un utilisateur</li>
+                <li>Voit tous les groupes et peut tout modifier</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2 p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg">
+            <CheckCircle className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              <strong>Confidentialité :</strong> Par défaut, toutes vos données sont publiques au sein de votre groupe. Vous pouvez rendre privées l'assiduité, l'avancement, les statistiques et les évaluations dans les Paramètres.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Retour en haut */}
+      <div className="text-center pb-4">
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Retour en haut
+        </button>
+      </div>
     </div>
   )
 }
