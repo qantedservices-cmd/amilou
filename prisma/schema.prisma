@@ -5,8 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -34,6 +35,11 @@ model User {
   memorizationStartSurah  Int?    // Starting surah (default: 1 for Fatiha)
   memorizationStartVerse  Int?    // Starting verse (default: 1)
   memorizationDirection   String? // "FORWARD" (towards Nas) or "BACKWARD" (towards Fatiha)
+
+  // Progress tracker positions (in hizbs)
+  readingCurrentHizb      Float?   // Position actuelle lecture (0-60 hizbs), null = pas commencé
+  revisionCurrentHizb     Float?   // Position actuelle révision (0-N hizbs dans zone mémorisée), null = pas commencé
+  revisionSuspendedHizb   Float?   // Position sauvegardée quand révision suspendue (null = pas suspendue)
 
   // Enabled programs (empty = all enabled, for backward compat)
   enabledPrograms         String[] @default([])

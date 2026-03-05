@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight, Library } from 'lucide-react'
+import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight, Library, Pause, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import {
@@ -237,6 +237,33 @@ interface Stats {
       objectiveLabel: string
     } | null
   } | null
+  // NEW: Progress Tracker
+  progressTracker: {
+    reading: {
+      currentHizb: number
+      totalHizbs: number
+      surahNumber: number
+      surahNameAr: string
+      verseNumber: number
+      page: number
+      juz: number
+      percentage: number
+    } | null
+    revision: {
+      currentHizb: number
+      totalHizbs: number
+      surahNumber: number
+      surahNameAr: string
+      verseNumber: number
+      page: number
+      juz: number
+      percentage: number
+      isSuspended: boolean
+    } | null
+    memorizedZone: { startHizb: number; endHizb: number; totalHizbs: number } | null
+    readingObjective: string | null
+    revisionObjective: string | null
+  } | null
   // Enabled programs
   enabledPrograms?: string[]
 }
@@ -319,6 +346,13 @@ export default function DashboardPage() {
   const [needsMemorizationInput, setNeedsMemorizationInput] = useState(false)
   const [memorizationSurah, setMemorizationSurah] = useState<number | null>(null)
   const [memorizationVerse, setMemorizationVerse] = useState<number | null>(null)
+
+  // Progress tracker dialog
+  const [progressTrackerDialogOpen, setProgressTrackerDialogOpen] = useState(false)
+  const [editReadingHizb, setEditReadingHizb] = useState<string>('')
+  const [editRevisionHizb, setEditRevisionHizb] = useState<string>('')
+  const [savingProgressTracker, setSavingProgressTracker] = useState(false)
+  const [recalculating, setRecalculating] = useState(false)
 
   // Interactive today programs
   const [localTodayPrograms, setLocalTodayPrograms] = useState<TodayProgram[]>([])
@@ -1120,6 +1154,66 @@ export default function DashboardPage() {
     }
   }
 
+  // Progress Tracker functions
+  async function recalculateProgressTracker() {
+    setRecalculating(true)
+    try {
+      const res = await fetch('/api/progress-tracker')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.cyclesCreated > 0) {
+          toast.success(`${data.cyclesCreated} cycle(s) auto-créé(s)`)
+        }
+        fetchStats()
+        toast.success('Positions recalculées')
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Erreur lors du recalcul')
+      }
+    } catch (error) {
+      console.error('Error recalculating:', error)
+      toast.error('Erreur de connexion')
+    } finally {
+      setRecalculating(false)
+    }
+  }
+
+  function openProgressTrackerDialog() {
+    setEditReadingHizb(String(stats?.progressTracker?.reading?.currentHizb ?? 0))
+    setEditRevisionHizb(String(stats?.progressTracker?.revision?.currentHizb ?? 0))
+    setProgressTrackerDialogOpen(true)
+  }
+
+  async function saveProgressTracker() {
+    setSavingProgressTracker(true)
+    try {
+      const body: Record<string, number> = {}
+      const rh = parseFloat(editReadingHizb)
+      const rv = parseFloat(editRevisionHizb)
+      if (!isNaN(rh)) body.readingHizb = rh
+      if (!isNaN(rv)) body.revisionHizb = rv
+
+      const res = await fetch('/api/progress-tracker', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      if (res.ok) {
+        setProgressTrackerDialogOpen(false)
+        fetchStats()
+        toast.success('Positions mises à jour')
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Erreur lors de la mise à jour')
+      }
+    } catch (error) {
+      console.error('Error saving progress tracker:', error)
+      toast.error('Erreur de connexion')
+    } finally {
+      setSavingProgressTracker(false)
+    }
+  }
+
   function getProgramColor(code: string) {
     const colors: Record<string, string> = {
       MEMORIZATION: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100',
@@ -1901,6 +1995,132 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Indicateur d'Avancement Révision & Lecture */}
+      {stats?.progressTracker && (isProgramEnabled('REVISION') || isProgramEnabled('READING')) && (
+        <Card className="border-2 border-teal-200 dark:border-teal-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Navigation className="h-5 w-5 text-teal-600" />
+              Mon Avancement Révision & Lecture
+            </CardTitle>
+            <CardDescription>
+              Position actuelle dans le cycle en cours
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Lecture */}
+            {stats.progressTracker.reading && (
+              <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
+                <div className="flex items-center gap-2 mb-2">
+                  <BookMarked className="h-4 w-4 text-purple-600" />
+                  <span className="font-medium text-purple-800 dark:text-purple-200">Lecture</span>
+                  {stats.progressTracker.readingObjective && (
+                    <Badge variant="outline" className="ml-auto text-xs">
+                      {stats.progressTracker.readingObjective}
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-sm mb-1">
+                  <span className="font-semibold">Sourate {stats.progressTracker.reading.surahNumber}</span>
+                  {' '}
+                  <span className="text-lg font-arabic">{stats.progressTracker.reading.surahNameAr}</span>
+                  {' '}
+                  <span className="text-muted-foreground">v.{stats.progressTracker.reading.verseNumber}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mb-2">
+                  Hizb {stats.progressTracker.reading.currentHizb.toFixed(1)}/60
+                  {' · '}
+                  Page {stats.progressTracker.reading.page}/604
+                  {' · '}
+                  Juz {stats.progressTracker.reading.juz}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Progress value={stats.progressTracker.reading.percentage} className="h-2 flex-1" />
+                  <span className="text-sm font-bold text-purple-600">{stats.progressTracker.reading.percentage}%</span>
+                </div>
+              </div>
+            )}
+
+            {/* Révision */}
+            {stats.progressTracker.revision && (
+              <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2 mb-2">
+                  <RefreshCw className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium text-blue-800 dark:text-blue-200">Révision</span>
+                  {stats.progressTracker.revision.isSuspended && (
+                    <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900 dark:text-amber-100 text-xs">
+                      <Pause className="h-3 w-3 mr-1" />
+                      Suspendue
+                    </Badge>
+                  )}
+                  {stats.progressTracker.revisionObjective && (
+                    <Badge variant="outline" className="ml-auto text-xs">
+                      {stats.progressTracker.revisionObjective}
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-sm mb-1">
+                  <span className="font-semibold">Sourate {stats.progressTracker.revision.surahNumber}</span>
+                  {' '}
+                  <span className="text-lg font-arabic">{stats.progressTracker.revision.surahNameAr}</span>
+                  {' '}
+                  <span className="text-muted-foreground">v.{stats.progressTracker.revision.verseNumber}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mb-2">
+                  Hizb {stats.progressTracker.revision.currentHizb.toFixed(1)}/{stats.progressTracker.revision.totalHizbs}
+                  {' · '}
+                  Page {stats.progressTracker.revision.page}
+                  {' · '}
+                  Juz {stats.progressTracker.revision.juz}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Progress value={stats.progressTracker.revision.percentage} className="h-2 flex-1" />
+                  <span className="text-sm font-bold text-blue-600">{stats.progressTracker.revision.percentage}%</span>
+                </div>
+                {stats.progressTracker.revision.isSuspended && (
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-2 flex items-center gap-1">
+                    <Pause className="h-3 w-3" />
+                    Mode combiné actif : la lecture traverse la zone mémorisée
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Info phase combinée */}
+            {stats.progressTracker.memorizedZone && stats.progressTracker.reading && stats.progressTracker.revision && (
+              <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                Phase combinée : quand la lecture traverse la zone mémorisée (Hizb {stats.progressTracker.memorizedZone.startHizb}-{stats.progressTracker.memorizedZone.endHizb}), l'avancement double et la révision se suspend.
+              </p>
+            )}
+
+            {/* Actions */}
+            {isViewingSelf && (
+              <div className="flex gap-2 pt-2 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={openProgressTrackerDialog}
+                >
+                  <Pencil className="h-3 w-3 mr-1" />
+                  Modifier
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={recalculateProgressTracker}
+                  disabled={recalculating}
+                >
+                  {recalculating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                  Recalculer
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -2883,6 +3103,69 @@ export default function DashboardPage() {
             </Button>
             <Button variant="ghost" onClick={() => setCycleHistoryOpen(false)}>
               Fermer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Progress Tracker Edit Dialog */}
+      <Dialog open={progressTrackerDialogOpen} onOpenChange={setProgressTrackerDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifier les positions</DialogTitle>
+            <DialogDescription>
+              Ajustez manuellement votre position dans les cycles de lecture et révision.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {stats?.progressTracker?.reading && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-reading-hizb">Lecture - Hizb actuel (0-60)</Label>
+                <Input
+                  id="edit-reading-hizb"
+                  type="number"
+                  min="0"
+                  max="60"
+                  step="0.5"
+                  value={editReadingHizb}
+                  onChange={(e) => setEditReadingHizb(e.target.value)}
+                />
+                {editReadingHizb && !isNaN(parseFloat(editReadingHizb)) && (
+                  <p className="text-xs text-muted-foreground">
+                    = {Math.round(parseFloat(editReadingHizb) * 604 / 60)} pages environ
+                  </p>
+                )}
+              </div>
+            )}
+            {stats?.progressTracker?.revision && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-revision-hizb">
+                  Révision - Hizb actuel (0-{stats.progressTracker.revision.totalHizbs})
+                </Label>
+                <Input
+                  id="edit-revision-hizb"
+                  type="number"
+                  min="0"
+                  max={stats.progressTracker.revision.totalHizbs}
+                  step="0.5"
+                  value={editRevisionHizb}
+                  onChange={(e) => setEditRevisionHizb(e.target.value)}
+                />
+                {editRevisionHizb && !isNaN(parseFloat(editRevisionHizb)) && stats.progressTracker.memorizedZone && (
+                  <p className="text-xs text-muted-foreground">
+                    Zone mémorisée : Hizb {stats.progressTracker.memorizedZone.startHizb} - {stats.progressTracker.memorizedZone.endHizb}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setProgressTrackerDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={saveProgressTracker} disabled={savingProgressTracker}>
+              {savingProgressTracker && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Enregistrer
             </Button>
           </DialogFooter>
         </DialogContent>

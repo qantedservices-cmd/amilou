@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
 import { checkDataVisibility } from '@/lib/permissions'
+import { hizbToPosition, getMemorizedZone, objectiveToHizbPerDay, formatObjectiveLabel } from '@/lib/quran-utils'
 
 // Constantes du Coran
 const QURAN_TOTAL_VERSES = 6236
@@ -111,10 +112,15 @@ export async function GET(request: Request) {
     evolutionStartDate.setDate(now.getDate() - now.getDay() - (11 * 7))
     evolutionStartDate.setHours(0, 0, 0, 0)
 
-    // Fetch user's enabledPrograms
+    // Fetch user's enabledPrograms and progress tracker positions
     const userData = await prisma.user.findUnique({
       where: { id: userId },
-      select: { enabledPrograms: true }
+      select: {
+        enabledPrograms: true,
+        readingCurrentHizb: true,
+        revisionCurrentHizb: true,
+        revisionSuspendedHizb: true,
+      }
     })
     const enabledPrograms = userData?.enabledPrograms || []
 
@@ -722,6 +728,69 @@ export async function GET(request: Request) {
       : null
 
     // =============================================
+    // Progress Tracker (position Révision & Lecture)
+    // =============================================
+    let progressTracker: {
+      reading: { currentHizb: number; totalHizbs: number; surahNumber: number; surahNameAr: string; verseNumber: number; page: number; juz: number; percentage: number } | null
+      revision: { currentHizb: number; totalHizbs: number; surahNumber: number; surahNameAr: string; verseNumber: number; page: number; juz: number; percentage: number; isSuspended: boolean } | null
+      memorizedZone: { startHizb: number; endHizb: number; totalHizbs: number } | null
+      readingObjective: string | null
+      revisionObjective: string | null
+    } | null = null
+
+    try {
+      const zone = await getMemorizedZone(userId)
+
+      // Get objectives for REVISION and READING programs
+      const revisionProgram = allPrograms.find(p => p.code === 'REVISION')
+      const readingProgram = allPrograms.find(p => p.code === 'READING')
+
+      const revisionSettings = revisionProgram ? programSettings.find(s => s.programId === revisionProgram.id) : null
+      const readingSettings = readingProgram ? programSettings.find(s => s.programId === readingProgram.id) : null
+
+      const hasRevisionOrReading = (revisionSettings || readingSettings) && zone
+
+      if (hasRevisionOrReading) {
+        const readingHizb = userData?.readingCurrentHizb ?? 0
+        const revisionHizb = userData?.revisionCurrentHizb ?? 0
+        const revisionSuspended = userData?.revisionSuspendedHizb
+
+        // Convert positions to readable format
+        const readingPos = readingHizb > 0 ? await hizbToPosition(readingHizb) : await hizbToPosition(0.01)
+        const revisionPos = revisionHizb > 0 ? await hizbToPosition(zone.startHizb + revisionHizb) : await hizbToPosition(zone.startHizb)
+
+        progressTracker = {
+          reading: readingSettings ? {
+            currentHizb: readingHizb,
+            totalHizbs: 60,
+            surahNumber: readingPos?.surahNumber || 1,
+            surahNameAr: readingPos?.surahNameAr || '',
+            verseNumber: readingPos?.verseNumber || 1,
+            page: readingPos?.page || 1,
+            juz: readingPos?.juz || 1,
+            percentage: Math.round((readingHizb / 60) * 100)
+          } : null,
+          revision: revisionSettings ? {
+            currentHizb: revisionHizb,
+            totalHizbs: zone.totalHizbs,
+            surahNumber: revisionPos?.surahNumber || 1,
+            surahNameAr: revisionPos?.surahNameAr || '',
+            verseNumber: revisionPos?.verseNumber || 1,
+            page: revisionPos?.page || 1,
+            juz: revisionPos?.juz || 1,
+            percentage: zone.totalHizbs > 0 ? Math.round((revisionHizb / zone.totalHizbs) * 100) : 0,
+            isSuspended: revisionSuspended !== null && revisionSuspended !== undefined
+          } : null,
+          memorizedZone: zone,
+          readingObjective: readingSettings ? formatObjectiveLabel(readingSettings.quantity, readingSettings.unit, readingSettings.period) : null,
+          revisionObjective: revisionSettings ? formatObjectiveLabel(revisionSettings.quantity, revisionSettings.unit, revisionSettings.period) : null,
+        }
+      }
+    } catch (e) {
+      console.error('Error computing progressTracker:', e)
+    }
+
+    // =============================================
     // Memorization Pace (rythme de mémorisation)
     // =============================================
     let memorizationPace: {
@@ -1065,6 +1134,8 @@ export async function GET(request: Request) {
       tafsirCoverage,
       // NEW: Memorization Pace
       memorizationPace,
+      // NEW: Progress Tracker
+      progressTracker,
       // Enabled programs
       enabledPrograms,
     })
