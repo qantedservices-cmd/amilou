@@ -38,7 +38,8 @@ src/
     ├── auth.ts                 # Configuration NextAuth
     ├── db.ts                   # Client Prisma
     ├── impersonation.ts        # Utilitaire serveur impersonation
-    └── permissions.ts          # Système de permissions/visibilité
+    ├── permissions.ts          # Système de permissions/visibilité
+    └── quran-utils.ts          # Utilitaires Coran (hizb↔position, zone mémorisée)
 ```
 
 ## Rôles utilisateurs
@@ -140,6 +141,8 @@ Fonctionnalité admin permettant de voir l'application comme un utilisateur spé
 ## Base de données
 
 Base PostgreSQL hébergée sur Supabase. Schéma Prisma dans `prisma/schema.prisma`.
+- `DATABASE_URL` : URL pooler PgBouncer (port 6543) pour les requêtes runtime
+- `DIRECT_URL` : URL directe (port 5432) pour les migrations (`prisma db push`)
 
 ### Modèles principaux
 
@@ -245,6 +248,31 @@ Les cycles représentent les tours complets du Coran (révision ou lecture).
 - **Données** : `type` (REVISION/LECTURE), `completedAt`, `notes`, `daysToComplete`, `hizbCount`
 - **hizbCount** : Nombre de Hizbs couverts (calculé automatiquement depuis la progression mémorisation)
 - **daysToComplete** : Recalculé chronologiquement après chaque ajout/modification/suppression
+
+## Indicateur d'avancement Révision & Lecture
+
+Tracker temps réel de la position dans les cycles de Révision et Lecture.
+
+### Champs User (positions en hizbs)
+- `readingCurrentHizb` (Float?) : Position lecture (0-60 hizbs)
+- `revisionCurrentHizb` (Float?) : Position révision (0-N hizbs dans zone mémorisée)
+- `revisionSuspendedHizb` (Float?) : Position sauvegardée quand révision suspendue
+
+### Phase combinée
+- Quand la Lecture entre dans la zone mémorisée → Révision se suspend, Lecture avance à vitesse doublée
+- Quand la Lecture sort de la zone mémorisée → cycle Révision +1 (note "Mode combiné"), Révision reprend
+
+### API
+- `/api/progress-tracker` : GET (recalcul depuis jours complétés) + PUT (modification manuelle)
+- Intégré dans `/api/stats` via `progressTracker` dans la réponse
+
+### Utilitaires
+- `src/lib/quran-utils.ts` : `hizbToPosition()`, `getMemorizedZone()`, `objectiveToHizbPerDay()`
+
+### Dashboard
+- Carte "Mon Avancement Révision & Lecture" avec positions, barres de progression
+- Boutons Modifier (dialog) et Recalculer
+- Indicateur visuel quand la révision est suspendue (mode combiné)
 
 ## Paramètres mémorisation utilisateur
 
