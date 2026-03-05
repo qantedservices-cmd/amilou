@@ -4,7 +4,7 @@ import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
 import { getMemorizedZone, objectiveToHizbPerDay, hizbToPosition } from '@/lib/quran-utils'
 
-// GET — Recalculate positions from completed days since last cycle
+// GET — Recalculate positions (idempotent: always computes from scratch since last cycle)
 export async function GET() {
   try {
     const session = await auth()
@@ -41,7 +41,7 @@ export async function GET() {
     const revisionSettings = revisionProgram ? programSettings.find(s => s.programId === revisionProgram.id) : null
     const readingSettings = readingProgram ? programSettings.find(s => s.programId === readingProgram.id) : null
 
-    // Get last cycles
+    // Get last cycles (before today — only count manual/real cycles, not auto ones we're about to create)
     const [lastRevisionCycle, lastLectureCycle] = await Promise.all([
       prisma.completionCycle.findFirst({
         where: { userId, type: 'REVISION' },
@@ -52,20 +52,6 @@ export async function GET() {
         orderBy: { completedAt: 'desc' }
       }),
     ])
-
-    // Get current positions
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        readingCurrentHizb: true,
-        revisionCurrentHizb: true,
-        revisionSuspendedHizb: true,
-      }
-    })
-
-    let readingHizb = user?.readingCurrentHizb ?? 0
-    let revisionHizb = user?.revisionCurrentHizb ?? 0
-    let revisionSuspended = user?.revisionSuspendedHizb ?? null
 
     // Count completed days since last cycle for each program
     const revisionSinceDate = lastRevisionCycle?.completedAt || new Date(2020, 0, 1)
@@ -97,65 +83,18 @@ export async function GET() {
       ? objectiveToHizbPerDay(readingSettings.quantity, readingSettings.unit, readingSettings.period)
       : 0
 
-    // Calculate reading advancement
-    const readingAdvance = readingDays * readingHizbPerDay
-    const cyclesCreated: Array<{ type: string; notes: string }> = []
+    // IDEMPOTENT: always start from 0 since last cycle (not from current position)
+    let readingHizb = readingDays * readingHizbPerDay
+    let revisionHizb = revisionDays * revisionHizbPerDay
 
-    // Simulate reading advancement hizb by hizb for combined phase detection
-    let remainingReadingAdvance = readingAdvance
-    while (remainingReadingAdvance > 0) {
-      const step = Math.min(remainingReadingAdvance, 1)
-      const newReadingHizb = readingHizb + step
-
-      // Check if reading enters memorized zone
-      if (newReadingHizb >= zone.startHizb && newReadingHizb <= zone.endHizb) {
-        if (revisionSuspended === null) {
-          revisionSuspended = revisionHizb // save revision position
-        }
-        // Double speed: advance by 2 steps instead of 1
-        readingHizb += step * 2
-        remainingReadingAdvance -= step
-      } else {
-        // Check if we just exited the memorized zone
-        if (revisionSuspended !== null && readingHizb >= zone.startHizb && readingHizb <= zone.endHizb) {
-          // Exiting memorized zone -> cycle revision completed via combined mode
-          cyclesCreated.push({ type: 'REVISION', notes: 'Mode combiné' })
-          revisionHizb = revisionSuspended // resume where we left off
-          revisionSuspended = null
-        }
-        readingHizb += step
-        remainingReadingAdvance -= step
-      }
-
-      // Check if reading completed a full cycle
-      if (readingHizb >= 60) {
-        cyclesCreated.push({ type: 'LECTURE', notes: 'Auto-calculé' })
-        readingHizb = readingHizb - 60 // wrap around
-      }
+    // Cap revision to zone (no auto-cycle creation on recalcul — cycles are manual)
+    if (zone.totalHizbs > 0 && revisionHizb > zone.totalHizbs) {
+      revisionHizb = revisionHizb % zone.totalHizbs
     }
 
-    // Calculate revision advancement (only if not suspended)
-    if (revisionSuspended === null) {
-      const revisionAdvance = revisionDays * revisionHizbPerDay
-      revisionHizb += revisionAdvance
-
-      // Check if revision completed its zone
-      if (revisionHizb >= zone.totalHizbs) {
-        cyclesCreated.push({ type: 'REVISION', notes: 'Auto-calculé' })
-        revisionHizb = revisionHizb - zone.totalHizbs // wrap around
-      }
-    }
-
-    // Create auto cycles
-    for (const cycle of cyclesCreated) {
-      await prisma.completionCycle.create({
-        data: {
-          userId,
-          type: cycle.type,
-          completedAt: new Date(),
-          notes: cycle.notes,
-        }
-      })
+    // Cap reading to 60 (no auto-cycle creation on recalcul)
+    if (readingHizb > 60) {
+      readingHizb = readingHizb % 60
     }
 
     // Save positions
@@ -164,7 +103,7 @@ export async function GET() {
       data: {
         readingCurrentHizb: readingHizb,
         revisionCurrentHizb: revisionHizb,
-        revisionSuspendedHizb: revisionSuspended,
+        revisionSuspendedHizb: null, // Reset suspension on recalcul
       }
     })
 
@@ -192,10 +131,13 @@ export async function GET() {
         page: revisionPos?.page || 1,
         juz: revisionPos?.juz || 1,
         percentage: zone.totalHizbs > 0 ? Math.round((revisionHizb / zone.totalHizbs) * 100) : 0,
-        isSuspended: revisionSuspended !== null
+        isSuspended: false
       } : null,
       memorizedZone: zone,
-      cyclesCreated: cyclesCreated.length,
+      revisionDays,
+      readingDays,
+      revisionAdvance: revisionDays * revisionHizbPerDay,
+      readingAdvance: readingDays * readingHizbPerDay,
     })
   } catch (error) {
     console.error('Error recalculating progress tracker:', error)

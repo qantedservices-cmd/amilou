@@ -1160,10 +1160,6 @@ export default function DashboardPage() {
     try {
       const res = await fetch('/api/progress-tracker')
       if (res.ok) {
-        const data = await res.json()
-        if (data.cyclesCreated > 0) {
-          toast.success(`${data.cyclesCreated} cycle(s) auto-créé(s)`)
-        }
         fetchStats()
         toast.success('Positions recalculées')
       } else {
