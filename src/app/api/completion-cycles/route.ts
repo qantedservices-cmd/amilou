@@ -95,11 +95,11 @@ async function calculateHizbCount(userId: string, completedAt: Date): Promise<nu
 
   if (direction === 'FORWARD') {
     // Counting from start towards An-Nas
-    return currentHizb - startHizb + 1
+    return currentHizb - startHizb
   } else {
     // Counting from start towards Al-Fatiha (reverse)
     // In this case, start would be at a higher hizb number
-    return startHizb - currentHizb + 1
+    return startHizb - currentHizb
   }
 }
 
@@ -243,6 +243,11 @@ export async function POST(request: Request) {
           }
         }
       }
+    }
+
+    // For LECTURE cycles, hizbCount is always 60 (full Quran)
+    if (type === 'LECTURE' && hizbCount === null) {
+      hizbCount = 60
     }
 
     // Create the cycle

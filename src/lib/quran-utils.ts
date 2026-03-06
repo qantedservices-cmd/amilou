@@ -121,7 +121,7 @@ export async function getMemorizedZone(userId: string): Promise<MemorizedZone | 
     return {
       startHizb,
       endHizb,
-      totalHizbs: endHizb - startHizb + 1
+      totalHizbs: endHizb - startHizb
     }
   } else {
     // BACKWARD: start is at higher hizb, end is at lower
@@ -130,7 +130,7 @@ export async function getMemorizedZone(userId: string): Promise<MemorizedZone | 
     return {
       startHizb: endHizb,
       endHizb: startHizb,
-      totalHizbs: startHizb - endHizb + 1
+      totalHizbs: startHizb - endHizb
     }
   }
 }
