@@ -94,12 +94,11 @@ async function calculateHizbCount(userId: string, completedAt: Date): Promise<nu
   const startHizb = startVerseData?.hizb ? Math.floor(startVerseData.hizb) : 1
 
   if (direction === 'FORWARD') {
-    // Counting from start towards An-Nas
-    return currentHizb - startHizb
+    // Counting from start towards An-Nas (inclusive: hizb entamé = compté)
+    return currentHizb - startHizb + 1
   } else {
     // Counting from start towards Al-Fatiha (reverse)
-    // In this case, start would be at a higher hizb number
-    return startHizb - currentHizb
+    return startHizb - currentHizb + 1
   }
 }
 
