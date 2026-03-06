@@ -902,6 +902,10 @@ export default function DashboardPage() {
       if (res.ok) {
         const programName = stats?.weekProgramStats?.find(p => p.code === code)?.name || code
         toast.success(newCompleted ? `${programName} (${DAY_NAMES[dayIndex]}) ✓` : `${programName} (${DAY_NAMES[dayIndex]}) retiré`)
+        // Refresh stats to update progress tracker positions for REVISION/READING
+        if (code === 'REVISION' || code === 'READING') {
+          fetchStats()
+        }
       } else {
         // Revert
         setLocalWeekGrid(prev => ({
@@ -1158,16 +1162,10 @@ export default function DashboardPage() {
   async function recalculateProgressTracker() {
     setRecalculating(true)
     try {
-      const res = await fetch('/api/progress-tracker')
-      if (res.ok) {
-        fetchStats()
-        toast.success('Positions recalculées')
-      } else {
-        const data = await res.json()
-        toast.error(data.error || 'Erreur lors du recalcul')
-      }
+      await fetchStats()
+      toast.success('Positions actualisées')
     } catch (error) {
-      console.error('Error recalculating:', error)
+      console.error('Error refreshing:', error)
       toast.error('Erreur de connexion')
     } finally {
       setRecalculating(false)
@@ -2113,7 +2111,7 @@ export default function DashboardPage() {
                   disabled={recalculating}
                 >
                   {recalculating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                  Recalculer
+                  Actualiser
                 </Button>
               </div>
             )}

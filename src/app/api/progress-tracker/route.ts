@@ -4,7 +4,7 @@ import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
 import { getMemorizedZone, objectiveToHizbPerDay, hizbToPosition } from '@/lib/quran-utils'
 
-// GET — Recalculate positions (idempotent: always computes from scratch since last cycle)
+// GET — Read current positions (non-destructive: never overwrites positions)
 export async function GET() {
   try {
     const session = await auth()
@@ -18,17 +18,27 @@ export async function GET() {
     }
 
     const zone = await getMemorizedZone(userId)
-    if (!zone) {
-      return NextResponse.json({ error: 'Aucune donnée de mémorisation trouvée' }, { status: 400 })
-    }
 
-    // Get programs
+    // Get current positions from DB
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        readingCurrentHizb: true,
+        revisionCurrentHizb: true,
+        revisionSuspendedHizb: true,
+      }
+    })
+
+    const readingHizb = user?.readingCurrentHizb ?? 0
+    const revisionHizb = user?.revisionCurrentHizb ?? 0
+    const isSuspended = user?.revisionSuspendedHizb !== null && user?.revisionSuspendedHizb !== undefined
+
+    // Get programs and settings for display
     const [revisionProgram, readingProgram] = await Promise.all([
       prisma.program.findFirst({ where: { code: 'REVISION' } }),
       prisma.program.findFirst({ where: { code: 'READING' } }),
     ])
 
-    // Get user settings (objectives) for these programs
     const programSettings = await prisma.userProgramSettings.findMany({
       where: {
         userId,
@@ -41,75 +51,13 @@ export async function GET() {
     const revisionSettings = revisionProgram ? programSettings.find(s => s.programId === revisionProgram.id) : null
     const readingSettings = readingProgram ? programSettings.find(s => s.programId === readingProgram.id) : null
 
-    // Get last cycles (before today — only count manual/real cycles, not auto ones we're about to create)
-    const [lastRevisionCycle, lastLectureCycle] = await Promise.all([
-      prisma.completionCycle.findFirst({
-        where: { userId, type: 'REVISION' },
-        orderBy: { completedAt: 'desc' }
-      }),
-      prisma.completionCycle.findFirst({
-        where: { userId, type: 'LECTURE' },
-        orderBy: { completedAt: 'desc' }
-      }),
-    ])
-
-    // Count completed days since last cycle for each program
-    const revisionSinceDate = lastRevisionCycle?.completedAt || new Date(2020, 0, 1)
-    const lectureSinceDate = lastLectureCycle?.completedAt || new Date(2020, 0, 1)
-
-    const [revisionDays, readingDays] = await Promise.all([
-      revisionProgram ? prisma.dailyProgramCompletion.count({
-        where: {
-          userId,
-          programId: revisionProgram.id,
-          completed: true,
-          date: { gt: revisionSinceDate }
-        }
-      }) : 0,
-      readingProgram ? prisma.dailyProgramCompletion.count({
-        where: {
-          userId,
-          programId: readingProgram.id,
-          completed: true,
-          date: { gt: lectureSinceDate }
-        }
-      }) : 0,
-    ])
-
-    const revisionHizbPerDay = revisionSettings
-      ? objectiveToHizbPerDay(revisionSettings.quantity, revisionSettings.unit, revisionSettings.period)
-      : 0
-    const readingHizbPerDay = readingSettings
-      ? objectiveToHizbPerDay(readingSettings.quantity, readingSettings.unit, readingSettings.period)
-      : 0
-
-    // IDEMPOTENT: always start from 0 since last cycle (not from current position)
-    let readingHizb = readingDays * readingHizbPerDay
-    let revisionHizb = revisionDays * revisionHizbPerDay
-
-    // Cap revision to zone (no auto-cycle creation on recalcul — cycles are manual)
-    if (zone.totalHizbs > 0 && revisionHizb > zone.totalHizbs) {
-      revisionHizb = revisionHizb % zone.totalHizbs
-    }
-
-    // Cap reading to 60 (no auto-cycle creation on recalcul)
-    if (readingHizb > 60) {
-      readingHizb = readingHizb % 60
-    }
-
-    // Save positions
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        readingCurrentHizb: readingHizb,
-        revisionCurrentHizb: revisionHizb,
-        revisionSuspendedHizb: null, // Reset suspension on recalcul
-      }
-    })
-
     // Convert to readable positions
     const readingPos = readingHizb > 0 ? await hizbToPosition(readingHizb) : await hizbToPosition(0.01)
-    const revisionPos = revisionHizb > 0 ? await hizbToPosition(zone.startHizb + revisionHizb) : await hizbToPosition(zone.startHizb)
+    const revisionPos = zone && revisionHizb > 0
+      ? await hizbToPosition(zone.startHizb + revisionHizb)
+      : zone ? await hizbToPosition(zone.startHizb) : null
+
+    const totalHizbs = zone?.totalHizbs ?? 0
 
     return NextResponse.json({
       reading: readingSettings ? {
@@ -124,25 +72,21 @@ export async function GET() {
       } : null,
       revision: revisionSettings ? {
         currentHizb: revisionHizb,
-        totalHizbs: zone.totalHizbs,
+        totalHizbs,
         surahNumber: revisionPos?.surahNumber || 1,
         surahNameAr: revisionPos?.surahNameAr || '',
         verseNumber: revisionPos?.verseNumber || 1,
         page: revisionPos?.page || 1,
         juz: revisionPos?.juz || 1,
-        percentage: zone.totalHizbs > 0 ? Math.round((revisionHizb / zone.totalHizbs) * 100) : 0,
-        isSuspended: false
+        percentage: totalHizbs > 0 ? Math.round((revisionHizb / totalHizbs) * 100) : 0,
+        isSuspended
       } : null,
       memorizedZone: zone,
-      revisionDays,
-      readingDays,
-      revisionAdvance: revisionDays * revisionHizbPerDay,
-      readingAdvance: readingDays * readingHizbPerDay,
     })
   } catch (error) {
-    console.error('Error recalculating progress tracker:', error)
+    console.error('Error fetching progress tracker:', error)
     return NextResponse.json(
-      { error: 'Erreur lors du recalcul des positions' },
+      { error: 'Erreur lors de la récupération des positions' },
       { status: 500 }
     )
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { objectiveToHizbPerDay, getMemorizedZone } from '@/lib/quran-utils'
 
 // Daily programs in order
 const DAILY_PROGRAMS = ['MEMORIZATION', 'CONSOLIDATION', 'REVISION', 'READING']
@@ -217,6 +218,83 @@ export async function POST(request: Request) {
     }
 
     await Promise.all(operations)
+
+    // Incremental position advancement for REVISION and READING programs
+    const revisionProgram = programs.find(p => p.code === 'REVISION')
+    const readingProgram = programs.find(p => p.code === 'READING')
+
+    const trackedProgramIds = new Set(
+      [revisionProgram?.id, readingProgram?.id].filter(Boolean) as string[]
+    )
+
+    // Count net changes per tracked program: +1 for checked, -1 for unchecked
+    const netChanges: Record<string, number> = {}
+    for (const programId of programIds) {
+      if (!trackedProgramIds.has(programId)) continue
+      const programCompletions = completions[programId]
+      for (const dayIndex of Object.keys(programCompletions)) {
+        const { completed } = programCompletions[dayIndex]
+        if (!netChanges[programId]) netChanges[programId] = 0
+        netChanges[programId] += completed ? 1 : -1
+      }
+    }
+
+    // Apply position changes if any tracked program was toggled
+    if (Object.keys(netChanges).length > 0) {
+      // Get user's objectives for tracked programs
+      const userSettings = await prisma.userProgramSettings.findMany({
+        where: {
+          userId: targetUserId,
+          isActive: true,
+          programId: { in: Object.keys(netChanges) }
+        }
+      })
+
+      const user = await prisma.user.findUnique({
+        where: { id: targetUserId },
+        select: {
+          readingCurrentHizb: true,
+          revisionCurrentHizb: true,
+        }
+      })
+
+      const updates: Record<string, number> = {}
+
+      for (const [programId, change] of Object.entries(netChanges)) {
+        const settings = userSettings.find(s => s.programId === programId)
+        if (!settings) continue
+
+        const hizbPerDay = objectiveToHizbPerDay(settings.quantity, settings.unit, settings.period)
+        const delta = change * hizbPerDay
+
+        if (programId === readingProgram?.id) {
+          const current = user?.readingCurrentHizb ?? 0
+          let newVal = current + delta
+          // Clamp to [0, 60]
+          if (newVal < 0) newVal = 0
+          if (newVal > 60) newVal = 60
+          updates.readingCurrentHizb = Math.round(newVal * 100) / 100
+        }
+
+        if (programId === revisionProgram?.id) {
+          const current = user?.revisionCurrentHizb ?? 0
+          let newVal = current + delta
+          // Clamp to [0, zone.totalHizbs]
+          const zone = await getMemorizedZone(targetUserId)
+          const maxHizbs = zone?.totalHizbs ?? 60
+          if (newVal < 0) newVal = 0
+          if (newVal > maxHizbs) newVal = maxHizbs
+          updates.revisionCurrentHizb = Math.round(newVal * 100) / 100
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await prisma.user.update({
+          where: { id: targetUserId },
+          data: updates
+        })
+      }
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
