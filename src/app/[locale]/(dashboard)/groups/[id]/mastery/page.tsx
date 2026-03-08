@@ -31,7 +31,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { ArrowLeft, ArrowUpDown, BookOpen, ChevronDown, ChevronRight, ChevronUp, Download, FileText, MessageSquare, Pencil, Plus, Printer, Search, Trash2, Users, Check, X } from 'lucide-react'
+import { ArrowLeft, ArrowUpDown, BookOpen, Calendar, ChevronDown, ChevronRight, ChevronUp, Download, FileText, MessageSquare, Pencil, Plus, Printer, Search, Trash2, Users, Check, X } from 'lucide-react'
 import { RichTextEditor, stripHtmlTags } from '@/components/ui/rich-text-editor'
 import Link from 'next/link'
 
@@ -94,6 +94,12 @@ interface ResearchTopic {
   createdAt: string
 }
 
+interface SessionInfo {
+  number: number
+  date: string
+  weekNumber: number
+}
+
 interface MasteryData {
   group: { id: string; name: string }
   members: Member[]
@@ -105,6 +111,7 @@ interface MasteryData {
   referent: { id: string; name: string } | null
   nextSessionNumber: number
   totalSessions: number
+  sessions: SessionInfo[]
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -141,6 +148,9 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [expandedRanges, setExpandedRanges] = useState<Set<string>>(new Set())
+
+  // Active session selector
+  const [activeSession, setActiveSession] = useState<string>('')
 
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -231,6 +241,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       if (res.ok) {
         const json = await res.json()
         setData(json)
+        // Initialize activeSession to latest session if not already set
+        if (!activeSession && json.nextSessionNumber) {
+          setActiveSession(json.nextSessionNumber.toString())
+        }
       } else {
         const json = await res.json()
         setError(json.error || 'Erreur')
@@ -284,7 +298,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     setEditStatus(entry?.status || 'NONE')
     setEditWeek(entry?.validatedWeek?.toString() || '')
     setNewComment('')
-    setSessionNumber(data.nextSessionNumber.toString())
+    setSessionNumber(activeSession || data.nextSessionNumber.toString())
     const surahInfo = data.allSurahsMap[surahNumber]
     setVerseStart(1)
     setVerseEnd(surahInfo?.totalVerses || 1)
@@ -1592,6 +1606,34 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             </div>
           </CardContent>
         </Card>
+
+        {/* Session Selector */}
+        {data.isReferent && (
+          <div className="flex items-center gap-3 rounded-lg border bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2.5">
+            <div className="flex items-center gap-2 text-sm font-medium text-emerald-800 dark:text-emerald-200">
+              <Calendar className="h-4 w-4" />
+              <span>Séance active :</span>
+            </div>
+            <Select value={activeSession} onValueChange={setActiveSession}>
+              <SelectTrigger className="w-[260px] h-8 text-sm bg-white dark:bg-gray-900">
+                <SelectValue placeholder="Sélectionner une séance" />
+              </SelectTrigger>
+              <SelectContent>
+                {(data.sessions || []).map((s) => (
+                  <SelectItem key={s.number} value={s.number.toString()}>
+                    Séance {s.number} — {new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </SelectItem>
+                ))}
+                <SelectItem value={data.nextSessionNumber.toString()}>
+                  + Nouvelle séance (S{data.nextSessionNumber})
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">
+              Les commentaires seront liés à cette séance
+            </span>
+          </div>
+        )}
 
         {/* Matrix */}
         <Card>

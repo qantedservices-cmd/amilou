@@ -425,7 +425,12 @@ export async function GET(
       isReferent,
       referent: referent ? { id: referent.userId, name: referent.user.name } : null,
       nextSessionNumber,
-      totalSessions
+      totalSessions,
+      sessions: groupSessions.map((s, idx) => ({
+        number: idx + 1,
+        date: s.date.toISOString(),
+        weekNumber: s.weekNumber
+      }))
     })
   } catch (error) {
     console.error('Error fetching mastery:', error)
