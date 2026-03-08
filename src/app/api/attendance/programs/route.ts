@@ -273,7 +273,7 @@ export async function POST(request: Request) {
           // Clamp to [0, 60]
           if (newVal < 0) newVal = 0
           if (newVal > 60) newVal = 60
-          updates.readingCurrentHizb = Math.round(newVal * 100) / 100
+          updates.readingCurrentHizb = Math.round(newVal)
         }
 
         if (programId === revisionProgram?.id) {
@@ -284,7 +284,7 @@ export async function POST(request: Request) {
           const maxHizbs = zone?.totalHizbs ?? 60
           if (newVal < 0) newVal = 0
           if (newVal > maxHizbs) newVal = maxHizbs
-          updates.revisionCurrentHizb = Math.round(newVal * 100) / 100
+          updates.revisionCurrentHizb = Math.round(newVal)
         }
       }
 
