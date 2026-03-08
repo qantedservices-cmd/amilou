@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/select'
 import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight, Library, Pause, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts'
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,7 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { fr } from 'date-fns/locale'
 import { SimulatorCard } from '@/components/SimulatorCard'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 
 interface Program {
   id: string
@@ -1401,6 +1402,8 @@ export default function DashboardPage() {
       icon: BookOpen,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-100 dark:bg-emerald-900',
+      tooltip: `${stats?.globalProgress?.percentage || 0}% du Coran · ${stats?.globalProgress?.memorizedPages || 0} pages · ${stats?.globalProgress?.memorizedSurahs || 0} sourates`,
+      href: `/${locale}/progress`,
     },
     {
       title: t('dashboard.stats.totalPages'),
@@ -1409,6 +1412,8 @@ export default function DashboardPage() {
       icon: FileText,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100 dark:bg-blue-900',
+      tooltip: `${stats?.memorizationPace?.remainingPages || 0} pages restantes · ${stats?.memorizationPace?.remainingJuz || 0} juz restants`,
+      href: `/${locale}/progress`,
     },
     {
       title: 'Série quotidienne',
@@ -1417,6 +1422,8 @@ export default function DashboardPage() {
       icon: Flame,
       color: 'text-orange-600',
       bgColor: 'bg-orange-100 dark:bg-orange-900',
+      tooltip: `Programmes complétés chaque jour sans interruption`,
+      href: `/${locale}/attendance`,
     },
     {
       title: 'Série hebdo',
@@ -1425,6 +1432,8 @@ export default function DashboardPage() {
       icon: Award,
       color: 'text-amber-600',
       bgColor: 'bg-amber-100 dark:bg-amber-900',
+      tooltip: `Semaines avec au moins un jour actif`,
+      href: `/${locale}/attendance`,
     },
   ]
 
@@ -1446,6 +1455,7 @@ export default function DashboardPage() {
   }
 
   return (
+    <TooltipProvider delayDuration={300}>
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
         <div>
@@ -1561,133 +1571,118 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Inactivity Alerts (admin/referent only) */}
-      {isViewingSelf && inactiveAlerts.length > 0 && (
-        <Card className="border-2 border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base text-orange-800 dark:text-orange-200">
-              <AlertCircle className="h-5 w-5" />
-              Élèves inactifs ({inactiveAlerts.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {inactiveAlerts.slice(0, 5).map((alert) => (
-                <div
-                  key={alert.userId}
-                  className="flex items-center justify-between text-sm p-2 rounded bg-white/50 dark:bg-black/20"
-                >
-                  <div>
-                    <span className="font-medium">{alert.name}</span>
-                    <span className="text-xs text-muted-foreground ml-2">({alert.groupName})</span>
-                  </div>
-                  <Badge variant="outline" className="text-orange-700 dark:text-orange-300 border-orange-300">
-                    {alert.weeksSinceActivity >= 999 ? 'Aucune activité' : `${alert.weeksSinceActivity} sem.`}
-                  </Badge>
-                </div>
-              ))}
-              {inactiveAlerts.length > 5 && (
-                <p className="text-xs text-muted-foreground text-center">
-                  Et {inactiveAlerts.length - 5} autres...
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Mes Objectifs - Résumé compact */}
-      <Card className="border-2 border-purple-200 dark:border-purple-800">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Target className="h-5 w-5 text-purple-600" />
-              Mes Objectifs
-            </CardTitle>
-            {isViewingSelf && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-purple-600 hover:text-purple-700"
-                onClick={() => window.location.href = `/${locale}/settings`}
-              >
-                Configurer
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {stats?.objectivesVsRealized?.map((item) => (
-              <div
-                key={item.programId}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
-                  item.objective
-                    ? 'bg-muted/50'
-                    : 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800'
-                }`}
-              >
-                <span className={`font-medium ${PROGRAM_TEXT_COLORS[item.programCode] || ''}`}>
-                  {item.programName}:
-                </span>
-                {item.objective ? (
-                  <span className="text-muted-foreground">
-                    {item.objective.quantity} {UNITS[item.objective.unit] || item.objective.unit}{PERIODS[item.objective.period] || ''}
-                  </span>
-                ) : (
-                  <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    À définir
-                  </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Card
+            className="border-2 border-purple-200 dark:border-purple-800 cursor-pointer hover:shadow-md hover:border-purple-300 dark:hover:border-purple-700 transition-all duration-200"
+            onClick={() => window.location.href = `/${locale}/settings`}
+          >
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Target className="h-5 w-5 text-purple-600" />
+                  Mes Objectifs
+                </CardTitle>
+                {isViewingSelf && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-purple-600 hover:text-purple-700"
+                    onClick={(e) => { e.stopPropagation(); window.location.href = `/${locale}/settings` }}
+                  >
+                    Configurer
+                  </Button>
                 )}
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {stats?.objectivesVsRealized?.map((item) => (
+                  <div
+                    key={item.programId}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                      item.objective
+                        ? 'bg-muted/50'
+                        : 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800'
+                    }`}
+                  >
+                    <span className={`font-medium ${PROGRAM_TEXT_COLORS[item.programCode] || ''}`}>
+                      {item.programName}:
+                    </span>
+                    {item.objective ? (
+                      <span className="text-muted-foreground">
+                        {item.objective.quantity} {UNITS[item.objective.unit] || item.objective.unit}{PERIODS[item.objective.period] || ''}
+                      </span>
+                    ) : (
+                      <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        À définir
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Cliquer pour configurer vos objectifs</p>
+        </TooltipContent>
+      </Tooltip>
 
       {/* Global Progress Bar */}
       {isProgramEnabled('MEMORIZATION') && (
-        <Card className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-950/30 dark:to-blue-950/30 border-emerald-200 dark:border-emerald-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Award className="h-5 w-5 text-emerald-600" />
-              Mon Avancement Global - Mémorisation
-            </CardTitle>
-            <CardDescription>
-              Progression dans la mémorisation du Coran
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Progression</span>
-                <span className="font-bold text-emerald-600 text-lg">
-                  {stats?.globalProgress?.percentage || 0}%
-                </span>
-              </div>
-              {memorizationSegments.length > 0 ? (
-                <SegmentedProgressBar
-                  segments={memorizationSegments}
-                  cursorPosition={memorizationCursor}
-                  mode="compact"
-                  colorScheme="memorization"
-                  onBarClick={() => window.location.href = `/${locale}/progress`}
-                />
-              ) : (
-                <Progress
-                  value={stats?.globalProgress?.percentage || 0}
-                  className="h-4 bg-emerald-100 dark:bg-emerald-900"
-                />
-              )}
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{stats?.globalProgress?.memorizedPages || 0} pages</span>
-                <span>{stats?.globalProgress?.memorizedSurahs || 0} sourates</span>
-                <span>{stats?.globalProgress?.memorizedVerses || 0} versets</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Card
+              className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-950/30 dark:to-blue-950/30 border-emerald-200 dark:border-emerald-800 cursor-pointer hover:shadow-md transition-all duration-200"
+              onClick={() => window.location.href = `/${locale}/progress`}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Award className="h-5 w-5 text-emerald-600" />
+                  Mon Avancement Global - Mémorisation
+                </CardTitle>
+                <CardDescription>
+                  Progression dans la mémorisation du Coran
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Progression</span>
+                    <span className="font-bold text-emerald-600 text-lg">
+                      {stats?.globalProgress?.percentage || 0}%
+                    </span>
+                  </div>
+                  {memorizationSegments.length > 0 ? (
+                    <SegmentedProgressBar
+                      segments={memorizationSegments}
+                      cursorPosition={memorizationCursor}
+                      mode="compact"
+                      colorScheme="memorization"
+                      onBarClick={() => window.location.href = `/${locale}/progress`}
+                    />
+                  ) : (
+                    <Progress
+                      value={stats?.globalProgress?.percentage || 0}
+                      className="h-4 bg-emerald-100 dark:bg-emerald-900"
+                    />
+                  )}
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{stats?.globalProgress?.memorizedPages || 0} pages</span>
+                    <span>{stats?.globalProgress?.memorizedSurahs || 0} sourates</span>
+                    <span>{stats?.globalProgress?.memorizedVerses || 0} versets</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Reste {stats?.memorizationPace?.remainingPages || 0} pages · {stats?.memorizationPace?.remainingJuz || 0} juz · Cliquer pour voir le détail</p>
+          </TooltipContent>
+        </Tooltip>
       )}
 
       {/* Projection Mémorisation */}
@@ -1703,18 +1698,28 @@ export default function DashboardPage() {
         {statCards.map((stat) => {
           const Icon = stat.icon
           return (
-            <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                <div className={`rounded-lg p-2 ${stat.bgColor}`}>
-                  <Icon className={`h-4 w-4 ${stat.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground">{stat.description}</p>
-              </CardContent>
-            </Card>
+            <Tooltip key={stat.title}>
+              <TooltipTrigger asChild>
+                <Card
+                  className="cursor-pointer hover:shadow-md hover:border-primary/20 transition-all duration-200"
+                  onClick={() => window.location.href = stat.href}
+                >
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                    <div className={`rounded-lg p-2 ${stat.bgColor}`}>
+                      <Icon className={`h-4 w-4 ${stat.color}`} />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stat.value}</div>
+                    <p className="text-xs text-muted-foreground">{stat.description}</p>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{stat.tooltip}</p>
+              </TooltipContent>
+            </Tooltip>
           )
         })}
       </div>
@@ -1943,12 +1948,19 @@ export default function DashboardPage() {
           {/* Summary */}
           <div className="mt-4 pt-4 border-t grid grid-cols-2 sm:grid-cols-4 gap-2">
             {stats?.weekProgramStats?.map((prog) => (
-              <div key={prog.code} className="text-center">
-                <div className="text-2xl font-bold" style={{ color: CHART_COLORS[prog.code as keyof typeof CHART_COLORS] }}>
-                  {prog.rate}%
-                </div>
-                <div className="text-xs text-muted-foreground">{prog.name}</div>
-              </div>
+              <Tooltip key={prog.code}>
+                <TooltipTrigger asChild>
+                  <div className="text-center cursor-default">
+                    <div className="text-2xl font-bold" style={{ color: CHART_COLORS[prog.code as keyof typeof CHART_COLORS] }}>
+                      {prog.rate}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">{prog.name}</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{prog.daysCompleted}/{prog.totalDays} jours cette semaine</p>
+                </TooltipContent>
+              </Tooltip>
             ))}
           </div>
         </CardContent>
@@ -1969,24 +1981,31 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-4">
               {stats.periodProgramStats.map((prog) => (
-                <div key={prog.code} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Badge className={getProgramColor(prog.code)}>{prog.name}</Badge>
-                    <span className="text-sm">
-                      <span className="font-bold">{prog.daysCompleted}</span>
-                      <span className="text-muted-foreground">/{prog.totalDays} jours</span>
-                      <span className={`ml-2 font-bold ${prog.rate >= 70 ? 'text-emerald-600' : prog.rate >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
-                        ({prog.rate}%)
-                      </span>
-                    </span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-300 ${PROGRAM_BG_COLORS[prog.code] || 'bg-gray-500'}`}
-                      style={{ width: `${prog.rate}%` }}
-                    />
-                  </div>
-                </div>
+                <Tooltip key={prog.code}>
+                  <TooltipTrigger asChild>
+                    <div className="space-y-2 cursor-default">
+                      <div className="flex items-center justify-between">
+                        <Badge className={getProgramColor(prog.code)}>{prog.name}</Badge>
+                        <span className="text-sm">
+                          <span className="font-bold">{prog.daysCompleted}</span>
+                          <span className="text-muted-foreground">/{prog.totalDays} jours</span>
+                          <span className={`ml-2 font-bold ${prog.rate >= 70 ? 'text-emerald-600' : prog.rate >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                            ({prog.rate}%)
+                          </span>
+                        </span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-300 ${PROGRAM_BG_COLORS[prog.code] || 'bg-gray-500'}`}
+                          style={{ width: `${prog.rate}%` }}
+                        />
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{prog.daysCompleted} jours complétés sur {prog.totalDays} ({getPeriodLabel()})</p>
+                  </TooltipContent>
+                </Tooltip>
               ))}
             </div>
           </CardContent>
@@ -2261,40 +2280,50 @@ export default function DashboardPage() {
 
       {/* Tafsir Coverage */}
       {isProgramEnabled('TAFSIR') && (
-        <Card className="bg-gradient-to-r from-rose-50 to-pink-50 dark:from-rose-950/30 dark:to-pink-950/30 border-rose-200 dark:border-rose-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <BookOpen className="h-5 w-5 text-rose-600" />
-              Mon Avancement Global - Tafsir
-            </CardTitle>
-            <CardDescription>
-              Versets étudiés avec explication (Tafsir)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Progression</span>
-                <span className="font-bold text-rose-600 text-lg">{stats?.tafsirCoverage?.percentage || 0}%</span>
-              </div>
-              {tafsirSegments.length > 0 ? (
-                <SegmentedProgressBar
-                  segments={tafsirSegments}
-                  mode="compact"
-                  colorScheme="tafsir"
-                  onBarClick={() => window.location.href = `/${locale}/tafsir`}
-                />
-              ) : (
-                <Progress value={stats?.tafsirCoverage?.percentage || 0} className="h-3" />
-              )}
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{stats?.tafsirCoverage?.coveredVerses || 0} versets</span>
-                <span>{stats?.tafsirCoverage?.completedSurahs || 0} sourates</span>
-                <span>6236 total</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Card
+              className="bg-gradient-to-r from-rose-50 to-pink-50 dark:from-rose-950/30 dark:to-pink-950/30 border-rose-200 dark:border-rose-800 cursor-pointer hover:shadow-md transition-all duration-200"
+              onClick={() => window.location.href = `/${locale}/tafsir`}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <BookOpen className="h-5 w-5 text-rose-600" />
+                  Mon Avancement Global - Tafsir
+                </CardTitle>
+                <CardDescription>
+                  Versets étudiés avec explication (Tafsir)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Progression</span>
+                    <span className="font-bold text-rose-600 text-lg">{stats?.tafsirCoverage?.percentage || 0}%</span>
+                  </div>
+                  {tafsirSegments.length > 0 ? (
+                    <SegmentedProgressBar
+                      segments={tafsirSegments}
+                      mode="compact"
+                      colorScheme="tafsir"
+                      onBarClick={() => window.location.href = `/${locale}/tafsir`}
+                    />
+                  ) : (
+                    <Progress value={stats?.tafsirCoverage?.percentage || 0} className="h-3" />
+                  )}
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{stats?.tafsirCoverage?.coveredVerses || 0} versets</span>
+                    <span>{stats?.tafsirCoverage?.completedSurahs || 0} sourates</span>
+                    <span>6236 total</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{stats?.tafsirCoverage?.coveredVerses || 0} versets étudiés · {stats?.tafsirCoverage?.completedSurahs || 0} sourates complètes · Cliquer pour voir le détail</p>
+          </TooltipContent>
+        </Tooltip>
       )}
 
       {/* 40 Hadiths Nawawi */}
@@ -2302,76 +2331,96 @@ export default function DashboardPage() {
         const nawawi = userBooks.find(b => b.sourceRef === 'nawawi40')
         if (!nawawi) return null
         return (
-          <Card className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200 dark:border-amber-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileText className="h-5 w-5 text-amber-600" />
-                40 Hadiths An-Nawawi
-              </CardTitle>
-              <CardDescription>
-                Progression dans la mémorisation des hadiths
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Progression</span>
-                  <span className="font-bold text-amber-600 text-lg">{nawawi.percentage || 0}%</span>
-                </div>
-                <div className="h-3 bg-amber-100 dark:bg-amber-900 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-amber-500 transition-all duration-300 rounded-full"
-                    style={{ width: `${nawawi.percentage || 0}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{nawawi.completedItems || 0} hadiths mémorisés</span>
-                  <span>{nawawi.totalItems} total</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Card
+                className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-md transition-all duration-200"
+                onClick={() => window.location.href = `/${locale}/books/${nawawi.id}`}
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <FileText className="h-5 w-5 text-amber-600" />
+                    40 Hadiths An-Nawawi
+                  </CardTitle>
+                  <CardDescription>
+                    Progression dans la mémorisation des hadiths
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Progression</span>
+                      <span className="font-bold text-amber-600 text-lg">{nawawi.percentage || 0}%</span>
+                    </div>
+                    <div className="h-3 bg-amber-100 dark:bg-amber-900 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-amber-500 transition-all duration-300 rounded-full"
+                        style={{ width: `${nawawi.percentage || 0}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{nawawi.completedItems || 0} hadiths mémorisés</span>
+                      <span>{nawawi.totalItems} total</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{nawawi.completedItems || 0}/{nawawi.totalItems} hadiths · Cliquer pour voir le détail</p>
+            </TooltipContent>
+          </Tooltip>
         )
       })()}
 
       {/* Mes Livres */}
       {bookSegments.length > 0 && (
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Library className="h-5 w-5 text-blue-600" />
-              Mes Livres
-            </CardTitle>
-            <CardDescription>
-              Progression dans les livres d'étude
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {userBooks.filter(b => (b.percentage || 0) >= 100).length}/{userBooks.length} livres complétés
-                </span>
-                <span className="font-bold text-blue-600 text-lg">
-                  {userBooks.length > 0
-                    ? Math.round(userBooks.reduce((sum, b) => sum + (b.percentage || 0), 0) / userBooks.length)
-                    : 0}%
-                </span>
-              </div>
-              <SegmentedProgressBar
-                segments={bookSegments}
-                mode="compact"
-                colorScheme="book"
-                onBarClick={() => window.location.href = `/${locale}/books`}
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                {userBooks.slice(0, 3).map(b => (
-                  <span key={b.id} className="truncate max-w-[30%]">{b.title}: {b.percentage}%</span>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Card
+              className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800 cursor-pointer hover:shadow-md transition-all duration-200"
+              onClick={() => window.location.href = `/${locale}/books`}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Library className="h-5 w-5 text-blue-600" />
+                  Mes Livres
+                </CardTitle>
+                <CardDescription>
+                  Progression dans les livres d'étude
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {userBooks.filter(b => (b.percentage || 0) >= 100).length}/{userBooks.length} livres complétés
+                    </span>
+                    <span className="font-bold text-blue-600 text-lg">
+                      {userBooks.length > 0
+                        ? Math.round(userBooks.reduce((sum, b) => sum + (b.percentage || 0), 0) / userBooks.length)
+                        : 0}%
+                    </span>
+                  </div>
+                  <SegmentedProgressBar
+                    segments={bookSegments}
+                    mode="compact"
+                    colorScheme="book"
+                    onBarClick={() => window.location.href = `/${locale}/books`}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    {userBooks.slice(0, 3).map(b => (
+                      <span key={b.id} className="truncate max-w-[30%]">{b.title}: {b.percentage}%</span>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{userBooks.filter(b => (b.percentage || 0) >= 100).length}/{userBooks.length} livres complétés · Cliquer pour voir la bibliothèque</p>
+          </TooltipContent>
+        </Tooltip>
       )}
 
       {/* Avancement par Sourate */}
@@ -2443,41 +2492,51 @@ export default function DashboardPage() {
               {(surahsExpanded ? surahStats.surahs : surahStats.surahs.slice(0, 10)).map(surah => {
                 const progress = surah.programs[selectedSurahProgram]
                 return (
-                  <div key={surah.number} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
-                    {/* Numéro de sourate - badge circulaire */}
-                    <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
-                      <span className="text-sm font-bold text-foreground">
-                        {surah.number}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium truncate">
-                          <span className="text-muted-foreground">{surah.nameAr}</span>
-                          <span className="mx-1">-</span>
-                          {surah.nameFr}
-                        </span>
-                        <span className="text-xs ml-2 whitespace-nowrap">
-                          <span className="font-medium" style={{ color: CHART_COLORS[selectedSurahProgram as keyof typeof CHART_COLORS] }}>
-                            {progress?.covered || 0}
+                  <Tooltip key={surah.number}>
+                    <TooltipTrigger asChild>
+                      <div
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 cursor-pointer transition-colors duration-150"
+                        onClick={() => window.location.href = `/${locale}/progress`}
+                      >
+                        {/* Numéro de sourate - badge circulaire */}
+                        <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                          <span className="text-sm font-bold text-foreground">
+                            {surah.number}
                           </span>
-                          <span className="text-muted-foreground">/{surah.totalVerses} v.</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium truncate">
+                              <span className="text-muted-foreground">{surah.nameAr}</span>
+                              <span className="mx-1">-</span>
+                              {surah.nameFr}
+                            </span>
+                            <span className="text-xs ml-2 whitespace-nowrap">
+                              <span className="font-medium" style={{ color: CHART_COLORS[selectedSurahProgram as keyof typeof CHART_COLORS] }}>
+                                {progress?.covered || 0}
+                              </span>
+                              <span className="text-muted-foreground">/{surah.totalVerses} v.</span>
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full transition-all duration-300"
+                              style={{
+                                width: `${progress?.percentage || 0}%`,
+                                backgroundColor: CHART_COLORS[selectedSurahProgram as keyof typeof CHART_COLORS]
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <span className="w-12 text-right text-sm font-bold" style={{ color: CHART_COLORS[selectedSurahProgram as keyof typeof CHART_COLORS] }}>
+                          {progress?.percentage || 0}%
                         </span>
                       </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full transition-all duration-300"
-                          style={{
-                            width: `${progress?.percentage || 0}%`,
-                            backgroundColor: CHART_COLORS[selectedSurahProgram as keyof typeof CHART_COLORS]
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <span className="w-12 text-right text-sm font-bold" style={{ color: CHART_COLORS[selectedSurahProgram as keyof typeof CHART_COLORS] }}>
-                      {progress?.percentage || 0}%
-                    </span>
-                  </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">
+                      <p>{surah.nameAr} - {progress?.covered || 0}/{surah.totalVerses} versets ({progress?.percentage || 0}%)</p>
+                    </TooltipContent>
+                  </Tooltip>
                 )
               })}
               {!surahsExpanded && surahStats.surahs.length > 10 && (
@@ -2522,13 +2581,19 @@ export default function DashboardPage() {
                   {group.members.slice(0, 10).map((member, index) => {
                     const isCurrentUser = groupRanking.groups[0]?.members.find(m => m.rank === group.currentUserRank)?.userId === member.userId
                     return (
+                      <Tooltip key={member.userId}>
+                        <TooltipTrigger asChild>
                       <div
-                        key={member.userId}
-                        className={`flex items-center gap-3 p-3 rounded-lg ${
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:shadow-sm transition-all duration-200 ${
                           isCurrentUser
                             ? 'bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-200 dark:border-emerald-800'
-                            : 'bg-muted/30'
+                            : 'bg-muted/30 hover:bg-muted/50'
                         }`}
+                        onClick={() => {
+                          if (!isCurrentUser) {
+                            window.location.href = `/${locale}/dashboard?userId=${member.userId}`
+                          }
+                        }}
                       >
                         {/* Rank medal */}
                         <div className="w-8 text-center">
@@ -2579,6 +2644,11 @@ export default function DashboardPage() {
                           </span>
                         </div>
                       </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{isCurrentUser ? 'Vous' : `Voir le tableau de bord de ${member.name}`}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     )
                   })}
                 </div>
@@ -2618,33 +2688,54 @@ export default function DashboardPage() {
         <CardContent>
           {/* Période summary */}
           <div className="grid grid-cols-3 gap-4 mb-4 p-3 rounded-lg bg-muted/30">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600">
-                {(() => {
-                  const filtered = stats?.weekProgramStats?.filter(p => isProgramEnabled(p.code)) || []
-                  return filtered.length ? Math.round(filtered.reduce((sum, p) => sum + p.rate, 0) / filtered.length) : 0
-                })()}%
-              </p>
-              <p className="text-xs text-muted-foreground">Cette semaine</p>
-            </div>
-            <div className="text-center border-x">
-              <p className="text-2xl font-bold text-purple-600">
-                {(() => {
-                  const filtered = stats?.monthProgramStats?.filter(p => isProgramEnabled(p.code)) || []
-                  return filtered.length ? Math.round(filtered.reduce((sum, p) => sum + p.rate, 0) / filtered.length) : 0
-                })()}%
-              </p>
-              <p className="text-xs text-muted-foreground">Ce mois</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-600">
-                {(() => {
-                  const filtered = stats?.yearProgramStats?.filter(p => isProgramEnabled(p.code)) || []
-                  return filtered.length ? Math.round(filtered.reduce((sum, p) => sum + p.rate, 0) / filtered.length) : 0
-                })()}%
-              </p>
-              <p className="text-xs text-muted-foreground">Cette année</p>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-center cursor-default">
+                  <p className="text-2xl font-bold text-blue-600">
+                    {(() => {
+                      const filtered = stats?.weekProgramStats?.filter(p => isProgramEnabled(p.code)) || []
+                      return filtered.length ? Math.round(filtered.reduce((sum, p) => sum + p.rate, 0) / filtered.length) : 0
+                    })()}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">Cette semaine</p>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Moyenne de tous les programmes cette semaine</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-center border-x cursor-default">
+                  <p className="text-2xl font-bold text-purple-600">
+                    {(() => {
+                      const filtered = stats?.monthProgramStats?.filter(p => isProgramEnabled(p.code)) || []
+                      return filtered.length ? Math.round(filtered.reduce((sum, p) => sum + p.rate, 0) / filtered.length) : 0
+                    })()}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">Ce mois</p>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Moyenne de tous les programmes ce mois</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-center cursor-default">
+                  <p className="text-2xl font-bold text-emerald-600">
+                    {(() => {
+                      const filtered = stats?.yearProgramStats?.filter(p => isProgramEnabled(p.code)) || []
+                      return filtered.length ? Math.round(filtered.reduce((sum, p) => sum + p.rate, 0) / filtered.length) : 0
+                    })()}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">Cette année</p>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Moyenne de tous les programmes cette année</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           {/* Programme breakdown */}
@@ -2707,7 +2798,7 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis dataKey="week" tick={{ fontSize: 12 }} />
                   <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip
+                  <RechartsTooltip
                     content={({ active, payload, label }) => {
                       if (active && payload && payload.length) {
                         return (
@@ -2817,6 +2908,41 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Inactivity Alerts (admin/referent only) — bottom of dashboard */}
+      {isViewingSelf && inactiveAlerts.length > 0 && (
+        <Card className="border border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-orange-800 dark:text-orange-200">
+              <AlertCircle className="h-5 w-5" />
+              Élèves inactifs ({inactiveAlerts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {inactiveAlerts.slice(0, 5).map((alert) => (
+                <div
+                  key={alert.userId}
+                  className="flex items-center justify-between text-sm p-2 rounded bg-white/50 dark:bg-black/20"
+                >
+                  <div>
+                    <span className="font-medium">{alert.name}</span>
+                    <span className="text-xs text-muted-foreground ml-2">({alert.groupName})</span>
+                  </div>
+                  <Badge variant="outline" className="text-orange-700 dark:text-orange-300 border-orange-300">
+                    {alert.weeksSinceActivity >= 999 ? 'Aucune activité' : `${alert.weeksSinceActivity} sem.`}
+                  </Badge>
+                </div>
+              ))}
+              {inactiveAlerts.length > 5 && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Et {inactiveAlerts.length - 5} autres...
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Cycle Completion Dialog */}
       <Dialog open={cycleDialogOpen} onOpenChange={setCycleDialogOpen}>
@@ -3165,5 +3291,6 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   )
 }
