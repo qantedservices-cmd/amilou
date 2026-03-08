@@ -26,6 +26,7 @@ import {
   Shield,
   BookOpen,
   Library,
+  Grid3X3,
 } from 'lucide-react'
 
 const navItems = [
@@ -35,6 +36,7 @@ const navItems = [
   { href: '/groups', icon: Users, labelKey: 'nav.groups' },
   { href: '/evaluations', icon: ClipboardCheck, labelKey: 'nav.evaluations' },
   { href: '/sessions', icon: Calendar, labelKey: 'nav.sessions' },
+  { href: '/mastery', icon: Grid3X3, labelKey: 'nav.mastery' },
   { href: '/books', icon: Library, labelKey: 'nav.books' },
 ]
 
