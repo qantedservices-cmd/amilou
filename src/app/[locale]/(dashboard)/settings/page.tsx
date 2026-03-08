@@ -757,10 +757,10 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
-            Mon avancement mémorisation
+            Zone de mémorisation
           </CardTitle>
           <CardDescription>
-            Indiquez votre point de départ si vous aviez déjà mémorisé avant d&apos;utiliser l&apos;application
+            Configurez la sourate à partir de laquelle vous avez commencé à mémoriser et le sens de progression. Cela permet de calculer votre zone mémorisée pour le suivi de révision.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -777,7 +777,7 @@ export default function SettingsPage() {
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label>Sourate de départ</Label>
+              <Label>Première sourate mémorisée</Label>
               <Select value={memStartSurah} onValueChange={setMemStartSurah}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner une sourate" />
@@ -793,7 +793,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Verset de départ</Label>
+              <Label>Premier verset</Label>
               <Input
                 type="number"
                 min={1}
