@@ -755,7 +755,9 @@ export async function GET(request: Request) {
         const revisionHizb = userData?.revisionCurrentHizb ?? 0
         const revisionSuspended = userData?.revisionSuspendedHizb
 
-        const readingPos = readingHizb > 0 ? await hizbToPosition(readingHizb) : await hizbToPosition(1)
+        // Lecture +1 : afficher verset 1 du prochain hizb (où reprendre)
+        // Révision : zone.startHizb + offset donne déjà le prochain hizb
+        const readingPos = readingHizb > 0 ? await hizbToPosition(readingHizb + 1) : await hizbToPosition(1)
         const revisionPos = revisionHizb > 0 ? await hizbToPosition(zone.startHizb + revisionHizb) : await hizbToPosition(zone.startHizb)
 
         progressTracker = {

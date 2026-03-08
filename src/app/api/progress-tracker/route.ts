@@ -52,7 +52,9 @@ export async function GET() {
     const readingSettings = readingProgram ? programSettings.find(s => s.programId === readingProgram.id) : null
 
     // Convert to readable positions
-    const readingPos = readingHizb > 0 ? await hizbToPosition(readingHizb) : await hizbToPosition(1)
+    // Lecture +1 : afficher verset 1 du prochain hizb (où reprendre)
+    // Révision : zone.startHizb + offset donne déjà le prochain hizb
+    const readingPos = readingHizb > 0 ? await hizbToPosition(readingHizb + 1) : await hizbToPosition(1)
     const revisionPos = zone && revisionHizb > 0
       ? await hizbToPosition(zone.startHizb + revisionHizb)
       : zone ? await hizbToPosition(zone.startHizb) : null
@@ -144,7 +146,7 @@ export async function PUT(request: Request) {
     const rHizb = updatedUser?.readingCurrentHizb ?? 0
     const rvHizb = updatedUser?.revisionCurrentHizb ?? 0
 
-    const readingPos = rHizb > 0 ? await hizbToPosition(rHizb) : await hizbToPosition(1)
+    const readingPos = rHizb > 0 ? await hizbToPosition(rHizb + 1) : await hizbToPosition(1)
     const revisionPos = zone && rvHizb > 0 ? await hizbToPosition(zone.startHizb + rvHizb) : null
 
     return NextResponse.json({
