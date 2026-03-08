@@ -17,19 +17,35 @@ export interface MemorizedZone {
   totalHizbs: number
 }
 
-// Convert a hizb (Float) to a readable position
+// Convert a hizb number to the first verse of that traditional hizb
+// In the Verse table, traditional hizb N starts at hizb value N.1 (not N.0)
+// We find the page of that marker, then return the first verse of that page
 export async function hizbToPosition(hizb: number): Promise<QuranPosition | null> {
-  // Find the verse closest to this hizb value
-  const verse = await prisma.verse.findFirst({
-    where: {
-      hizb: { gte: hizb }
-    },
-    orderBy: { hizb: 'asc' },
-    include: { surah: true }
+  // Special case: hizb 1 = start of Quran (S1V1, page 1)
+  if (hizb <= 1) {
+    const first = await prisma.verse.findFirst({
+      orderBy: [{ surahNumber: 'asc' }, { verseNumber: 'asc' }],
+      include: { surah: true }
+    })
+    if (!first) return null
+    return {
+      surahNumber: first.surahNumber,
+      surahNameAr: first.surah.nameAr,
+      verseNumber: first.verseNumber,
+      page: first.page,
+      hizb: first.hizb || 1,
+      juz: first.juz || 1
+    }
+  }
+
+  // Find the first verse at hizb >= N.1 (traditional boundary marker)
+  const marker = await prisma.verse.findFirst({
+    where: { hizb: { gte: hizb + 0.05 } },
+    orderBy: { hizb: 'asc' }
   })
 
-  if (!verse) {
-    // If hizb is beyond max, return last verse
+  if (!marker) {
+    // Beyond last hizb
     const lastVerse = await prisma.verse.findFirst({
       orderBy: { hizb: 'desc' },
       include: { surah: true }
@@ -45,13 +61,22 @@ export async function hizbToPosition(hizb: number): Promise<QuranPosition | null
     }
   }
 
+  // Get the first verse of that page (verset 1 de la page)
+  const firstOfPage = await prisma.verse.findFirst({
+    where: { page: marker.page },
+    orderBy: [{ surahNumber: 'asc' }, { verseNumber: 'asc' }],
+    include: { surah: true }
+  })
+
+  if (!firstOfPage) return null
+
   return {
-    surahNumber: verse.surahNumber,
-    surahNameAr: verse.surah.nameAr,
-    verseNumber: verse.verseNumber,
-    page: verse.page,
-    hizb: verse.hizb || 0,
-    juz: verse.juz || 0
+    surahNumber: firstOfPage.surahNumber,
+    surahNameAr: firstOfPage.surah.nameAr,
+    verseNumber: firstOfPage.verseNumber,
+    page: firstOfPage.page,
+    hizb: firstOfPage.hizb || 0,
+    juz: firstOfPage.juz || 0
   }
 }
 
