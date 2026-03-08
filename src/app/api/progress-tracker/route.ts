@@ -52,10 +52,11 @@ export async function GET() {
     const readingSettings = readingProgram ? programSettings.find(s => s.programId === readingProgram.id) : null
 
     // Convert to readable positions
-    const readingPos = readingHizb > 0 ? await hizbToPosition(readingHizb) : await hizbToPosition(0.01)
+    // +1 : afficher le début du prochain hizb (où reprendre)
+    const readingPos = readingHizb > 0 ? await hizbToPosition(readingHizb + 1) : await hizbToPosition(1)
     const revisionPos = zone && revisionHizb > 0
-      ? await hizbToPosition(zone.startHizb + revisionHizb)
-      : zone ? await hizbToPosition(zone.startHizb) : null
+      ? await hizbToPosition(zone.startHizb + revisionHizb + 1)
+      : zone ? await hizbToPosition(zone.startHizb + 1) : null
 
     const totalHizbs = zone?.totalHizbs ?? 0
 
@@ -144,8 +145,9 @@ export async function PUT(request: Request) {
     const rHizb = updatedUser?.readingCurrentHizb ?? 0
     const rvHizb = updatedUser?.revisionCurrentHizb ?? 0
 
-    const readingPos = rHizb > 0 ? await hizbToPosition(rHizb) : await hizbToPosition(0.01)
-    const revisionPos = zone && rvHizb > 0 ? await hizbToPosition(zone.startHizb + rvHizb) : null
+    // +1 : afficher le début du prochain hizb (où reprendre)
+    const readingPos = rHizb > 0 ? await hizbToPosition(rHizb + 1) : await hizbToPosition(1)
+    const revisionPos = zone && rvHizb > 0 ? await hizbToPosition(zone.startHizb + rvHizb + 1) : null
 
     return NextResponse.json({
       readingCurrentHizb: rHizb,
