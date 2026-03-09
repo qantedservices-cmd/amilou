@@ -524,12 +524,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     }
   }
 
-  async function openSessionReportDialog() {
+  async function openSessionReportDialog(targetSessionNum?: number) {
     if (!data) return
     setSessionReportOpen(true)
     setReportLoading(true)
     try {
-      const targetNum = data.nextSessionNumber - 1
+      const targetNum = targetSessionNum ?? (parseInt(activeSession) || data.nextSessionNumber) - 1
       const reportRes = await fetch(`/api/groups/${groupId}/mastery/session-report${targetNum > 0 ? `?sessionNumber=${targetNum}` : ''}`)
       if (reportRes.ok) {
         const json = await reportRes.json()
@@ -1564,11 +1564,11 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           <Button
             variant="outline"
             size="sm"
-            onClick={openSessionReportDialog}
+            onClick={() => openSessionReportDialog()}
             disabled={exporting}
           >
             <FileText className="h-4 w-4 mr-2" />
-            PDF Séance {data.nextSessionNumber - 1}
+            Rapport séance
           </Button>
           {data.isReferent && (
             <Button
@@ -1629,7 +1629,16 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 </SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-xs text-muted-foreground">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-sm"
+              onClick={() => openSessionReportDialog(parseInt(activeSession) <= data.totalSessions ? parseInt(activeSession) : undefined)}
+            >
+              <FileText className="h-4 w-4 mr-1" />
+              Voir séance
+            </Button>
+            <span className="text-xs text-muted-foreground hidden sm:inline">
               Les commentaires seront liés à cette séance
             </span>
           </div>
@@ -2280,11 +2289,38 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
       {/* Session Report Dialog */}
       <Dialog open={sessionReportOpen} onOpenChange={setSessionReportOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Rapport de séance</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <span>Rapport de séance</span>
+              {/* Session navigation */}
+              <div className="flex items-center gap-1 ml-auto">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={reportLoading || reportSessionNumber <= 1}
+                  onClick={() => openSessionReportDialog(reportSessionNumber - 1)}
+                >
+                  <ChevronDown className="h-4 w-4 rotate-90" />
+                </Button>
+                <span className="text-sm font-normal px-1">S{reportSessionNumber}/{data.totalSessions}</span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={reportLoading || reportSessionNumber >= data.totalSessions}
+                  onClick={() => openSessionReportDialog(reportSessionNumber + 1)}
+                >
+                  <ChevronUp className="h-4 w-4 rotate-90" />
+                </Button>
+              </div>
+            </DialogTitle>
             <DialogDescription>
               {data.group.name} — Séance N°{reportSessionNumber}
+              {data.sessions?.find(s => s.number === reportSessionNumber)?.date && (
+                <span> — {new Date(data.sessions.find(s => s.number === reportSessionNumber)!.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+              )}
             </DialogDescription>
           </DialogHeader>
 
@@ -2387,6 +2423,74 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   placeholder="Devoirs quotidiens pour les élèves..."
                 />
+              </div>
+
+              {/* Suivi individuel - comments for this session */}
+              <div className="space-y-2 border-t pt-4">
+                <Label className="text-sm font-medium">Suivi individuel — Séance {reportSessionNumber}</Label>
+                {(() => {
+                  // Collect all comments for this session number from commentsMap
+                  const sessionComments: { memberName: string; surahNum: number; surahNameAr: string; surahNameFr: string; totalVerses: number; status: string; comment: string }[] = []
+                  for (const member of data.members) {
+                    const memberComments = data.commentsMap[member.id]
+                    if (!memberComments) continue
+                    const nameParts = member.name.split(' ')
+                    const firstName = nameParts[nameParts.length - 1]
+                    for (const [surahNumStr, comments] of Object.entries(memberComments)) {
+                      const surahNum = parseInt(surahNumStr)
+                      for (const c of comments) {
+                        if (c.sessionNumber === reportSessionNumber) {
+                          const surahInfo = data.allSurahsMap[surahNum]
+                          sessionComments.push({
+                            memberName: firstName,
+                            surahNum,
+                            surahNameAr: surahInfo?.nameAr || '',
+                            surahNameFr: surahInfo?.nameFr || '',
+                            totalVerses: surahInfo?.totalVerses || 0,
+                            status: getCellDisplay(member.id, surahNum),
+                            comment: stripHtmlTags(c.comment)
+                          })
+                        }
+                      }
+                    }
+                  }
+
+                  if (sessionComments.length === 0) {
+                    return <p className="text-sm text-muted-foreground italic">Aucun commentaire pour cette séance</p>
+                  }
+
+                  return (
+                    <div className="rounded-md border overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-muted/50">
+                            <th className="px-3 py-1.5 text-left font-medium text-xs">Élève</th>
+                            <th className="px-3 py-1.5 text-left font-medium text-xs">Sourate</th>
+                            <th className="px-3 py-1.5 text-center font-medium text-xs">Statut</th>
+                            <th className="px-3 py-1.5 text-left font-medium text-xs">Commentaire</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sessionComments.map((sc, i) => (
+                            <tr key={i} className={i % 2 === 0 ? '' : 'bg-muted/30'}>
+                              <td className="px-3 py-1.5 text-xs font-medium whitespace-nowrap">{sc.memberName}</td>
+                              <td className="px-3 py-1.5 text-xs whitespace-nowrap">
+                                {sc.surahNum}. {sc.surahNameAr}
+                                <span className="text-muted-foreground ml-1">{sc.surahNameFr}</span>
+                              </td>
+                              <td className="px-3 py-1.5 text-center">
+                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[sc.status] || STATUS_COLORS[sc.status.replace(/\d+$/, '')] || 'bg-gray-200 text-gray-700'}`}>
+                                  {STATUS_DISPLAY[sc.status] || sc.status}
+                                </span>
+                              </td>
+                              <td className="px-3 py-1.5 text-xs">{sc.comment}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                })()}
               </div>
 
             </div>
