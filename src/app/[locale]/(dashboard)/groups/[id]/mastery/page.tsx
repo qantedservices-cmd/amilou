@@ -529,7 +529,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     setSessionReportOpen(true)
     setReportLoading(true)
     try {
-      const targetNum = targetSessionNum ?? (parseInt(activeSession) || data.nextSessionNumber) - 1
+      const targetNum = targetSessionNum ?? data.totalSessions
       const reportRes = await fetch(`/api/groups/${groupId}/mastery/session-report${targetNum > 0 ? `?sessionNumber=${targetNum}` : ''}`)
       if (reportRes.ok) {
         const json = await reportRes.json()
@@ -1633,7 +1633,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               variant="outline"
               size="sm"
               className="h-8 text-sm"
-              onClick={() => openSessionReportDialog(parseInt(activeSession) <= data.totalSessions ? parseInt(activeSession) : undefined)}
+              onClick={() => openSessionReportDialog(Math.min(parseInt(activeSession) || data.totalSessions, data.totalSessions))}
             >
               <FileText className="h-4 w-4 mr-1" />
               Voir séance
