@@ -1629,15 +1629,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 </SelectItem>
               </SelectContent>
             </Select>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-sm"
-              onClick={() => openSessionReportDialog(Math.min(parseInt(activeSession) || data.totalSessions, data.totalSessions))}
-            >
-              <FileText className="h-4 w-4 mr-1" />
-              Voir séance
-            </Button>
+            <Link href={`/${locale}/groups/${groupId}/sessions/${Math.min(parseInt(activeSession) || data.totalSessions, data.totalSessions)}`}>
+              <Button variant="outline" size="sm" className="h-8 text-sm">
+                <FileText className="h-4 w-4 mr-1" />
+                Voir séance
+              </Button>
+            </Link>
             <span className="text-xs text-muted-foreground hidden sm:inline">
               Les commentaires seront liés à cette séance
             </span>

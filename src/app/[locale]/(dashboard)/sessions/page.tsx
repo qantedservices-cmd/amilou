@@ -17,7 +17,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { Calendar, ChevronLeft, ChevronRight, Users, Check, X, BookOpen, Plus, Pencil, ChevronDown, LayoutGrid, Grid3X3 } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Users, Check, X, BookOpen, Plus, Pencil, ChevronDown, FileText, LayoutGrid, Grid3X3 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface SessionEntry {
@@ -629,6 +629,16 @@ export default function SessionsPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-1">
+                        {session.groupId && session.sessionNumber && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/${locale}/groups/${session.groupId}/sessions/${session.sessionNumber}`)}
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            Rapport
+                          </Button>
+                        )}
                         {session.groupId && (
                           <Button
                             variant="outline"
