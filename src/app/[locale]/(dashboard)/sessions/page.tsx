@@ -584,7 +584,22 @@ export default function SessionsPage() {
                       )}
                     </div>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  {session.groupId && session.sessionNumber ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        router.push(`/${locale}/groups/${session.groupId}/sessions/${session.sessionNumber}`)
+                      }}
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      Rapport
+                    </Button>
+                  ) : (
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  )}
                 </div>
               ))}
             </div>
