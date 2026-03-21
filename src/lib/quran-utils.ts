@@ -18,7 +18,7 @@ export interface MemorizedZone {
 }
 
 // Convert a hizb number to the first verse of that traditional hizb
-// In the Verse table, traditional hizb N starts at hizb value N.1 (not N.0)
+// In the Verse table, hizb N starts at hizb value N.0 (exact integer)
 // We find the page of that marker, then return the first verse of that page
 export async function hizbToPosition(hizb: number): Promise<QuranPosition | null> {
   // Special case: hizb 1 = start of Quran (S1V1, page 1)
@@ -38,9 +38,9 @@ export async function hizbToPosition(hizb: number): Promise<QuranPosition | null
     }
   }
 
-  // Find the first verse at hizb >= N.1 (traditional boundary marker)
+  // Find the first verse at hizb >= N (the actual hizb boundary)
   const marker = await prisma.verse.findFirst({
-    where: { hizb: { gte: hizb + 0.05 } },
+    where: { hizb: { gte: hizb } },
     orderBy: { hizb: 'asc' }
   })
 
