@@ -201,6 +201,133 @@ export function objectiveToHizbPerDay(quantity: number, unit: string, period: st
   }
 }
 
+// Recalculate reading and revision positions from the last cycle dates
+// Simulates day-by-day advancement with combined phase logic
+export async function recalculatePositionsFromCycles(userId: string): Promise<{
+  readingHizb: number
+  revisionHizb: number
+  revisionSuspended: number | null
+}> {
+  const zone = await getMemorizedZone(userId)
+
+  // Get programs
+  const [revisionProgram, readingProgram] = await Promise.all([
+    prisma.program.findFirst({ where: { code: 'REVISION' } }),
+    prisma.program.findFirst({ where: { code: 'READING' } }),
+  ])
+
+  // Get active objectives
+  const programSettings = await prisma.userProgramSettings.findMany({
+    where: {
+      userId,
+      isActive: true,
+      programId: { in: [revisionProgram?.id, readingProgram?.id].filter(Boolean) as string[] }
+    }
+  })
+
+  const readingSettings = readingProgram ? programSettings.find(s => s.programId === readingProgram.id) : null
+  const revisionSettings = revisionProgram ? programSettings.find(s => s.programId === revisionProgram.id) : null
+  const readingHizbPerDay = readingSettings ? objectiveToHizbPerDay(readingSettings.quantity, readingSettings.unit, readingSettings.period) : 0
+  const revisionHizbPerDay = revisionSettings ? objectiveToHizbPerDay(revisionSettings.quantity, revisionSettings.unit, revisionSettings.period) : 0
+
+  // Get last cycle dates
+  const lastLectureCycle = await prisma.completionCycle.findFirst({
+    where: { userId, type: 'LECTURE' },
+    orderBy: { completedAt: 'desc' }
+  })
+  const lastRevisionCycle = await prisma.completionCycle.findFirst({
+    where: { userId, type: 'REVISION' },
+    orderBy: { completedAt: 'desc' }
+  })
+
+  // Get completed days after last cycles
+  const readingDays = readingProgram ? await prisma.dailyProgramCompletion.findMany({
+    where: {
+      userId,
+      programId: readingProgram.id,
+      completed: true,
+      ...(lastLectureCycle ? { date: { gt: lastLectureCycle.completedAt } } : {})
+    },
+    orderBy: { date: 'asc' },
+    select: { date: true }
+  }) : []
+
+  const revisionDays = revisionProgram ? await prisma.dailyProgramCompletion.findMany({
+    where: {
+      userId,
+      programId: revisionProgram.id,
+      completed: true,
+      ...(lastRevisionCycle ? { date: { gt: lastRevisionCycle.completedAt } } : {})
+    },
+    orderBy: { date: 'asc' },
+    select: { date: true }
+  }) : []
+
+  // Simulate day by day with combined phase
+  let readingHizb = 0
+  let revisionHizb = 0
+  let revisionSuspended: number | null = null
+
+  const isInMemorizedZone = (hizb: number): boolean => {
+    if (!zone || zone.totalHizbs <= 0) return false
+    return hizb >= zone.startHizb && hizb <= zone.endHizb
+  }
+
+  // Merge into date-based timeline
+  const readingDateSet = new Set(readingDays.map(d => d.date.toISOString().split('T')[0]))
+  const revisionDateSet = new Set(revisionDays.map(d => d.date.toISOString().split('T')[0]))
+  const allDates = [...new Set([...readingDateSet, ...revisionDateSet])].sort()
+
+  for (const dateStr of allDates) {
+    const hasReading = readingDateSet.has(dateStr)
+    const hasRevision = revisionDateSet.has(dateStr)
+
+    // Process reading first (may suspend/resume revision)
+    if (hasReading && readingHizbPerDay > 0) {
+      const wasInZone = isInMemorizedZone(readingHizb)
+      const speed = wasInZone ? 2 : 1
+      readingHizb += speed * readingHizbPerDay
+
+      // Handle wrap (reading exceeds 60 = full Quran)
+      while (readingHizb >= 60) {
+        readingHizb -= 60
+        if (revisionSuspended !== null) {
+          revisionHizb = revisionSuspended
+          revisionSuspended = null
+        }
+        if (isInMemorizedZone(readingHizb) && revisionSuspended === null) {
+          revisionSuspended = revisionHizb
+        }
+      }
+
+      if (readingHizb < 60) {
+        const isNowInZone = isInMemorizedZone(readingHizb)
+        if (!wasInZone && isNowInZone && revisionSuspended === null) {
+          revisionSuspended = revisionHizb
+        }
+        if (wasInZone && !isNowInZone && revisionSuspended !== null) {
+          revisionHizb = revisionSuspended
+          revisionSuspended = null
+        }
+      }
+    }
+
+    // Process revision (only if not suspended)
+    if (hasRevision && revisionHizbPerDay > 0 && revisionSuspended === null && zone && zone.totalHizbs > 0) {
+      revisionHizb += revisionHizbPerDay
+      while (revisionHizb >= zone.totalHizbs) {
+        revisionHizb -= zone.totalHizbs
+      }
+    }
+  }
+
+  return {
+    readingHizb: Math.round(readingHizb),
+    revisionHizb: Math.round(revisionHizb),
+    revisionSuspended: revisionSuspended !== null ? Math.round(revisionSuspended) : null
+  }
+}
+
 // Format hizb per day as readable objective label
 export function formatObjectiveLabel(quantity: number, unit: string, period: string): string {
   const unitLabels: Record<string, string> = {

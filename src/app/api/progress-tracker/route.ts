@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
-import { getMemorizedZone, objectiveToHizbPerDay, hizbToPosition } from '@/lib/quran-utils'
+import { getMemorizedZone, objectiveToHizbPerDay, hizbToPosition, recalculatePositionsFromCycles } from '@/lib/quran-utils'
 
-// GET — Read current positions (non-destructive: never overwrites positions)
-export async function GET() {
+// GET — Read current positions, or recalculate from cycles if ?recalculate=true
+export async function GET(request: Request) {
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -15,6 +15,22 @@ export async function GET() {
     const { userId } = await getEffectiveUserId()
     if (!userId) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const shouldRecalculate = searchParams.get('recalculate') === 'true'
+
+    // Recalculate positions from cycles if requested
+    if (shouldRecalculate) {
+      const positions = await recalculatePositionsFromCycles(userId)
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          readingCurrentHizb: positions.readingHizb,
+          revisionCurrentHizb: positions.revisionHizb,
+          revisionSuspendedHizb: positions.revisionSuspended,
+        }
+      })
     }
 
     const zone = await getMemorizedZone(userId)

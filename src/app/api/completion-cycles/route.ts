@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
-import { getMemorizedZone } from '@/lib/quran-utils'
+import { recalculatePositionsFromCycles } from '@/lib/quran-utils'
 
 // Helper function to recalculate daysToComplete for all cycles of a type in chronological order
 async function recalculateDaysToComplete(userId: string, type: string) {
@@ -265,44 +265,17 @@ export async function POST(request: Request) {
     // Recalculate daysToComplete for all cycles of this type
     await recalculateDaysToComplete(userId, type)
 
-    // Reset position to 0 after completing a cycle
-    // Only reset if this is the most recent cycle (not a historical back-entry)
-    const newerCycle = await prisma.completionCycle.findFirst({
-      where: {
-        userId,
-        type,
-        completedAt: { gt: new Date(completedAt) }
+    // Recalculate positions from cycles (accounts for completedAt date,
+    // completed days since that date, and combined phase logic)
+    const positions = await recalculatePositionsFromCycles(userId)
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        readingCurrentHizb: positions.readingHizb,
+        revisionCurrentHizb: positions.revisionHizb,
+        revisionSuspendedHizb: positions.revisionSuspended,
       }
     })
-
-    if (!newerCycle) {
-      // This is the latest cycle — reset the position
-      if (type === 'LECTURE') {
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { readingCurrentHizb: true }
-        })
-        const current = user?.readingCurrentHizb ?? 0
-        const overflow = current > 60 ? current - 60 : 0
-        await prisma.user.update({
-          where: { id: userId },
-          data: { readingCurrentHizb: overflow }
-        })
-      } else if (type === 'REVISION') {
-        const zone = await getMemorizedZone(userId)
-        const maxHizbs = zone?.totalHizbs ?? 60
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { revisionCurrentHizb: true }
-        })
-        const current = user?.revisionCurrentHizb ?? 0
-        const overflow = current > maxHizbs ? current - maxHizbs : 0
-        await prisma.user.update({
-          where: { id: userId },
-          data: { revisionCurrentHizb: overflow }
-        })
-      }
-    }
 
     // Fetch the updated cycle
     const updatedCycle = await prisma.completionCycle.findUnique({
@@ -357,6 +330,17 @@ export async function PUT(request: Request) {
       await recalculateDaysToComplete(userId, existingCycle.type)
     }
 
+    // Recalculate positions (date change affects where we are in current cycle)
+    const positions = await recalculatePositionsFromCycles(userId)
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        readingCurrentHizb: positions.readingHizb,
+        revisionCurrentHizb: positions.revisionHizb,
+        revisionSuspendedHizb: positions.revisionSuspended,
+      }
+    })
+
     // Fetch the updated cycle
     const updatedCycle = await prisma.completionCycle.findUnique({
       where: { id: cycle.id }
@@ -404,6 +388,17 @@ export async function DELETE(request: Request) {
 
     // Recalculate daysToComplete for remaining cycles
     await recalculateDaysToComplete(userId, cycleType)
+
+    // Recalculate positions (deleting a cycle changes the reference point)
+    const positions = await recalculatePositionsFromCycles(userId)
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        readingCurrentHizb: positions.readingHizb,
+        revisionCurrentHizb: positions.revisionHizb,
+        revisionSuspendedHizb: positions.revisionSuspended,
+      }
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

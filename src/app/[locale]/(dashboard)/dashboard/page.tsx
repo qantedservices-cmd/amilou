@@ -1163,10 +1163,17 @@ export default function DashboardPage() {
   async function recalculateProgressTracker() {
     setRecalculating(true)
     try {
-      await fetchStats()
-      toast.success('Positions actualisées')
+      // Recalculate positions from cycles (day-by-day with combined phase)
+      const res = await fetch('/api/progress-tracker?recalculate=true')
+      if (res.ok) {
+        await fetchStats()
+        toast.success('Positions recalculées')
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Erreur lors du recalcul')
+      }
     } catch (error) {
-      console.error('Error refreshing:', error)
+      console.error('Error recalculating:', error)
       toast.error('Erreur de connexion')
     } finally {
       setRecalculating(false)
