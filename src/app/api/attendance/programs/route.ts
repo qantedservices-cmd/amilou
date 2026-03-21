@@ -259,6 +259,7 @@ export async function POST(request: Request) {
       })
 
       const updates: Record<string, number> = {}
+      const autoCreatedCycles: string[] = []
 
       for (const [programId, change] of Object.entries(netChanges)) {
         const settings = userSettings.find(s => s.programId === programId)
@@ -270,21 +271,74 @@ export async function POST(request: Request) {
         if (programId === readingProgram?.id) {
           const current = user?.readingCurrentHizb ?? 0
           let newVal = current + delta
-          // Clamp to [0, 60]
           if (newVal < 0) newVal = 0
-          if (newVal > 60) newVal = 60
+
+          // Auto-create cycle(s) if position reaches or exceeds 60 hizbs
+          while (newVal >= 60) {
+            newVal -= 60
+            await prisma.completionCycle.create({
+              data: {
+                userId: targetUserId,
+                type: 'LECTURE',
+                completedAt: new Date(),
+                daysToComplete: null,
+                hizbCount: 60,
+                notes: 'Cycle automatique'
+              }
+            })
+            autoCreatedCycles.push('LECTURE')
+          }
+
           updates.readingCurrentHizb = Math.round(newVal)
         }
 
         if (programId === revisionProgram?.id) {
           const current = user?.revisionCurrentHizb ?? 0
           let newVal = current + delta
-          // Clamp to [0, zone.totalHizbs]
           const zone = await getMemorizedZone(targetUserId)
           const maxHizbs = zone?.totalHizbs ?? 60
           if (newVal < 0) newVal = 0
-          if (newVal > maxHizbs) newVal = maxHizbs
+
+          // Auto-create cycle(s) if position reaches or exceeds zone total
+          while (newVal >= maxHizbs && maxHizbs > 0) {
+            newVal -= maxHizbs
+            await prisma.completionCycle.create({
+              data: {
+                userId: targetUserId,
+                type: 'REVISION',
+                completedAt: new Date(),
+                daysToComplete: null,
+                hizbCount: maxHizbs,
+                notes: 'Cycle automatique'
+              }
+            })
+            autoCreatedCycles.push('REVISION')
+          }
+
           updates.revisionCurrentHizb = Math.round(newVal)
+        }
+      }
+
+      // Recalculate daysToComplete for any auto-created cycles
+      for (const cycleType of [...new Set(autoCreatedCycles)]) {
+        // Inline recalculation
+        const cycles = await prisma.completionCycle.findMany({
+          where: { userId: targetUserId, type: cycleType },
+          orderBy: { completedAt: 'asc' }
+        })
+        for (let i = 0; i < cycles.length; i++) {
+          let daysToComplete: number | null = null
+          if (i > 0) {
+            const prevDate = new Date(cycles[i - 1].completedAt)
+            const currDate = new Date(cycles[i].completedAt)
+            daysToComplete = Math.floor((currDate.getTime() - prevDate.getTime()) / (24 * 60 * 60 * 1000))
+          }
+          if (cycles[i].daysToComplete !== daysToComplete) {
+            await prisma.completionCycle.update({
+              where: { id: cycles[i].id },
+              data: { daysToComplete }
+            })
+          }
         }
       }
 

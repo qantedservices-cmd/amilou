@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { getMemorizedZone } from '@/lib/quran-utils'
 
 // Helper function to recalculate daysToComplete for all cycles of a type in chronological order
 async function recalculateDaysToComplete(userId: string, type: string) {
@@ -263,6 +264,45 @@ export async function POST(request: Request) {
 
     // Recalculate daysToComplete for all cycles of this type
     await recalculateDaysToComplete(userId, type)
+
+    // Reset position to 0 after completing a cycle
+    // Only reset if this is the most recent cycle (not a historical back-entry)
+    const newerCycle = await prisma.completionCycle.findFirst({
+      where: {
+        userId,
+        type,
+        completedAt: { gt: new Date(completedAt) }
+      }
+    })
+
+    if (!newerCycle) {
+      // This is the latest cycle — reset the position
+      if (type === 'LECTURE') {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { readingCurrentHizb: true }
+        })
+        const current = user?.readingCurrentHizb ?? 0
+        const overflow = current > 60 ? current - 60 : 0
+        await prisma.user.update({
+          where: { id: userId },
+          data: { readingCurrentHizb: overflow }
+        })
+      } else if (type === 'REVISION') {
+        const zone = await getMemorizedZone(userId)
+        const maxHizbs = zone?.totalHizbs ?? 60
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { revisionCurrentHizb: true }
+        })
+        const current = user?.revisionCurrentHizb ?? 0
+        const overflow = current > maxHizbs ? current - maxHizbs : 0
+        await prisma.user.update({
+          where: { id: userId },
+          data: { revisionCurrentHizb: overflow }
+        })
+      }
+    }
 
     // Fetch the updated cycle
     const updatedCycle = await prisma.completionCycle.findUnique({
