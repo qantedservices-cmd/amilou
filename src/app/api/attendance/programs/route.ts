@@ -255,99 +255,135 @@ export async function POST(request: Request) {
         select: {
           readingCurrentHizb: true,
           revisionCurrentHizb: true,
+          revisionSuspendedHizb: true,
         }
       })
 
-      const updates: Record<string, number> = {}
+      let readingHizb = user?.readingCurrentHizb ?? 0
+      let revisionHizb = user?.revisionCurrentHizb ?? 0
+      let revisionSuspended: number | null = user?.revisionSuspendedHizb ?? null
+
+      const zone = await getMemorizedZone(targetUserId)
+      const maxRevisionHizbs = zone?.totalHizbs ?? 0
       const autoCreatedCycles: string[] = []
 
-      for (const [programId, change] of Object.entries(netChanges)) {
-        const settings = userSettings.find(s => s.programId === programId)
-        if (!settings) continue
+      // Per-program settings
+      const readingSettings = readingProgram ? userSettings.find(s => s.programId === readingProgram.id) : null
+      const revisionSettings = revisionProgram ? userSettings.find(s => s.programId === revisionProgram.id) : null
+      const readingHizbPerDay = readingSettings ? objectiveToHizbPerDay(readingSettings.quantity, readingSettings.unit, readingSettings.period) : 0
+      const revisionHizbPerDay = revisionSettings ? objectiveToHizbPerDay(revisionSettings.quantity, revisionSettings.unit, revisionSettings.period) : 0
 
-        const hizbPerDay = objectiveToHizbPerDay(settings.quantity, settings.unit, settings.period)
-        const delta = change * hizbPerDay
+      const readingChange = readingProgram ? (netChanges[readingProgram.id] || 0) : 0
+      const revisionChange = revisionProgram ? (netChanges[revisionProgram.id] || 0) : 0
 
-        if (programId === readingProgram?.id) {
-          const current = user?.readingCurrentHizb ?? 0
-          let newVal = current + delta
-          if (newVal < 0) newVal = 0
+      // Helper: check if reading position is within memorized zone
+      function isInMemorizedZone(hizb: number): boolean {
+        if (!zone || zone.totalHizbs <= 0) return false
+        return hizb >= zone.startHizb && hizb <= zone.endHizb
+      }
 
-          // Auto-create cycle(s) if position reaches or exceeds 60 hizbs
-          while (newVal >= 60) {
-            newVal -= 60
+      // === Process READING advancement day by day (handles combined phase) ===
+      if (readingChange > 0 && readingHizbPerDay > 0) {
+        for (let day = 0; day < readingChange; day++) {
+          const wasInZone = isInMemorizedZone(readingHizb)
+          const speed = wasInZone ? 2 : 1
+          readingHizb += speed * readingHizbPerDay
+
+          // Handle reading cycle completion (wrap around 60 hizbs)
+          if (readingHizb >= 60) {
+            readingHizb -= 60
             await prisma.completionCycle.create({
-              data: {
-                userId: targetUserId,
-                type: 'LECTURE',
-                completedAt: new Date(),
-                daysToComplete: null,
-                hizbCount: 60,
-                notes: 'Cycle automatique'
-              }
+              data: { userId: targetUserId, type: 'LECTURE', completedAt: new Date(), daysToComplete: null, hizbCount: 60, notes: 'Cycle automatique' }
             })
             autoCreatedCycles.push('LECTURE')
+
+            // Wrap-around: if revision was suspended, the reading passed through the zone exit
+            if (revisionSuspended !== null) {
+              await prisma.completionCycle.create({
+                data: { userId: targetUserId, type: 'REVISION', completedAt: new Date(), daysToComplete: null, hizbCount: maxRevisionHizbs, notes: 'Mode combiné' }
+              })
+              autoCreatedCycles.push('REVISION')
+              revisionHizb = revisionSuspended
+              revisionSuspended = null
+            }
+
+            // After wrap, check if new position lands in zone
+            if (isInMemorizedZone(readingHizb) && revisionSuspended === null) {
+              revisionSuspended = revisionHizb
+            }
+          } else {
+            // No wrap — check zone transitions
+            const isNowInZone = isInMemorizedZone(readingHizb)
+
+            if (!wasInZone && isNowInZone && revisionSuspended === null) {
+              // Entering zone: suspend revision
+              revisionSuspended = revisionHizb
+            }
+
+            if (wasInZone && !isNowInZone && revisionSuspended !== null) {
+              // Exiting zone: create combined revision cycle, resume revision
+              await prisma.completionCycle.create({
+                data: { userId: targetUserId, type: 'REVISION', completedAt: new Date(), daysToComplete: null, hizbCount: maxRevisionHizbs, notes: 'Mode combiné' }
+              })
+              autoCreatedCycles.push('REVISION')
+              revisionHizb = revisionSuspended
+              revisionSuspended = null
+            }
           }
-
-          updates.readingCurrentHizb = Math.round(newVal)
         }
+      } else if (readingChange < 0 && readingHizbPerDay > 0) {
+        // Negative change: simple decrease, no combined phase reversal
+        readingHizb += readingChange * readingHizbPerDay
+        if (readingHizb < 0) readingHizb = 0
+      }
 
-        if (programId === revisionProgram?.id) {
-          const current = user?.revisionCurrentHizb ?? 0
-          let newVal = current + delta
-          const zone = await getMemorizedZone(targetUserId)
-          const maxHizbs = zone?.totalHizbs ?? 60
-          if (newVal < 0) newVal = 0
-
-          // Auto-create cycle(s) if position reaches or exceeds zone total
-          while (newVal >= maxHizbs && maxHizbs > 0) {
-            newVal -= maxHizbs
-            await prisma.completionCycle.create({
-              data: {
-                userId: targetUserId,
-                type: 'REVISION',
-                completedAt: new Date(),
-                daysToComplete: null,
-                hizbCount: maxHizbs,
-                notes: 'Cycle automatique'
-              }
-            })
-            autoCreatedCycles.push('REVISION')
+      // === Process REVISION advancement (only if not suspended) ===
+      if (revisionChange > 0 && revisionHizbPerDay > 0 && maxRevisionHizbs > 0) {
+        if (revisionSuspended === null) {
+          // Revision is active — advance day by day
+          for (let day = 0; day < revisionChange; day++) {
+            revisionHizb += revisionHizbPerDay
+            while (revisionHizb >= maxRevisionHizbs) {
+              revisionHizb -= maxRevisionHizbs
+              await prisma.completionCycle.create({
+                data: { userId: targetUserId, type: 'REVISION', completedAt: new Date(), daysToComplete: null, hizbCount: maxRevisionHizbs, notes: 'Cycle automatique' }
+              })
+              autoCreatedCycles.push('REVISION')
+            }
           }
-
-          updates.revisionCurrentHizb = Math.round(newVal)
         }
+        // If suspended, revision days don't advance (reading covers the zone)
+      } else if (revisionChange < 0 && revisionHizbPerDay > 0) {
+        revisionHizb += revisionChange * revisionHizbPerDay
+        if (revisionHizb < 0) revisionHizb = 0
       }
 
       // Recalculate daysToComplete for any auto-created cycles
       for (const cycleType of [...new Set(autoCreatedCycles)]) {
-        // Inline recalculation
-        const cycles = await prisma.completionCycle.findMany({
+        const allCycles = await prisma.completionCycle.findMany({
           where: { userId: targetUserId, type: cycleType },
           orderBy: { completedAt: 'asc' }
         })
-        for (let i = 0; i < cycles.length; i++) {
-          let daysToComplete: number | null = null
+        for (let i = 0; i < allCycles.length; i++) {
+          let dtc: number | null = null
           if (i > 0) {
-            const prevDate = new Date(cycles[i - 1].completedAt)
-            const currDate = new Date(cycles[i].completedAt)
-            daysToComplete = Math.floor((currDate.getTime() - prevDate.getTime()) / (24 * 60 * 60 * 1000))
+            dtc = Math.floor((new Date(allCycles[i].completedAt).getTime() - new Date(allCycles[i - 1].completedAt).getTime()) / (24 * 60 * 60 * 1000))
           }
-          if (cycles[i].daysToComplete !== daysToComplete) {
-            await prisma.completionCycle.update({
-              where: { id: cycles[i].id },
-              data: { daysToComplete }
-            })
+          if (allCycles[i].daysToComplete !== dtc) {
+            await prisma.completionCycle.update({ where: { id: allCycles[i].id }, data: { daysToComplete: dtc } })
           }
         }
       }
 
-      if (Object.keys(updates).length > 0) {
-        await prisma.user.update({
-          where: { id: targetUserId },
-          data: updates
-        })
-      }
+      // Save all positions
+      await prisma.user.update({
+        where: { id: targetUserId },
+        data: {
+          readingCurrentHizb: Math.round(readingHizb),
+          revisionCurrentHizb: Math.round(revisionHizb),
+          revisionSuspendedHizb: revisionSuspended !== null ? Math.round(revisionSuspended) : null,
+        }
+      })
     }
 
     return NextResponse.json({ success: true })
