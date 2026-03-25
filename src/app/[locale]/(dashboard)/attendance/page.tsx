@@ -155,6 +155,8 @@ export default function AttendancePage() {
   const [saved, setSaved] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingChangesRef = useRef<Record<string, Record<number, { date: string; completed: boolean }>>>({})
+  // Ref miroir pour éviter les closures périmées lors de clics rapides
+  const completionsRef = useRef(completions)
 
   // Calendar popover state
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -226,6 +228,11 @@ export default function AttendancePage() {
     }
   }, [selectedUserId, fetchData])
 
+  // Keep ref in sync when completions are loaded from server
+  useEffect(() => {
+    completionsRef.current = completions
+  }, [completions])
+
   // Debounced batch save: collects all changes, sends once after 1s of inactivity
   function flushSave() {
     const changes = pendingChangesRef.current
@@ -264,18 +271,24 @@ export default function AttendancePage() {
 
   function toggleCompletion(programId: string, dayIndex: number) {
     if (isReadOnly) return
-    const newCompleted = !completions[programId]?.[dayIndex]
 
-    // Immediate local update — no re-render from refs
-    setCompletions(prev => ({
-      ...prev,
+    // Read from ref (always up-to-date, even between renders)
+    const currentVal = completionsRef.current[programId]?.[dayIndex] || false
+    const newCompleted = !currentVal
+
+    // Update ref immediately (available for next click before re-render)
+    completionsRef.current = {
+      ...completionsRef.current,
       [programId]: {
-        ...prev[programId],
+        ...completionsRef.current[programId],
         [dayIndex]: newCompleted
       }
-    }))
+    }
 
-    // Accumulate changes in ref (no re-render)
+    // Sync state from ref (single source of truth)
+    setCompletions(completionsRef.current)
+
+    // Accumulate changes in ref for batch API save
     if (!pendingChangesRef.current[programId]) {
       pendingChangesRef.current[programId] = {}
     }
