@@ -28,7 +28,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
-  Save,
   Target,
   User,
   Plus,
@@ -151,8 +150,7 @@ export default function AttendancePage() {
   const [objectives, setObjectives] = useState<Record<string, ProgramObjective | null>>({})
   const [weeklyObjectives, setWeeklyObjectives] = useState<WeeklyObjective[]>([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [savingCells, setSavingCells] = useState<Set<string>>(new Set())
 
   // Calendar popover state
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -224,14 +222,64 @@ export default function AttendancePage() {
     }
   }, [selectedUserId, fetchData])
 
-  function toggleCompletion(programId: string, dayIndex: number) {
+  async function toggleCompletion(programId: string, dayIndex: number) {
+    const cellKey = `${programId}-${dayIndex}`
+    const newCompleted = !completions[programId]?.[dayIndex]
+
+    // Optimistic update
     setCompletions(prev => ({
       ...prev,
       [programId]: {
         ...prev[programId],
-        [dayIndex]: !prev[programId]?.[dayIndex]
+        [dayIndex]: newCompleted
       }
     }))
+
+    setSavingCells(prev => new Set(prev).add(cellKey))
+
+    try {
+      const res = await fetch('/api/attendance/programs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          completions: {
+            [programId]: {
+              [dayIndex]: {
+                date: format(weekDates[dayIndex], 'yyyy-MM-dd'),
+                completed: newCompleted
+              }
+            }
+          }
+        })
+      })
+
+      if (!res.ok) {
+        // Revert on error
+        setCompletions(prev => ({
+          ...prev,
+          [programId]: {
+            ...prev[programId],
+            [dayIndex]: !newCompleted
+          }
+        }))
+      }
+    } catch {
+      // Revert on error
+      setCompletions(prev => ({
+        ...prev,
+        [programId]: {
+          ...prev[programId],
+          [dayIndex]: !newCompleted
+        }
+      }))
+    } finally {
+      setSavingCells(prev => {
+        const next = new Set(prev)
+        next.delete(cellKey)
+        return next
+      })
+    }
   }
 
   async function toggleObjective(objective: WeeklyObjective) {
@@ -275,41 +323,6 @@ export default function AttendancePage() {
     }
   }
 
-  async function saveAllCompletions() {
-    setSaving(true)
-    try {
-      // Build completions payload
-      const completionsPayload: Record<string, Record<number, { date: string; completed: boolean }>> = {}
-
-      for (const program of programs) {
-        completionsPayload[program.id] = {}
-        for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
-          completionsPayload[program.id][dayIndex] = {
-            date: format(weekDates[dayIndex], 'yyyy-MM-dd'),
-            completed: completions[program.id]?.[dayIndex] || false
-          }
-        }
-      }
-
-      const res = await fetch('/api/attendance/programs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: selectedUserId,
-          completions: completionsPayload
-        })
-      })
-
-      if (res.ok) {
-        setSaved(true)
-        setTimeout(() => setSaved(false), 2000)
-      }
-    } catch (error) {
-      console.error('Error saving completions:', error)
-    } finally {
-      setSaving(false)
-    }
-  }
 
   async function createObjective() {
     if (!newObjectiveName.trim()) return
@@ -561,17 +574,22 @@ export default function AttendancePage() {
                     {weekDates.map((date, dayIndex) => {
                       const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
                       const isCompleted = completions[program.id]?.[dayIndex] || false
+                      const isSaving = savingCells.has(`${program.id}-${dayIndex}`)
                       return (
                         <td
                           key={dayIndex}
                           className={`text-center py-3 px-1 ${isToday ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}
                         >
-                          <Checkbox
-                            checked={isCompleted}
-                            onCheckedChange={() => toggleCompletion(program.id, dayIndex)}
-                            disabled={isReadOnly}
-                            className={`h-6 w-6 ${isCompleted ? 'data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600' : ''}`}
-                          />
+                          {isSaving ? (
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto" />
+                          ) : (
+                            <Checkbox
+                              checked={isCompleted}
+                              onCheckedChange={() => toggleCompletion(program.id, dayIndex)}
+                              disabled={isReadOnly}
+                              className={`h-6 w-6 ${isCompleted ? 'data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600' : ''}`}
+                            />
+                          )}
                         </td>
                       )
                     })}
@@ -581,7 +599,7 @@ export default function AttendancePage() {
             </table>
           </div>
 
-          <div className="mt-4 pt-4 border-t flex items-center justify-between">
+          <div className="mt-4 pt-4 border-t">
             <div className="text-sm">
               <span className="text-muted-foreground">Progression semaine : </span>
               <span className={`font-bold text-lg ${weekPercentage >= 80 ? 'text-emerald-600' : weekPercentage >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
@@ -589,28 +607,6 @@ export default function AttendancePage() {
               </span>
               <span className="text-muted-foreground ml-2">({totalCompleted}/{totalPossible})</span>
             </div>
-            <Button
-              onClick={saveAllCompletions}
-              disabled={saving || isReadOnly}
-              className="bg-emerald-600 hover:bg-emerald-700"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Enregistrement...
-                </>
-              ) : saved ? (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Enregistré !
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Enregistrer
-                </>
-              )}
-            </Button>
           </div>
         </CardContent>
       </Card>
