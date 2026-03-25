@@ -151,6 +151,7 @@ export default function AttendancePage() {
   const [weeklyObjectives, setWeeklyObjectives] = useState<WeeklyObjective[]>([])
   const [loading, setLoading] = useState(true)
   const [savingCells, setSavingCells] = useState<Set<string>>(new Set())
+  const [errorCells, setErrorCells] = useState<Set<string>>(new Set())
 
   // Calendar popover state
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -222,11 +223,11 @@ export default function AttendancePage() {
     }
   }, [selectedUserId, fetchData])
 
-  async function toggleCompletion(programId: string, dayIndex: number) {
+  function toggleCompletion(programId: string, dayIndex: number) {
     const cellKey = `${programId}-${dayIndex}`
     const newCompleted = !completions[programId]?.[dayIndex]
 
-    // Optimistic update
+    // Optimistic update — immediate, non-blocking
     setCompletions(prev => ({
       ...prev,
       [programId]: {
@@ -235,51 +236,56 @@ export default function AttendancePage() {
       }
     }))
 
+    // Clear any previous error on this cell
+    setErrorCells(prev => {
+      if (!prev.has(cellKey)) return prev
+      const next = new Set(prev)
+      next.delete(cellKey)
+      return next
+    })
+
     setSavingCells(prev => new Set(prev).add(cellKey))
 
-    try {
-      const res = await fetch('/api/attendance/programs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: selectedUserId,
-          completions: {
-            [programId]: {
-              [dayIndex]: {
-                date: format(weekDates[dayIndex], 'yyyy-MM-dd'),
-                completed: newCompleted
-              }
+    // Fire-and-forget API call
+    fetch('/api/attendance/programs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: selectedUserId,
+        completions: {
+          [programId]: {
+            [dayIndex]: {
+              date: format(weekDates[dayIndex], 'yyyy-MM-dd'),
+              completed: newCompleted
             }
           }
-        })
+        }
       })
-
-      if (!res.ok) {
-        // Revert on error
+    })
+      .then(res => {
+        if (!res.ok) {
+          // Revert on error
+          setCompletions(prev => ({
+            ...prev,
+            [programId]: { ...prev[programId], [dayIndex]: !newCompleted }
+          }))
+          setErrorCells(prev => new Set(prev).add(cellKey))
+        }
+      })
+      .catch(() => {
         setCompletions(prev => ({
           ...prev,
-          [programId]: {
-            ...prev[programId],
-            [dayIndex]: !newCompleted
-          }
+          [programId]: { ...prev[programId], [dayIndex]: !newCompleted }
         }))
-      }
-    } catch {
-      // Revert on error
-      setCompletions(prev => ({
-        ...prev,
-        [programId]: {
-          ...prev[programId],
-          [dayIndex]: !newCompleted
-        }
-      }))
-    } finally {
-      setSavingCells(prev => {
-        const next = new Set(prev)
-        next.delete(cellKey)
-        return next
+        setErrorCells(prev => new Set(prev).add(cellKey))
       })
-    }
+      .finally(() => {
+        setSavingCells(prev => {
+          const next = new Set(prev)
+          next.delete(cellKey)
+          return next
+        })
+      })
   }
 
   async function toggleObjective(objective: WeeklyObjective) {
@@ -574,22 +580,20 @@ export default function AttendancePage() {
                     {weekDates.map((date, dayIndex) => {
                       const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
                       const isCompleted = completions[program.id]?.[dayIndex] || false
-                      const isSaving = savingCells.has(`${program.id}-${dayIndex}`)
+                      const cellKey = `${program.id}-${dayIndex}`
+                      const isSaving = savingCells.has(cellKey)
+                      const hasError = errorCells.has(cellKey)
                       return (
                         <td
                           key={dayIndex}
-                          className={`text-center py-3 px-1 ${isToday ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}
+                          className={`text-center py-3 px-1 relative ${isToday ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''} ${hasError ? 'bg-red-50 dark:bg-red-950/30' : ''}`}
                         >
-                          {isSaving ? (
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto" />
-                          ) : (
-                            <Checkbox
-                              checked={isCompleted}
-                              onCheckedChange={() => toggleCompletion(program.id, dayIndex)}
-                              disabled={isReadOnly}
-                              className={`h-6 w-6 ${isCompleted ? 'data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600' : ''}`}
-                            />
-                          )}
+                          <Checkbox
+                            checked={isCompleted}
+                            onCheckedChange={() => toggleCompletion(program.id, dayIndex)}
+                            disabled={isReadOnly}
+                            className={`h-6 w-6 ${isSaving ? 'opacity-50' : ''} ${isCompleted ? 'data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600' : ''}`}
+                          />
                         </td>
                       )
                     })}
