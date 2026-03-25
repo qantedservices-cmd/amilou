@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -39,6 +39,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar'
 import { format, addDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { toast } from 'sonner'
 
 interface ManageableUser {
   id: string
@@ -152,6 +153,7 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true)
   const [savingCells, setSavingCells] = useState<Set<string>>(new Set())
   const [errorCells, setErrorCells] = useState<Set<string>>(new Set())
+  const recalcTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Calendar popover state
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -223,7 +225,16 @@ export default function AttendancePage() {
     }
   }, [selectedUserId, fetchData])
 
+  // Trigger debounced position recalculation after attendance changes
+  function scheduleRecalculation() {
+    if (recalcTimerRef.current) clearTimeout(recalcTimerRef.current)
+    recalcTimerRef.current = setTimeout(() => {
+      fetch('/api/progress-tracker?recalculate=true').catch(() => {})
+    }, 3000)
+  }
+
   function toggleCompletion(programId: string, dayIndex: number) {
+    if (isReadOnly) return
     const cellKey = `${programId}-${dayIndex}`
     const newCompleted = !completions[programId]?.[dayIndex]
 
@@ -262,22 +273,28 @@ export default function AttendancePage() {
         }
       })
     })
-      .then(res => {
+      .then(async res => {
         if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
           // Revert on error
           setCompletions(prev => ({
             ...prev,
             [programId]: { ...prev[programId], [dayIndex]: !newCompleted }
           }))
           setErrorCells(prev => new Set(prev).add(cellKey))
+          toast.error(`Erreur sauvegarde: ${data.error || res.status}`)
+        } else {
+          // Schedule position recalculation (debounced 3s after last toggle)
+          scheduleRecalculation()
         }
       })
-      .catch(() => {
+      .catch((err) => {
         setCompletions(prev => ({
           ...prev,
           [programId]: { ...prev[programId], [dayIndex]: !newCompleted }
         }))
         setErrorCells(prev => new Set(prev).add(cellKey))
+        toast.error(`Erreur réseau: ${err.message || 'connexion échouée'}`)
       })
       .finally(() => {
         setSavingCells(prev => {

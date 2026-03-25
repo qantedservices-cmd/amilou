@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { getEffectiveUserId } from '@/lib/impersonation'
 
 // Daily programs in order
 const DAILY_PROGRAMS = ['MEMORIZATION', 'CONSOLIDATION', 'REVISION', 'READING']
@@ -151,9 +152,12 @@ export async function POST(request: Request) {
     const { userId, completions } = await request.json()
     // completions: { programId: { dayIndex: { date: string, completed: boolean } } }
 
+    // Support impersonation
+    const { userId: effectiveUserId } = await getEffectiveUserId()
+    const targetUserId = userId || effectiveUserId || session.user.id
+
     // Check permissions for modifying another user
-    const targetUserId = userId || session.user.id
-    if (targetUserId !== session.user.id) {
+    if (targetUserId !== effectiveUserId && targetUserId !== session.user.id) {
       const currentUser = await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { role: true }
