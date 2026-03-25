@@ -151,9 +151,10 @@ export default function AttendancePage() {
   const [objectives, setObjectives] = useState<Record<string, ProgramObjective | null>>({})
   const [weeklyObjectives, setWeeklyObjectives] = useState<WeeklyObjective[]>([])
   const [loading, setLoading] = useState(true)
-  const [savingCells, setSavingCells] = useState<Set<string>>(new Set())
-  const [errorCells, setErrorCells] = useState<Set<string>>(new Set())
-  const recalcTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingChangesRef = useRef<Record<string, Record<number, { date: string; completed: boolean }>>>({})
 
   // Calendar popover state
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -225,20 +226,47 @@ export default function AttendancePage() {
     }
   }, [selectedUserId, fetchData])
 
-  // Trigger debounced position recalculation after attendance changes
-  function scheduleRecalculation() {
-    if (recalcTimerRef.current) clearTimeout(recalcTimerRef.current)
-    recalcTimerRef.current = setTimeout(() => {
-      fetch('/api/progress-tracker?recalculate=true').catch(() => {})
-    }, 3000)
+  // Debounced batch save: collects all changes, sends once after 1s of inactivity
+  function flushSave() {
+    const changes = pendingChangesRef.current
+    if (Object.keys(changes).length === 0) return
+
+    pendingChangesRef.current = {}
+    setSaving(true)
+
+    fetch('/api/attendance/programs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: selectedUserId,
+        completions: changes
+      })
+    })
+      .then(async res => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          toast.error(`Erreur sauvegarde: ${data.error || res.status}`)
+          // Reload from server to get correct state
+          fetchData()
+        } else {
+          setSaved(true)
+          setTimeout(() => setSaved(false), 2000)
+          // Recalculate positions after save
+          fetch('/api/progress-tracker?recalculate=true').catch(() => {})
+        }
+      })
+      .catch((err) => {
+        toast.error(`Erreur réseau: ${err.message || 'connexion échouée'}`)
+        fetchData()
+      })
+      .finally(() => setSaving(false))
   }
 
   function toggleCompletion(programId: string, dayIndex: number) {
     if (isReadOnly) return
-    const cellKey = `${programId}-${dayIndex}`
     const newCompleted = !completions[programId]?.[dayIndex]
 
-    // Optimistic update — immediate, non-blocking
+    // Immediate local update — no re-render from refs
     setCompletions(prev => ({
       ...prev,
       [programId]: {
@@ -247,62 +275,18 @@ export default function AttendancePage() {
       }
     }))
 
-    // Clear any previous error on this cell
-    setErrorCells(prev => {
-      if (!prev.has(cellKey)) return prev
-      const next = new Set(prev)
-      next.delete(cellKey)
-      return next
-    })
+    // Accumulate changes in ref (no re-render)
+    if (!pendingChangesRef.current[programId]) {
+      pendingChangesRef.current[programId] = {}
+    }
+    pendingChangesRef.current[programId][dayIndex] = {
+      date: format(weekDates[dayIndex], 'yyyy-MM-dd'),
+      completed: newCompleted
+    }
 
-    setSavingCells(prev => new Set(prev).add(cellKey))
-
-    // Fire-and-forget API call
-    fetch('/api/attendance/programs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: selectedUserId,
-        completions: {
-          [programId]: {
-            [dayIndex]: {
-              date: format(weekDates[dayIndex], 'yyyy-MM-dd'),
-              completed: newCompleted
-            }
-          }
-        }
-      })
-    })
-      .then(async res => {
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          // Revert on error
-          setCompletions(prev => ({
-            ...prev,
-            [programId]: { ...prev[programId], [dayIndex]: !newCompleted }
-          }))
-          setErrorCells(prev => new Set(prev).add(cellKey))
-          toast.error(`Erreur sauvegarde: ${data.error || res.status}`)
-        } else {
-          // Schedule position recalculation (debounced 3s after last toggle)
-          scheduleRecalculation()
-        }
-      })
-      .catch((err) => {
-        setCompletions(prev => ({
-          ...prev,
-          [programId]: { ...prev[programId], [dayIndex]: !newCompleted }
-        }))
-        setErrorCells(prev => new Set(prev).add(cellKey))
-        toast.error(`Erreur réseau: ${err.message || 'connexion échouée'}`)
-      })
-      .finally(() => {
-        setSavingCells(prev => {
-          const next = new Set(prev)
-          next.delete(cellKey)
-          return next
-        })
-      })
+    // Reset debounce timer — save 1s after last toggle
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(flushSave, 1000)
   }
 
   async function toggleObjective(objective: WeeklyObjective) {
@@ -597,19 +581,16 @@ export default function AttendancePage() {
                     {weekDates.map((date, dayIndex) => {
                       const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
                       const isCompleted = completions[program.id]?.[dayIndex] || false
-                      const cellKey = `${program.id}-${dayIndex}`
-                      const isSaving = savingCells.has(cellKey)
-                      const hasError = errorCells.has(cellKey)
                       return (
                         <td
                           key={dayIndex}
-                          className={`text-center py-3 px-1 relative ${isToday ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''} ${hasError ? 'bg-red-50 dark:bg-red-950/30' : ''}`}
+                          className={`text-center py-3 px-1 ${isToday ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}
                         >
                           <Checkbox
                             checked={isCompleted}
                             onCheckedChange={() => toggleCompletion(program.id, dayIndex)}
                             disabled={isReadOnly}
-                            className={`h-6 w-6 ${isSaving ? 'opacity-50' : ''} ${isCompleted ? 'data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600' : ''}`}
+                            className={`h-6 w-6 ${isCompleted ? 'data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600' : ''}`}
                           />
                         </td>
                       )
@@ -620,7 +601,7 @@ export default function AttendancePage() {
             </table>
           </div>
 
-          <div className="mt-4 pt-4 border-t">
+          <div className="mt-4 pt-4 border-t flex items-center justify-between">
             <div className="text-sm">
               <span className="text-muted-foreground">Progression semaine : </span>
               <span className={`font-bold text-lg ${weekPercentage >= 80 ? 'text-emerald-600' : weekPercentage >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
@@ -628,6 +609,17 @@ export default function AttendancePage() {
               </span>
               <span className="text-muted-foreground ml-2">({totalCompleted}/{totalPossible})</span>
             </div>
+            {saving ? (
+              <span className="text-sm text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Sauvegarde...
+              </span>
+            ) : saved ? (
+              <span className="text-sm text-emerald-600 flex items-center gap-1">
+                <Check className="h-4 w-4" />
+                Enregistré
+              </span>
+            ) : null}
           </div>
         </CardContent>
       </Card>
