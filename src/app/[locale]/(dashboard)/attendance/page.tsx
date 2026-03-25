@@ -234,39 +234,39 @@ export default function AttendancePage() {
   }, [completions])
 
   // Debounced batch save: collects all changes, sends once after 1s of inactivity
-  function flushSave() {
+  async function flushSave() {
     const changes = pendingChangesRef.current
     if (Object.keys(changes).length === 0) return
 
     pendingChangesRef.current = {}
     setSaving(true)
 
-    fetch('/api/attendance/programs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: selectedUserId,
-        completions: changes
+    try {
+      const res = await fetch('/api/attendance/programs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          completions: changes
+        })
       })
-    })
-      .then(async res => {
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          toast.error(`Erreur sauvegarde: ${data.error || res.status}`)
-          // Reload from server to get correct state
-          fetchData()
-        } else {
-          setSaved(true)
-          setTimeout(() => setSaved(false), 2000)
-          // Recalculate positions after save
-          fetch('/api/progress-tracker?recalculate=true').catch(() => {})
-        }
-      })
-      .catch((err) => {
-        toast.error(`Erreur réseau: ${err.message || 'connexion échouée'}`)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(`Erreur sauvegarde: ${data.error || res.status}`)
         fetchData()
-      })
-      .finally(() => setSaving(false))
+      } else {
+        // Recalculate positions after save (awaited)
+        await fetch('/api/progress-tracker?recalculate=true').catch(() => {})
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'connexion échouée'
+      toast.error(`Erreur réseau: ${message}`)
+      fetchData()
+    } finally {
+      setSaving(false)
+    }
   }
 
   function toggleCompletion(programId: string, dayIndex: number) {

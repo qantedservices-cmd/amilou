@@ -615,14 +615,9 @@ export default function DashboardPage() {
   }, [period, selectedYear, selectedMonth])
 
   useEffect(() => {
-    async function loadStats() {
-      // Recalculate positions silently before loading stats (updates from attendance)
-      try { await fetch('/api/progress-tracker?recalculate=true') } catch {}
-      const selfUser = manageableUsers.find(u => u.isSelf)
-      const targetId = (globalUserId && selfUser && globalUserId !== selfUser.id) ? globalUserId : undefined
-      fetchStats(true, targetId)
-    }
-    loadStats()
+    const selfUser = manageableUsers.find(u => u.isSelf)
+    const targetId = (globalUserId && selfUser && globalUserId !== selfUser.id) ? globalUserId : undefined
+    fetchStats(true, targetId)
   }, [period, selectedYear, selectedMonth])
 
   // Fetch week data when weekOffset changes (without full page reload)
