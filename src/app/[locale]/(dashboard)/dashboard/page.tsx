@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight, Library, Pause, Navigation } from 'lucide-react'
+import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight, ChevronDown, Library, Pause, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts'
 import {
@@ -32,6 +32,7 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { fr } from 'date-fns/locale'
 import { SimulatorCard } from '@/components/SimulatorCard'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 
 interface Program {
@@ -442,6 +443,33 @@ export default function DashboardPage() {
   const [globalUserName, setGlobalUserName] = useState<string>('')
   const [isViewingSelf, setIsViewingSelf] = useState(true)
   const [globalCanEdit, setGlobalCanEdit] = useState(true)
+
+  // Sections collapsed by default
+  const DEFAULT_COLLAPSED: Record<string, boolean> = {
+    'surah-progress': true,
+    'group-ranking': true,
+    'period-progress': true,
+    'recent-entries': true,
+  }
+
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(DEFAULT_COLLAPSED)
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem('dashboard-collapsed')
+      if (stored) setCollapsedSections({ ...DEFAULT_COLLAPSED, ...JSON.parse(stored) })
+    } catch {}
+  }, [])
+
+  const toggleSection = useCallback((id: string) => {
+    setCollapsedSections(prev => {
+      const next = { ...prev, [id]: !prev[id] }
+      try { window.localStorage.setItem('dashboard-collapsed', JSON.stringify(next)) } catch {}
+      return next
+    })
+  }, [])
+
+  const isSectionOpen = useCallback((id: string) => !collapsedSections[id], [collapsedSections])
 
   async function fetchSurahStats(targetUserId?: string) {
     try {
@@ -1367,6 +1395,8 @@ export default function DashboardPage() {
     }))
   }, [userBooks])
 
+  const nawawiBook = useMemo(() => userBooks.find(b => b.sourceRef === 'nawawi40'), [userBooks])
+
   // Calculate cursor position for memorization (last surah with data)
   const memorizationCursor = useMemo(() => {
     if (!memorizationSegments.length) return undefined
@@ -1638,66 +1668,64 @@ export default function DashboardPage() {
         </TooltipContent>
       </Tooltip>
 
-      {/* Global Progress Bar */}
+      {/* ROW A: Avancement Mémorisation + SimulatorCard */}
       {isProgramEnabled('MEMORIZATION') && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Card
-              className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-950/30 dark:to-blue-950/30 border-emerald-200 dark:border-emerald-800 cursor-pointer hover:shadow-md transition-all duration-200"
-              onClick={() => window.location.href = `/${locale}/progress`}
-            >
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Award className="h-5 w-5 text-emerald-600" />
-                  Mon Avancement Global - Mémorisation
-                </CardTitle>
-                <CardDescription>
-                  Progression dans la mémorisation du Coran
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Progression</span>
-                    <span className="font-bold text-emerald-600 text-lg">
-                      {stats?.globalProgress?.percentage || 0}%
-                    </span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Card
+                className="bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-950/30 dark:to-blue-950/30 border-emerald-200 dark:border-emerald-800 cursor-pointer hover:shadow-md transition-all duration-200"
+                onClick={() => window.location.href = `/${locale}/progress`}
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Award className="h-5 w-5 text-emerald-600" />
+                    Mon Avancement Global - Mémorisation
+                  </CardTitle>
+                  <CardDescription>
+                    Progression dans la mémorisation du Coran
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Progression</span>
+                      <span className="font-bold text-emerald-600 text-lg">
+                        {stats?.globalProgress?.percentage || 0}%
+                      </span>
+                    </div>
+                    {memorizationSegments.length > 0 ? (
+                      <SegmentedProgressBar
+                        segments={memorizationSegments}
+                        cursorPosition={memorizationCursor}
+                        mode="compact"
+                        colorScheme="memorization"
+                        onBarClick={() => window.location.href = `/${locale}/progress`}
+                      />
+                    ) : (
+                      <Progress
+                        value={stats?.globalProgress?.percentage || 0}
+                        className="h-4 bg-emerald-100 dark:bg-emerald-900"
+                      />
+                    )}
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{stats?.globalProgress?.memorizedPages || 0} pages</span>
+                      <span>{stats?.globalProgress?.memorizedSurahs || 0} sourates</span>
+                      <span>{stats?.globalProgress?.memorizedVerses || 0} versets</span>
+                    </div>
                   </div>
-                  {memorizationSegments.length > 0 ? (
-                    <SegmentedProgressBar
-                      segments={memorizationSegments}
-                      cursorPosition={memorizationCursor}
-                      mode="compact"
-                      colorScheme="memorization"
-                      onBarClick={() => window.location.href = `/${locale}/progress`}
-                    />
-                  ) : (
-                    <Progress
-                      value={stats?.globalProgress?.percentage || 0}
-                      className="h-4 bg-emerald-100 dark:bg-emerald-900"
-                    />
-                  )}
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{stats?.globalProgress?.memorizedPages || 0} pages</span>
-                    <span>{stats?.globalProgress?.memorizedSurahs || 0} sourates</span>
-                    <span>{stats?.globalProgress?.memorizedVerses || 0} versets</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Reste {stats?.memorizationPace?.remainingPages || 0} pages · {stats?.memorizationPace?.remainingJuz || 0} juz · Cliquer pour voir le détail</p>
-          </TooltipContent>
-        </Tooltip>
-      )}
-
-      {/* Projection Mémorisation */}
-      {isProgramEnabled('MEMORIZATION') && (
-        <SimulatorCard
-          memorizationPace={stats?.memorizationPace || null}
-          memorizedPercentage={stats?.globalProgress?.percentage || 0}
-        />
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Reste {stats?.memorizationPace?.remainingPages || 0} pages · {stats?.memorizationPace?.remainingJuz || 0} juz · Cliquer pour voir le détail</p>
+            </TooltipContent>
+          </Tooltip>
+          <SimulatorCard
+            memorizationPace={stats?.memorizationPace || null}
+            memorizedPercentage={stats?.globalProgress?.percentage || 0}
+          />
+        </div>
       )}
 
       {/* Stats Cards */}
@@ -1732,6 +1760,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Cette Semaine - Grille Programmes */}
+      <Collapsible open={isSectionOpen('daily-programs')} onOpenChange={() => toggleSection('daily-programs')}>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1805,15 +1834,13 @@ export default function DashboardPage() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
               {loadingWeek && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+              <CollapsibleTrigger className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground">
+                <ChevronDown className={`h-4 w-4 transition-transform ${isSectionOpen('daily-programs') ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
             </div>
           </div>
-          <CardDescription>
-            {viewingOtherUser && !weekGridCanEdit
-              ? 'Consultation des données en lecture seule'
-              : 'Cliquez pour marquer comme complété'
-            }
-          </CardDescription>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent>
           {/* Banner if no objectives defined */}
           {stats?.objectivesVsRealized && !stats.objectivesVsRealized.some(o => o.objective) && (
@@ -1971,20 +1998,26 @@ export default function DashboardPage() {
             ))}
           </div>
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
       {/* Programmes Journaliers - Stats Période */}
       {stats?.periodProgramStats && stats.periodProgramStats.length > 0 && (
+        <Collapsible open={isSectionOpen('period-programs')} onOpenChange={() => toggleSection('period-programs')}>
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-blue-600" />
-              Programmes Journaliers - {getPeriodLabel()}
-            </CardTitle>
-            <CardDescription>
-              Taux de complétion par programme sur la période
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-blue-600" />
+                Programmes Journaliers - {getPeriodLabel()}
+              </CardTitle>
+              <CollapsibleTrigger className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground">
+                <ChevronDown className={`h-4 w-4 transition-transform ${isSectionOpen('period-programs') ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+            </div>
           </CardHeader>
+          <CollapsibleContent>
           <CardContent>
             <div className="space-y-4">
               {stats.periodProgramStats.map((prog) => (
@@ -2016,21 +2049,29 @@ export default function DashboardPage() {
               ))}
             </div>
           </CardContent>
+          </CollapsibleContent>
         </Card>
+        </Collapsible>
       )}
 
-      {/* Indicateur d'Avancement Révision & Lecture */}
-      {stats?.progressTracker && (isProgramEnabled('REVISION') || isProgramEnabled('READING')) && (
+      {/* ROW B: Avancement Rév & Lecture + Cycles de Complétion */}
+      {(isProgramEnabled('REVISION') || isProgramEnabled('READING')) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {stats?.progressTracker && (
+        <Collapsible open={isSectionOpen('rev-lecture-tracker')} onOpenChange={() => toggleSection('rev-lecture-tracker')}>
         <Card className="border-2 border-teal-200 dark:border-teal-800">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Navigation className="h-5 w-5 text-teal-600" />
-              Mon Avancement Révision & Lecture
-            </CardTitle>
-            <CardDescription>
-              Position actuelle dans le cycle en cours
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Navigation className="h-5 w-5 text-teal-600" />
+                Mon Avancement Révision & Lecture
+              </CardTitle>
+              <CollapsibleTrigger className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground">
+                <ChevronDown className={`h-4 w-4 transition-transform ${isSectionOpen('rev-lecture-tracker') ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+            </div>
           </CardHeader>
+          <CollapsibleContent>
           <CardContent className="space-y-4">
             {/* Lecture */}
             {stats.progressTracker.reading && (
@@ -2142,20 +2183,26 @@ export default function DashboardPage() {
               </div>
             )}
           </CardContent>
+          </CollapsibleContent>
         </Card>
+        </Collapsible>
       )}
 
       {/* Cycles de Complétion (Révision & Lecture) */}
-      {(isProgramEnabled('REVISION') || isProgramEnabled('READING')) && <Card className="border-2 border-amber-200 dark:border-amber-800">
+      <Collapsible open={isSectionOpen('completion-cycles')} onOpenChange={() => toggleSection('completion-cycles')}>
+      <Card className="border-2 border-amber-200 dark:border-amber-800">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RotateCcw className="h-5 w-5 text-amber-600" />
-            Cycles de Complétion
-          </CardTitle>
-          <CardDescription>
-            Suivi des révisions et lectures complètes du Coran
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-amber-600" />
+              Cycles de Complétion
+            </CardTitle>
+            <CollapsibleTrigger className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground">
+              <ChevronDown className={`h-4 w-4 transition-transform ${isSectionOpen('completion-cycles') ? 'rotate-180' : ''}`} />
+            </CollapsibleTrigger>
+          </div>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2">
             {/* Révision */}
@@ -2283,8 +2330,28 @@ export default function DashboardPage() {
             </div>
           </div>
         </CardContent>
-      </Card>}
+        </CollapsibleContent>
+      </Card>
+      </Collapsible>
+        </div>
+      )}
 
+      {/* ROW C: Tafsir + Nawawi/Livres */}
+      {(() => {
+        const hasTafsir = isProgramEnabled('TAFSIR')
+        const hasNawawi = !!nawawiBook
+        const hasBooks = bookSegments.length > 0
+        const hasSecondCol = hasNawawi || hasBooks
+        const showRow = hasTafsir || hasSecondCol
+        if (!showRow) return null
+
+        // If both nawawi and books exist, nawawi goes in row C, books goes standalone below
+        const nawawiInRowC = hasNawawi
+        const booksInRowC = !hasNawawi && hasBooks
+
+        return (
+          <>
+          <div className={`grid grid-cols-1 ${hasTafsir && (nawawiInRowC || booksInRowC) ? 'md:grid-cols-2' : ''} gap-6`}>
       {/* Tafsir Coverage */}
       {isProgramEnabled('TAFSIR') && (
         <Tooltip>
@@ -2333,16 +2400,13 @@ export default function DashboardPage() {
         </Tooltip>
       )}
 
-      {/* 40 Hadiths Nawawi */}
-      {(() => {
-        const nawawi = userBooks.find(b => b.sourceRef === 'nawawi40')
-        if (!nawawi) return null
-        return (
+      {/* 40 Hadiths Nawawi (in Row C) */}
+      {nawawiInRowC && nawawiBook && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Card
                 className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-md transition-all duration-200"
-                onClick={() => window.location.href = `/${locale}/books/${nawawi.id}`}
+                onClick={() => window.location.href = `/${locale}/books/${nawawiBook.id}`}
               >
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-lg">
@@ -2357,31 +2421,30 @@ export default function DashboardPage() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Progression</span>
-                      <span className="font-bold text-amber-600 text-lg">{nawawi.percentage || 0}%</span>
+                      <span className="font-bold text-amber-600 text-lg">{nawawiBook.percentage || 0}%</span>
                     </div>
                     <div className="h-3 bg-amber-100 dark:bg-amber-900 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-amber-500 transition-all duration-300 rounded-full"
-                        style={{ width: `${nawawi.percentage || 0}%` }}
+                        style={{ width: `${nawawiBook.percentage || 0}%` }}
                       />
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{nawawi.completedItems || 0} hadiths mémorisés</span>
-                      <span>{nawawi.totalItems} total</span>
+                      <span>{nawawiBook.completedItems || 0} hadiths mémorisés</span>
+                      <span>{nawawiBook.totalItems} total</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{nawawi.completedItems || 0}/{nawawi.totalItems} hadiths · Cliquer pour voir le détail</p>
+              <p>{nawawiBook.completedItems || 0}/{nawawiBook.totalItems} hadiths · Cliquer pour voir le détail</p>
             </TooltipContent>
           </Tooltip>
-        )
-      })()}
+      )}
 
-      {/* Mes Livres */}
-      {bookSegments.length > 0 && (
+      {/* Mes Livres (in Row C if no Nawawi) */}
+      {booksInRowC && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Card
@@ -2429,29 +2492,85 @@ export default function DashboardPage() {
           </TooltipContent>
         </Tooltip>
       )}
+          </div>
+
+      {/* Mes Livres - standalone (when both Nawawi and Books exist) */}
+      {hasNawawi && hasBooks && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Card
+              className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800 cursor-pointer hover:shadow-md transition-all duration-200"
+              onClick={() => window.location.href = `/${locale}/books`}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Library className="h-5 w-5 text-blue-600" />
+                  Mes Livres
+                </CardTitle>
+                <CardDescription>
+                  Progression dans les livres d'étude
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {userBooks.filter(b => (b.percentage || 0) >= 100).length}/{userBooks.length} livres complétés
+                    </span>
+                    <span className="font-bold text-blue-600 text-lg">
+                      {userBooks.length > 0
+                        ? Math.round(userBooks.reduce((sum, b) => sum + (b.percentage || 0), 0) / userBooks.length)
+                        : 0}%
+                    </span>
+                  </div>
+                  <SegmentedProgressBar
+                    segments={bookSegments}
+                    mode="compact"
+                    colorScheme="book"
+                    onBarClick={() => window.location.href = `/${locale}/books`}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    {userBooks.slice(0, 3).map(b => (
+                      <span key={b.id} className="truncate max-w-[30%]">{b.title}: {b.percentage}%</span>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{userBooks.filter(b => (b.percentage || 0) >= 100).length}/{userBooks.length} livres complétés · Cliquer pour voir la bibliothèque</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+          </>
+        )
+      })()}
 
       {/* Avancement par Sourate */}
+      <Collapsible open={isSectionOpen('surah-progress')} onOpenChange={() => toggleSection('surah-progress')}>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-emerald-600" />
-                Avancement par Sourate
-              </CardTitle>
-              <CardDescription>
-                Progression détaillée des 114 sourates
-              </CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-emerald-600" />
+              Avancement par Sourate
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSurahsExpanded(!surahsExpanded)}
+              >
+                {surahsExpanded ? 'Réduire' : 'Voir tout'}
+              </Button>
+              <CollapsibleTrigger className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground">
+                <ChevronDown className={`h-4 w-4 transition-transform ${isSectionOpen('surah-progress') ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSurahsExpanded(!surahsExpanded)}
-            >
-              {surahsExpanded ? 'Réduire' : 'Voir tout'}
-            </Button>
           </div>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent>
           {/* Program tabs - only MEMORIZATION and TAFSIR (CONSOLIDATION is tracked by attendance only) */}
           <div className="flex gap-2 mb-4 flex-wrap">
@@ -2564,20 +2683,26 @@ export default function DashboardPage() {
             </div>
           )}
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
       {/* Classement Groupe */}
       {groupRanking?.groups && groupRanking.groups.length > 0 && (
+        <Collapsible open={isSectionOpen('group-ranking')} onOpenChange={() => toggleSection('group-ranking')}>
         <Card className="border-2 border-amber-200 dark:border-amber-800">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-amber-600" />
-              Classement Groupe - Mémorisation
-            </CardTitle>
-            <CardDescription>
-              Challenge entre membres du groupe
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Award className="h-5 w-5 text-amber-600" />
+                Classement Groupe - Mémorisation
+              </CardTitle>
+              <CollapsibleTrigger className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground">
+                <ChevronDown className={`h-4 w-4 transition-transform ${isSectionOpen('group-ranking') ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+            </div>
           </CardHeader>
+          <CollapsibleContent>
           <CardContent>
             {groupRanking.groups.map(group => (
               <div key={group.groupId} className="mb-6 last:mb-0">
@@ -2667,10 +2792,13 @@ export default function DashboardPage() {
               </div>
             ))}
           </CardContent>
+          </CollapsibleContent>
         </Card>
+        </Collapsible>
       )}
 
       {/* Assiduité Programmes - Résumé */}
+      <Collapsible open={isSectionOpen('program-attendance')} onOpenChange={() => toggleSection('program-attendance')}>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -2679,19 +2807,22 @@ export default function DashboardPage() {
                 <Calendar className="h-5 w-5 text-blue-600" />
                 Assiduité Programmes
               </CardTitle>
-              <CardDescription>
-                Taux de réalisation par programme
-              </CardDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.location.href = `/${locale}/attendance`}
-            >
-              Voir détails
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = `/${locale}/attendance`}
+              >
+                Voir détails
+              </Button>
+              <CollapsibleTrigger className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground">
+                <ChevronDown className={`h-4 w-4 transition-transform ${isSectionOpen('program-attendance') ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+            </div>
           </div>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent>
           {/* Période summary */}
           <div className="grid grid-cols-3 gap-4 mb-4 p-3 rounded-lg bg-muted/30">
@@ -2784,19 +2915,25 @@ export default function DashboardPage() {
             })}
           </div>
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
       {/* Evolution Chart */}
+      <Collapsible open={isSectionOpen('evolution-chart')} onOpenChange={() => toggleSection('evolution-chart')}>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-blue-600" />
-            Évolution sur 12 semaines
-          </CardTitle>
-          <CardDescription>
-            Versets travaillés par programme (toutes activités confondues)
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-blue-600" />
+              Évolution sur 12 semaines
+            </CardTitle>
+            <CollapsibleTrigger className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground">
+              <ChevronDown className={`h-4 w-4 transition-transform ${isSectionOpen('evolution-chart') ? 'rotate-180' : ''}`} />
+            </CollapsibleTrigger>
+          </div>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent>
           {stats?.evolutionData && stats.evolutionData.some(d => d.total > 0) ? (
             <div className="h-[300px] w-full">
@@ -2841,17 +2978,27 @@ export default function DashboardPage() {
             </div>
           )}
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
+      {/* ROW D: Progression par programme + Dernières entrées */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Period Progress */}
+      <Collapsible open={isSectionOpen('period-progress')} onOpenChange={() => toggleSection('period-progress')}>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-emerald-600" />
-            Progression par programme - {getPeriodLabel()}
-          </CardTitle>
-          <CardDescription>Versets travaillés</CardDescription>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-emerald-600" />
+              Progression - {getPeriodLabel()}
+            </CardTitle>
+            <CollapsibleTrigger className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground">
+              <ChevronDown className={`h-4 w-4 transition-transform ${isSectionOpen('period-progress') ? 'rotate-180' : ''}`} />
+            </CollapsibleTrigger>
+          </div>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent>
           {stats?.progressByProgram && Object.keys(stats.progressByProgram).length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -2878,14 +3025,22 @@ export default function DashboardPage() {
             </div>
           )}
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
       {/* Recent Progress */}
+      <Collapsible open={isSectionOpen('recent-entries')} onOpenChange={() => toggleSection('recent-entries')}>
       <Card>
         <CardHeader>
-          <CardTitle>{t('progress.title')}</CardTitle>
-          <CardDescription>Vos dernières entrées - {getPeriodLabel()}</CardDescription>
+          <div className="flex items-center justify-between">
+            <CardTitle>{t('progress.title')}</CardTitle>
+            <CollapsibleTrigger className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground">
+              <ChevronDown className={`h-4 w-4 transition-transform ${isSectionOpen('recent-entries') ? 'rotate-180' : ''}`} />
+            </CollapsibleTrigger>
+          </div>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent>
           {stats?.recentProgress && stats.recentProgress.length > 0 ? (
             <div className="space-y-3">
@@ -2914,7 +3069,10 @@ export default function DashboardPage() {
             </div>
           )}
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
+      </div>
 
       {/* Inactivity Alerts (admin/referent only) — bottom of dashboard */}
       {isViewingSelf && inactiveAlerts.length > 0 && (
