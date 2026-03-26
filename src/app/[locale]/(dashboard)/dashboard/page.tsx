@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, Flame, ArrowUp, ArrowDown, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight, ChevronDown, Library, Pause, Navigation } from 'lucide-react'
+import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, ArrowUp, ArrowDown, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight, ChevronDown, Library, Pause, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts'
 import {
@@ -1452,26 +1452,6 @@ export default function DashboardPage() {
       tooltip: `${stats?.memorizationPace?.remainingPages || 0} pages restantes · ${stats?.memorizationPace?.remainingJuz || 0} juz restants`,
       href: `/${locale}/progress`,
     },
-    {
-      title: 'Série quotidienne',
-      value: stats?.dailyStreak || 0,
-      description: 'jours consécutifs',
-      icon: Flame,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100 dark:bg-orange-900',
-      tooltip: `Programmes complétés chaque jour sans interruption`,
-      href: `/${locale}/attendance`,
-    },
-    {
-      title: 'Série hebdo',
-      value: stats?.weeklyStreak || 0,
-      description: 'semaines consécutives',
-      icon: Award,
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-100 dark:bg-amber-900',
-      tooltip: `Semaines avec au moins un jour actif`,
-      href: `/${locale}/attendance`,
-    },
   ]
 
   const DAY_NAMES = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
@@ -1729,7 +1709,7 @@ export default function DashboardPage() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2">
         {statCards.map((stat) => {
           const Icon = stat.icon
           return (
