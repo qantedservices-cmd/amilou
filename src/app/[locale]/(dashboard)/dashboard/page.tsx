@@ -451,6 +451,7 @@ export default function DashboardPage() {
 
   // User selector for Programmes Journaliers
   const [manageableUsers, setManageableUsers] = useState<ManageableUser[]>([])
+  const [usersLoaded, setUsersLoaded] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string>('')
   const [viewingOtherUser, setViewingOtherUser] = useState(false)
   const [weekGridCanEdit, setWeekGridCanEdit] = useState(true)
@@ -806,10 +807,11 @@ export default function DashboardPage() {
   }, [period, selectedYear, selectedMonth])
 
   useEffect(() => {
+    if (!usersLoaded) return
     const selfUser = manageableUsers.find(u => u.isSelf)
     const targetId = (globalUserId && selfUser && globalUserId !== selfUser.id) ? globalUserId : undefined
     fetchStats(true, targetId)
-  }, [period, selectedYear, selectedMonth])
+  }, [period, selectedYear, selectedMonth, usersLoaded])
 
   // Fetch week data when weekOffset changes (without full page reload)
   // Skip on initial mount - stats already has current week data
@@ -905,6 +907,7 @@ export default function DashboardPage() {
             setGlobalUserId(initialUser.id)
             setGlobalUserName(initialUser.name || initialUser.email)
           }
+          setUsersLoaded(true)
         }
       } catch (error) {
         console.error('Error fetching manageable users:', error)
