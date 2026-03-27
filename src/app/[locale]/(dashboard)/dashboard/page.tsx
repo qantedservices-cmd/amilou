@@ -557,9 +557,11 @@ export default function DashboardPage() {
     } catch {}
   }, [])
 
-  // Sync DB → localStorage when stats arrive (overrides local cache with server truth)
+  // Sync DB ↔ localStorage when stats arrive
   useEffect(() => {
-    if (stats?.dashboardLayout && stats.dashboardLayout.length > 0) {
+    if (!stats || stats.dashboardLayout === undefined) return
+    if (stats.dashboardLayout.length > 0) {
+      // DB has data → override localStorage (server is truth)
       const dbOrder = stats.dashboardLayout
       const knownIds = new Set(dbOrder)
       const merged = [
@@ -568,6 +570,17 @@ export default function DashboardPage() {
       ]
       setSectionOrder(merged)
       try { window.localStorage.setItem('dashboard-section-order', JSON.stringify(merged)) } catch {}
+    } else {
+      // DB is empty — if localStorage has a custom order, push it to DB (migration)
+      try {
+        const stored = window.localStorage.getItem('dashboard-section-order')
+        if (stored) {
+          const parsed: string[] = JSON.parse(stored)
+          if (parsed.length > 0 && JSON.stringify(parsed) !== JSON.stringify(DEFAULT_SECTION_ORDER)) {
+            syncLayoutToDb(parsed)
+          }
+        }
+      } catch {}
     }
   }, [stats?.dashboardLayout])
 
