@@ -1607,7 +1607,7 @@ export default function DashboardPage() {
     onClick: () => void
   }> = [
     {
-      title: 'Mémorisation',
+      title: 'Avancement mémorisation',
       value: `${stats?.globalProgress?.percentage || 0}%`,
       description: '',
       customContent: (
@@ -1622,6 +1622,27 @@ export default function DashboardPage() {
       bgColor: 'bg-emerald-100 dark:bg-emerald-900',
       tooltip: 'Cliquer pour voir le détail',
       onClick: () => setMemoDialogOpen(true),
+    },
+    {
+      title: 'Régularité mémorisation',
+      value: objAdherence ? `${objAdherence.realizationPercentage}%` : '—',
+      description: '',
+      customContent: objAdherence ? (
+        <div className="space-y-0.5 mt-1">
+          <p className="text-sm text-muted-foreground">de l&apos;objectif prévu sur 3 mois</p>
+          <p className="text-sm"><span className="font-semibold">{objAdherence.realizedPages}</span> <span className="text-muted-foreground">pages sur {objAdherence.expectedPages} attendues</span></p>
+          <p className="text-xs text-muted-foreground">Régularité : {objAdherence.activeWeeks} sem. actives sur {objAdherence.totalPeriodWeeks}</p>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground mt-1">Non configuré</p>
+      ),
+      icon: Target,
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-100 dark:bg-amber-900',
+      tooltip: objAdherence
+        ? `Objectif : ${objAdherence.objectiveLabel}`
+        : 'Aucun objectif configuré',
+      onClick: () => setObjectiveDialogOpen(true),
     },
     {
       title: 'Cycles Révision',
@@ -1664,26 +1685,6 @@ export default function DashboardPage() {
       bgColor: 'bg-purple-100 dark:bg-purple-900',
       tooltip: `Dernier : ${stats?.completionCycles?.lecture?.lastDate ? new Date(stats.completionCycles.lecture.lastDate).toLocaleDateString('fr-FR') : '-'}`,
       onClick: () => openCycleHistory('LECTURE'),
-    },
-    {
-      title: 'Objectif Mémorisation',
-      value: objAdherence ? `${objAdherence.realizationPercentage}%` : '—',
-      description: '',
-      customContent: objAdherence ? (
-        <div className="space-y-0.5 mt-1">
-          <p className="text-sm"><span className="font-semibold">{objAdherence.realizedPages}</span> <span className="text-muted-foreground">pages sur {objAdherence.expectedPages} attendues</span></p>
-          <p className="text-xs text-muted-foreground">Régularité : {objAdherence.activeWeeks} sem. sur {objAdherence.totalPeriodWeeks}</p>
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground mt-1">Non configuré</p>
-      ),
-      icon: Target,
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-100 dark:bg-amber-900',
-      tooltip: objAdherence
-        ? `Objectif : ${objAdherence.objectiveLabel}`
-        : 'Aucun objectif configuré',
-      onClick: () => setObjectiveDialogOpen(true),
     },
   ]
 
@@ -3358,7 +3359,7 @@ export default function DashboardPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-emerald-600" />
-              Mémorisation
+              Avancement mémorisation
             </DialogTitle>
             <DialogDescription>
               {stats?.globalProgress?.percentage || 0}% du Coran mémorisé
@@ -3409,10 +3410,10 @@ export default function DashboardPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Target className="h-5 w-5 text-amber-600" />
-              Objectif Mémorisation
+              Régularité mémorisation
             </DialogTitle>
             <DialogDescription>
-              {objAdherence ? objAdherence.objectiveLabel : 'Aucun objectif configuré'}
+              {objAdherence ? `${objAdherence.objectiveLabel} · sur 3 mois` : 'Aucun objectif configuré'}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
