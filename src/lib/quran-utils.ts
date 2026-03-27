@@ -61,22 +61,22 @@ export async function hizbToPosition(hizb: number): Promise<QuranPosition | null
     }
   }
 
-  // Get the first verse of that page (verset 1 de la page)
-  const firstOfPage = await prisma.verse.findFirst({
-    where: { page: marker.page },
+  // Get the first verse of that hizb (exact boundary)
+  const firstOfHizb = await prisma.verse.findFirst({
+    where: { hizb: marker.hizb },
     orderBy: [{ surahNumber: 'asc' }, { verseNumber: 'asc' }],
     include: { surah: true }
   })
 
-  if (!firstOfPage) return null
+  if (!firstOfHizb) return null
 
   return {
-    surahNumber: firstOfPage.surahNumber,
-    surahNameAr: firstOfPage.surah.nameAr,
-    verseNumber: firstOfPage.verseNumber,
-    page: firstOfPage.page,
-    hizb: firstOfPage.hizb || 0,
-    juz: firstOfPage.juz || 0
+    surahNumber: firstOfHizb.surahNumber,
+    surahNameAr: firstOfHizb.surah.nameAr,
+    verseNumber: firstOfHizb.verseNumber,
+    page: firstOfHizb.page,
+    hizb: firstOfHizb.hizb || 0,
+    juz: firstOfHizb.juz || 0
   }
 }
 
@@ -241,12 +241,22 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
   })
 
   // Get completed days after last cycles
+  // Use gte on the cycle DATE (truncated to midnight) so that entries on the
+  // cycle day itself count toward the new cycle. DailyProgramCompletion dates
+  // are stored at midnight, but cycle completedAt can have any time-of-day.
+  const lectureCycleDate = lastLectureCycle
+    ? new Date(new Date(lastLectureCycle.completedAt).toISOString().split('T')[0])
+    : null
+  const revisionCycleDate = lastRevisionCycle
+    ? new Date(new Date(lastRevisionCycle.completedAt).toISOString().split('T')[0])
+    : null
+
   const readingDays = readingProgram ? await prisma.dailyProgramCompletion.findMany({
     where: {
       userId,
       programId: readingProgram.id,
       completed: true,
-      ...(lastLectureCycle ? { date: { gt: lastLectureCycle.completedAt } } : {})
+      ...(lectureCycleDate ? { date: { gte: lectureCycleDate } } : {})
     },
     orderBy: { date: 'asc' },
     select: { date: true }
@@ -257,7 +267,7 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
       userId,
       programId: revisionProgram.id,
       completed: true,
-      ...(lastRevisionCycle ? { date: { gt: lastRevisionCycle.completedAt } } : {})
+      ...(revisionCycleDate ? { date: { gte: revisionCycleDate } } : {})
     },
     orderBy: { date: 'asc' },
     select: { date: true }
