@@ -1583,7 +1583,18 @@ export default function DashboardPage() {
     return !ep || ep.length === 0 || ep.includes(code)
   }, [stats?.enabledPrograms])
 
-  const statCards = [
+  const objAdherence = stats?.memorizationPace?.objectiveAdherence
+  const statCards: Array<{
+    title: string
+    value: string | number
+    description: string
+    icon: typeof BookOpen
+    color: string
+    bgColor: string
+    tooltip: string
+    href?: string
+    onClick?: () => void
+  }> = [
     {
       title: t('dashboard.stats.totalVerses'),
       value: stats?.globalProgress?.memorizedVerses || 0,
@@ -1603,6 +1614,54 @@ export default function DashboardPage() {
       bgColor: 'bg-blue-100 dark:bg-blue-900',
       tooltip: `${stats?.memorizationPace?.remainingPages || 0} pages restantes · ${stats?.memorizationPace?.remainingJuz || 0} juz restants`,
       href: `/${locale}/progress`,
+    },
+    {
+      title: '% Mémorisation',
+      value: `${stats?.globalProgress?.percentage || 0}%`,
+      description: `${stats?.globalProgress?.memorizedSurahs || 0} sourates sur 114`,
+      icon: TrendingUp,
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-100 dark:bg-emerald-900',
+      tooltip: `${60 - (stats?.memorizationPace?.remainingHizbs || 60)} hizbs · ${30 - (stats?.memorizationPace?.remainingJuz || 30)} juz mémorisés`,
+      href: `/${locale}/progress`,
+    },
+    {
+      title: 'Cycles Révision',
+      value: stats?.completionCycles?.revision?.totalCycles || 0,
+      description: stats?.completionCycles?.revision?.averageDays
+        ? `Moy. ${stats.completionCycles.revision.averageDays} jours`
+        : 'Aucun cycle',
+      icon: RefreshCw,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-100 dark:bg-blue-900',
+      tooltip: `Dernier : ${stats?.completionCycles?.revision?.lastDate ? new Date(stats.completionCycles.revision.lastDate).toLocaleDateString('fr-FR') : '-'}${stats?.completionCycles?.revision?.lastHizbCount ? ` · ${stats.completionCycles.revision.lastHizbCount} hizbs` : ''}`,
+      onClick: () => openCycleHistory('REVISION'),
+    },
+    {
+      title: 'Cycles Lecture',
+      value: stats?.completionCycles?.lecture?.totalCycles || 0,
+      description: stats?.completionCycles?.lecture?.averageDays
+        ? `Moy. ${stats.completionCycles.lecture.averageDays} jours`
+        : 'Aucun cycle',
+      icon: BookMarked,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-100 dark:bg-purple-900',
+      tooltip: `Dernier : ${stats?.completionCycles?.lecture?.lastDate ? new Date(stats.completionCycles.lecture.lastDate).toLocaleDateString('fr-FR') : '-'}`,
+      onClick: () => openCycleHistory('LECTURE'),
+    },
+    {
+      title: 'Objectif Mémorisation',
+      value: objAdherence ? `${objAdherence.percentage}%` : '—',
+      description: objAdherence && objAdherence.totalWeeks > 0
+        ? `${objAdherence.weeksMet} sem. tenues sur ${objAdherence.totalWeeks}`
+        : objAdherence?.objectiveLabel || 'Non configuré',
+      icon: Target,
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-100 dark:bg-amber-900',
+      tooltip: objAdherence
+        ? `Objectif : ${objAdherence.objectiveLabel} · Tenu ${objAdherence.percentage}% des semaines`
+        : 'Aucun objectif configuré',
+      href: `/${locale}/settings`,
     },
   ]
 
@@ -1741,7 +1800,7 @@ export default function DashboardPage() {
     },
 
     'stats': () => (
-      <div className="grid gap-4 grid-cols-2">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
         {statCards.map((stat) => {
           const Icon = stat.icon
           return (
@@ -1749,7 +1808,7 @@ export default function DashboardPage() {
               <TooltipTrigger asChild>
                 <Card
                   className="cursor-pointer hover:shadow-md hover:border-primary/20 transition-all duration-200"
-                  onClick={() => window.location.href = stat.href}
+                  onClick={() => stat.onClick ? stat.onClick() : window.location.href = stat.href!}
                 >
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
                     <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
