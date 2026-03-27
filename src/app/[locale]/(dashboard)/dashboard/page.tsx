@@ -1594,6 +1594,7 @@ export default function DashboardPage() {
     title: string
     value: string | number
     description: string
+    customContent?: React.ReactNode
     icon: typeof BookOpen
     color: string
     bgColor: string
@@ -1603,7 +1604,14 @@ export default function DashboardPage() {
     {
       title: 'Mémorisation',
       value: `${stats?.globalProgress?.percentage || 0}%`,
-      description: `${stats?.globalProgress?.memorizedSurahs || 0} sourates · ${stats?.globalProgress?.memorizedPages || 0} pages · ${stats?.globalProgress?.memorizedVerses || 0} versets`,
+      description: '',
+      customContent: (
+        <div className="space-y-0.5 mt-1">
+          <p className="text-sm"><span className="font-semibold">{stats?.globalProgress?.memorizedSurahs || 0}</span> <span className="text-muted-foreground">sourates sur 114</span></p>
+          <p className="text-sm"><span className="font-semibold">{stats?.globalProgress?.memorizedPages || 0}</span> <span className="text-muted-foreground">pages sur {stats?.globalProgress?.totalPages || 604}</span></p>
+          <p className="text-sm"><span className="font-semibold">{stats?.globalProgress?.memorizedVerses || 0}</span> <span className="text-muted-foreground">versets sur {stats?.globalProgress?.totalVerses || 6236}</span></p>
+        </div>
+      ),
       icon: BookOpen,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-100 dark:bg-emerald-900',
@@ -1803,7 +1811,9 @@ export default function DashboardPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{stat.value}</div>
-                    <p className="text-xs text-muted-foreground">{stat.description}</p>
+                    {stat.customContent || (
+                      <p className="text-xs text-muted-foreground">{stat.description}</p>
+                    )}
                   </CardContent>
                 </Card>
               </TooltipTrigger>
