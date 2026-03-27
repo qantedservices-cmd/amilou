@@ -415,6 +415,12 @@ export default function DashboardPage() {
   const [memorizationSurah, setMemorizationSurah] = useState<number | null>(null)
   const [memorizationVerse, setMemorizationVerse] = useState<number | null>(null)
 
+  // Memorization detail dialog
+  const [memoDialogOpen, setMemoDialogOpen] = useState(false)
+
+  // Objective detail dialog
+  const [objectiveDialogOpen, setObjectiveDialogOpen] = useState(false)
+
   // Progress tracker dialog
   const [progressTrackerDialogOpen, setProgressTrackerDialogOpen] = useState(false)
   const [editReadingHizb, setEditReadingHizb] = useState<string>('')
@@ -1592,38 +1598,17 @@ export default function DashboardPage() {
     color: string
     bgColor: string
     tooltip: string
-    href?: string
-    onClick?: () => void
+    onClick: () => void
   }> = [
     {
-      title: t('dashboard.stats.totalVerses'),
-      value: stats?.globalProgress?.memorizedVerses || 0,
-      description: `sur ${stats?.globalProgress?.totalVerses || 6236} versets`,
+      title: 'Mémorisation',
+      value: `${stats?.globalProgress?.percentage || 0}%`,
+      description: `${stats?.globalProgress?.memorizedSurahs || 0} sourates · ${stats?.globalProgress?.memorizedPages || 0} pages · ${stats?.globalProgress?.memorizedVerses || 0} versets`,
       icon: BookOpen,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-100 dark:bg-emerald-900',
-      tooltip: `${stats?.globalProgress?.percentage || 0}% du Coran · ${stats?.globalProgress?.memorizedPages || 0} pages · ${stats?.globalProgress?.memorizedSurahs || 0} sourates`,
-      href: `/${locale}/progress`,
-    },
-    {
-      title: t('dashboard.stats.totalPages'),
-      value: stats?.globalProgress?.memorizedPages || 0,
-      description: `sur ${stats?.globalProgress?.totalPages || 604} pages`,
-      icon: FileText,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100 dark:bg-blue-900',
-      tooltip: `${stats?.memorizationPace?.remainingPages || 0} pages restantes · ${stats?.memorizationPace?.remainingJuz || 0} juz restants`,
-      href: `/${locale}/progress`,
-    },
-    {
-      title: '% Mémorisation',
-      value: `${stats?.globalProgress?.percentage || 0}%`,
-      description: `${stats?.globalProgress?.memorizedSurahs || 0} sourates sur 114`,
-      icon: TrendingUp,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-100 dark:bg-emerald-900',
-      tooltip: `${60 - (stats?.memorizationPace?.remainingHizbs || 60)} hizbs · ${30 - (stats?.memorizationPace?.remainingJuz || 30)} juz mémorisés`,
-      href: `/${locale}/progress`,
+      tooltip: 'Cliquer pour voir le détail',
+      onClick: () => setMemoDialogOpen(true),
     },
     {
       title: 'Cycles Révision',
@@ -1634,7 +1619,7 @@ export default function DashboardPage() {
       icon: RefreshCw,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100 dark:bg-blue-900',
-      tooltip: `Dernier : ${stats?.completionCycles?.revision?.lastDate ? new Date(stats.completionCycles.revision.lastDate).toLocaleDateString('fr-FR') : '-'}${stats?.completionCycles?.revision?.lastHizbCount ? ` · ${stats.completionCycles.revision.lastHizbCount} hizbs` : ''}`,
+      tooltip: `Dernier : ${stats?.completionCycles?.revision?.lastDate ? new Date(stats.completionCycles.revision.lastDate).toLocaleDateString('fr-FR') : '-'}`,
       onClick: () => openCycleHistory('REVISION'),
     },
     {
@@ -1659,9 +1644,9 @@ export default function DashboardPage() {
       color: 'text-amber-600',
       bgColor: 'bg-amber-100 dark:bg-amber-900',
       tooltip: objAdherence
-        ? `Objectif : ${objAdherence.objectiveLabel} · Tenu ${objAdherence.percentage}% des semaines`
+        ? `Objectif : ${objAdherence.objectiveLabel}`
         : 'Aucun objectif configuré',
-      href: `/${locale}/settings`,
+      onClick: () => setObjectiveDialogOpen(true),
     },
   ]
 
@@ -1800,7 +1785,7 @@ export default function DashboardPage() {
     },
 
     'stats': () => (
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
+      <div className="grid gap-4 grid-cols-2">
         {statCards.map((stat) => {
           const Icon = stat.icon
           return (
@@ -1808,7 +1793,7 @@ export default function DashboardPage() {
               <TooltipTrigger asChild>
                 <Card
                   className="cursor-pointer hover:shadow-md hover:border-primary/20 transition-all duration-200"
-                  onClick={() => stat.onClick ? stat.onClick() : window.location.href = stat.href!}
+                  onClick={() => stat.onClick()}
                 >
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
                     <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
@@ -3327,6 +3312,109 @@ export default function DashboardPage() {
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {/* Memorization Detail Dialog */}
+      <Dialog open={memoDialogOpen} onOpenChange={setMemoDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-emerald-600" />
+              Mémorisation
+            </DialogTitle>
+            <DialogDescription>
+              {stats?.globalProgress?.percentage || 0}% du Coran mémorisé
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+                <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{stats?.globalProgress?.memorizedVerses || 0}</p>
+                <p className="text-xs text-muted-foreground">versets sur {stats?.globalProgress?.totalVerses || 6236}</p>
+              </div>
+              <div className="space-y-1 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">{stats?.globalProgress?.memorizedPages || 0}</p>
+                <p className="text-xs text-muted-foreground">pages sur {stats?.globalProgress?.totalPages || 604}</p>
+              </div>
+              <div className="space-y-1 p-3 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
+                <p className="text-2xl font-bold text-purple-700 dark:text-purple-400">{stats?.globalProgress?.memorizedSurahs || 0}</p>
+                <p className="text-xs text-muted-foreground">sourates sur 114</p>
+              </div>
+              <div className="space-y-1 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{30 - (stats?.memorizationPace?.remainingJuz || 30)}</p>
+                <p className="text-xs text-muted-foreground">juz sur 30</p>
+              </div>
+            </div>
+            {stats?.memorizationPace && (
+              <div className="text-sm text-muted-foreground space-y-1 pt-2 border-t">
+                <p>Reste : {stats.memorizationPace.remainingPages} pages · {stats.memorizationPace.remainingHizbs} hizbs · {stats.memorizationPace.remainingJuz} juz</p>
+                {stats.memorizationPace.versesPerDay > 0 && (
+                  <p>Rythme : {stats.memorizationPace.versesPerDay} versets/jour ({stats.memorizationPace.activeDays} jours actifs)</p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setMemoDialogOpen(false); window.location.href = `/${locale}/progress` }}>
+              Voir détails
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setMemoDialogOpen(false)}>
+              Fermer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Objective Detail Dialog */}
+      <Dialog open={objectiveDialogOpen} onOpenChange={setObjectiveDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-amber-600" />
+              Objectif Mémorisation
+            </DialogTitle>
+            <DialogDescription>
+              {objAdherence ? objAdherence.objectiveLabel : 'Aucun objectif configuré'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {objAdherence && objAdherence.totalWeeks > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-4xl font-bold text-amber-600">{objAdherence.percentage}%</p>
+                    <p className="text-sm text-muted-foreground mt-1">de tenue d&apos;objectif</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-center">
+                    <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{objAdherence.weeksMet}</p>
+                    <p className="text-xs text-muted-foreground">semaines tenues</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 text-center">
+                    <p className="text-xl font-bold">{objAdherence.totalWeeks}</p>
+                    <p className="text-xs text-muted-foreground">semaines total</p>
+                  </div>
+                </div>
+                <Progress value={objAdherence.percentage} className="h-2" />
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <Target className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p>Aucun objectif configuré</p>
+                <p className="text-xs mt-1">Configurez vos objectifs dans les paramètres</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setObjectiveDialogOpen(false); window.location.href = `/${locale}/settings` }}>
+              Configurer
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setObjectiveDialogOpen(false)}>
+              Fermer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Cycle Completion Dialog */}
       <Dialog open={cycleDialogOpen} onOpenChange={setCycleDialogOpen}>
