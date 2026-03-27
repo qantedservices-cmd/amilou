@@ -888,11 +888,14 @@ export async function GET(request: Request) {
         })
       }
 
-      // Calculate objective adherence (% of weeks where memorization objective was met)
-      let objectiveAdherence: { percentage: number; weeksMet: number; totalWeeks: number; objectiveLabel: string } | null = null
+      // Calculate objective adherence + realization
+      let objectiveAdherence: {
+        percentage: number; weeksMet: number; totalWeeks: number; objectiveLabel: string
+        realizationPercentage: number; realizedPages: number; expectedPages: number
+        activeWeeks: number; totalPeriodWeeks: number
+      } | null = null
       const memSetting = programSettings.find(s => s.program.code === 'MEMORIZATION')
       if (memSetting) {
-        // Convert objective to verses per week
         const qty = memSetting.quantity
         const unit = memSetting.unit // PAGE, QUART, DEMI_HIZB, HIZB, JUZ
         const period = memSetting.period // DAY, WEEK, MONTH
@@ -911,6 +914,9 @@ export async function GET(request: Request) {
           versesPerUnit = nonMemorizedVerses.length / remainingJuz
         }
 
+        // Verses per page (global average: 6236 verses / 604 pages)
+        const versesPerPage = 6236 / 604
+
         let weeklyTarget = qty * versesPerUnit
         if (period === 'DAY') weeklyTarget *= 7
         else if (period === 'MONTH') weeklyTarget /= 4.33
@@ -919,7 +925,6 @@ export async function GET(request: Request) {
         const weeklyVerses = new Map<string, number>()
         for (const entry of recentMemorizationEntries) {
           const d = new Date(entry.date)
-          // Week key: ISO week start (Sunday)
           const dayOfWeek = d.getDay()
           const weekStart = new Date(d)
           weekStart.setDate(d.getDate() - dayOfWeek)
@@ -928,11 +933,24 @@ export async function GET(request: Request) {
           weeklyVerses.set(weekKey, (weeklyVerses.get(weekKey) || 0) + verses)
         }
 
+        // Total period weeks (90 days / 7 ≈ 13 weeks)
+        const totalPeriodWeeks = Math.round(90 / 7)
+
+        // Active weeks = weeks with at least one entry
+        const activeWeeks = weeklyVerses.size
+
         const totalWeeks = weeklyVerses.size
         let weeksMet = 0
+        let totalRealizedVerses = 0
         for (const verses of weeklyVerses.values()) {
           if (verses >= weeklyTarget) weeksMet++
+          totalRealizedVerses += verses
         }
+
+        // Realization: pages realized vs pages expected over the full period
+        const realizedPages = Math.round((totalRealizedVerses / versesPerPage) * 10) / 10
+        const expectedPages = Math.round((weeklyTarget * totalPeriodWeeks / versesPerPage) * 10) / 10
+        const realizationPercentage = expectedPages > 0 ? Math.round((realizedPages / expectedPages) * 100) : 0
 
         // Build objective label
         const unitLabels: Record<string, string> = {
@@ -949,7 +967,12 @@ export async function GET(request: Request) {
           percentage: totalWeeks > 0 ? Math.round((weeksMet / totalWeeks) * 100) : 0,
           weeksMet,
           totalWeeks,
-          objectiveLabel
+          objectiveLabel,
+          realizationPercentage,
+          realizedPages,
+          expectedPages,
+          activeWeeks,
+          totalPeriodWeeks,
         }
       }
 

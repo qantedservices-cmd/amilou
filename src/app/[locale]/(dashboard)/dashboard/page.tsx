@@ -249,6 +249,11 @@ interface Stats {
       weeksMet: number
       totalWeeks: number
       objectiveLabel: string
+      realizationPercentage: number
+      realizedPages: number
+      expectedPages: number
+      activeWeeks: number
+      totalPeriodWeeks: number
     } | null
   } | null
   // NEW: Progress Tracker
@@ -1662,10 +1667,16 @@ export default function DashboardPage() {
     },
     {
       title: 'Objectif Mémorisation',
-      value: objAdherence ? `${objAdherence.percentage}%` : '—',
-      description: objAdherence && objAdherence.totalWeeks > 0
-        ? `${objAdherence.weeksMet} sem. tenues sur ${objAdherence.totalWeeks}`
-        : objAdherence?.objectiveLabel || 'Non configuré',
+      value: objAdherence ? `${objAdherence.realizationPercentage}%` : '—',
+      description: '',
+      customContent: objAdherence ? (
+        <div className="space-y-0.5 mt-1">
+          <p className="text-sm"><span className="font-semibold">{objAdherence.realizedPages}</span> <span className="text-muted-foreground">pages sur {objAdherence.expectedPages} attendues</span></p>
+          <p className="text-xs text-muted-foreground">Régularité : {objAdherence.activeWeeks} sem. sur {objAdherence.totalPeriodWeeks}</p>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground mt-1">Non configuré</p>
+      ),
       icon: Target,
       color: 'text-amber-600',
       bgColor: 'bg-amber-100 dark:bg-amber-900',
@@ -3405,25 +3416,29 @@ export default function DashboardPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            {objAdherence && objAdherence.totalWeeks > 0 ? (
+            {objAdherence && objAdherence.totalPeriodWeeks > 0 ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-center">
                   <div className="text-center">
-                    <p className="text-4xl font-bold text-amber-600">{objAdherence.percentage}%</p>
-                    <p className="text-sm text-muted-foreground mt-1">de tenue d&apos;objectif</p>
+                    <p className="text-4xl font-bold text-amber-600">{objAdherence.realizationPercentage}%</p>
+                    <p className="text-sm text-muted-foreground mt-1">de réalisation</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-center">
-                    <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{objAdherence.weeksMet}</p>
-                    <p className="text-xs text-muted-foreground">semaines tenues</p>
+                  <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-center">
+                    <p className="text-xl font-bold text-amber-700 dark:text-amber-400">{objAdherence.realizedPages}</p>
+                    <p className="text-xs text-muted-foreground">pages mémorisées</p>
                   </div>
                   <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 text-center">
-                    <p className="text-xl font-bold">{objAdherence.totalWeeks}</p>
-                    <p className="text-xs text-muted-foreground">semaines total</p>
+                    <p className="text-xl font-bold">{objAdherence.expectedPages}</p>
+                    <p className="text-xs text-muted-foreground">pages attendues</p>
                   </div>
                 </div>
-                <Progress value={objAdherence.percentage} className="h-2" />
+                <Progress value={objAdherence.realizationPercentage} className="h-2" />
+                <div className="text-sm text-muted-foreground space-y-1 pt-2 border-t">
+                  <p>Régularité : <span className="font-medium">{objAdherence.activeWeeks}</span> semaines actives sur {objAdherence.totalPeriodWeeks}</p>
+                  <p>Tenue objectif : <span className="font-medium">{objAdherence.weeksMet}</span> sem. atteintes sur {objAdherence.totalWeeks} actives ({objAdherence.percentage}%)</p>
+                </div>
               </div>
             ) : (
               <div className="text-center py-6 text-muted-foreground">
