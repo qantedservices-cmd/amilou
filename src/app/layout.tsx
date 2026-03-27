@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Amilou - Suivi Coran',
+  title: 'Aamilou - Suivi Coran',
   description: 'Application de suivi des cours de Coran',
 }
 

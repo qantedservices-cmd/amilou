@@ -6,8 +6,8 @@ import { getSundayOfWeek } from '@/lib/week-utils';
 // WEBHOOK_SECRET must be set - no fallback for security
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
-// Groupe Amilou name (must match exactly in DB)
-const GROUPE_AMILOU_NAME = 'Groupe Amilou';
+// Groupe Aamilou name (must match exactly in DB)
+const GROUPE_AMILOU_NAME = 'Aamilou';
 
 // User name to email mapping
 const USER_MAP: Record<string, string> = {

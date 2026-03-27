@@ -79,7 +79,7 @@ interface CalendarData {
 const DEFAULT_GROUP_COLORS: Record<string, string> = {
   'Cours Montmagny': '#3B82F6',
   'Famille': '#8B5CF6',
-  'Groupe Amilou': '#10B981',
+  'Aamilou': '#10B981',
 }
 
 // Couleurs de fallback pour les groupes non définis

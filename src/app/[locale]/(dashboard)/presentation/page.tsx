@@ -437,7 +437,7 @@ export default function PresentationPage() {
             </span>
           </CardTitle>
           <CardDescription>
-            Comment utiliser Amilou pour suivre votre apprentissage du Coran
+            Comment utiliser Aamilou pour suivre votre apprentissage du Coran
           </CardDescription>
         </CardHeader>
         {guideExpanded && (

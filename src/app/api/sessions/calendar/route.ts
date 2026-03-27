@@ -8,7 +8,7 @@ import { getEffectiveUserId } from '@/lib/impersonation'
 const GROUP_COLORS: Record<string, string> = {
   'Cours Montmagny': '#3B82F6', // Bleu
   'Famille': '#8B5CF6',          // Violet
-  'Groupe Amilou': '#10B981',    // Vert
+  'Aamilou': '#10B981',    // Vert
 }
 
 function getGroupColor(groupName: string): string {
@@ -261,7 +261,7 @@ export async function GET(request: Request) {
       }))
 
       const userGrp = userGroupMap[entries[0].userId]
-      const groupName = userGrp?.groupName || 'Groupe Amilou'
+      const groupName = userGrp?.groupName || 'Aamilou'
       const resolvedGroupId = grpId !== 'unknown' ? grpId : null
 
       return {
