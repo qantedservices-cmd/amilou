@@ -1621,9 +1621,19 @@ export default function DashboardPage() {
     {
       title: 'Cycles Révision',
       value: stats?.completionCycles?.revision?.totalCycles || 0,
-      description: stats?.completionCycles?.revision?.averageDays
-        ? `Moy. ${stats.completionCycles.revision.averageDays} jours`
-        : 'Aucun cycle',
+      description: '',
+      customContent: (
+        <div className="space-y-0.5 mt-1">
+          {stats?.completionCycles?.revision?.lastHizbCount ? (
+            <p className="text-sm"><span className="font-semibold">{stats.completionCycles.revision.lastHizbCount}</span> <span className="text-muted-foreground">hizbs</span></p>
+          ) : null}
+          <p className="text-xs text-muted-foreground">
+            {stats?.completionCycles?.revision?.averageDays
+              ? `Moy. ${stats.completionCycles.revision.averageDays} jours`
+              : 'Aucun cycle'}
+          </p>
+        </div>
+      ),
       icon: RefreshCw,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100 dark:bg-blue-900',
@@ -1633,9 +1643,17 @@ export default function DashboardPage() {
     {
       title: 'Cycles Lecture',
       value: stats?.completionCycles?.lecture?.totalCycles || 0,
-      description: stats?.completionCycles?.lecture?.averageDays
-        ? `Moy. ${stats.completionCycles.lecture.averageDays} jours`
-        : 'Aucun cycle',
+      description: '',
+      customContent: (
+        <div className="space-y-0.5 mt-1">
+          <p className="text-sm"><span className="font-semibold">60</span> <span className="text-muted-foreground">hizbs</span></p>
+          <p className="text-xs text-muted-foreground">
+            {stats?.completionCycles?.lecture?.averageDays
+              ? `Moy. ${stats.completionCycles.lecture.averageDays} jours`
+              : 'Aucun cycle'}
+          </p>
+        </div>
+      ),
       icon: BookMarked,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100 dark:bg-purple-900',
