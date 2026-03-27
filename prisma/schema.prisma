@@ -44,6 +44,9 @@ model User {
   // Enabled programs (empty = all enabled, for backward compat)
   enabledPrograms         String[] @default([])
 
+  // Dashboard layout (section order, empty = default order)
+  dashboardLayout         String[] @default([])
+
   accounts                Account[]
   sessions                Session[]
   groupMembers            GroupMember[]

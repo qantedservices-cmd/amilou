@@ -117,12 +117,14 @@ export async function GET(request: Request) {
       where: { id: userId },
       select: {
         enabledPrograms: true,
+        dashboardLayout: true,
         readingCurrentHizb: true,
         revisionCurrentHizb: true,
         revisionSuspendedHizb: true,
       }
     })
     const enabledPrograms = userData?.enabledPrograms || []
+    const dashboardLayout = userData?.dashboardLayout || []
 
     // Parallel fetch of all independent data
     const [
@@ -1139,6 +1141,8 @@ export async function GET(request: Request) {
       progressTracker,
       // Enabled programs
       enabledPrograms,
+      // Dashboard layout
+      dashboardLayout,
     })
   } catch (error) {
     console.error('Error fetching stats:', error)

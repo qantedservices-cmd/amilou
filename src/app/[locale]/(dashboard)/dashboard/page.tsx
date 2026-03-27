@@ -280,6 +280,8 @@ interface Stats {
   } | null
   // Enabled programs
   enabledPrograms?: string[]
+  // Dashboard layout
+  dashboardLayout?: string[]
 }
 
 interface ManageableUser {
@@ -555,11 +557,33 @@ export default function DashboardPage() {
     } catch {}
   }, [])
 
+  // Sync DB → localStorage when stats arrive (overrides local cache with server truth)
+  useEffect(() => {
+    if (stats?.dashboardLayout && stats.dashboardLayout.length > 0) {
+      const dbOrder = stats.dashboardLayout
+      const knownIds = new Set(dbOrder)
+      const merged = [
+        ...dbOrder.filter(id => DEFAULT_SECTION_ORDER.includes(id)),
+        ...DEFAULT_SECTION_ORDER.filter(id => !knownIds.has(id)),
+      ]
+      setSectionOrder(merged)
+      try { window.localStorage.setItem('dashboard-section-order', JSON.stringify(merged)) } catch {}
+    }
+  }, [stats?.dashboardLayout])
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
+
+  function syncLayoutToDb(order: string[]) {
+    fetch('/api/user/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dashboardLayout: order }),
+    }).catch(() => {}) // fire & forget
+  }
 
   function handleDragStart(event: DragStartEvent) {
     setActiveDragId(event.active.id as string)
@@ -574,6 +598,7 @@ export default function DashboardPage() {
         const newIndex = prev.indexOf(over.id as string)
         const next = arrayMove(prev, oldIndex, newIndex)
         try { window.localStorage.setItem('dashboard-section-order', JSON.stringify(next)) } catch {}
+        syncLayoutToDb(next)
         return next
       })
     }
@@ -582,6 +607,7 @@ export default function DashboardPage() {
   function resetSectionOrder() {
     setSectionOrder(DEFAULT_SECTION_ORDER)
     try { window.localStorage.removeItem('dashboard-section-order') } catch {}
+    syncLayoutToDb([])
   }
 
   async function fetchSurahStats(targetUserId?: string) {

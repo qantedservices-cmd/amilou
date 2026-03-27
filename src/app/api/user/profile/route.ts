@@ -30,6 +30,7 @@ export async function GET() {
         memorizationStartVerse: true,
         memorizationDirection: true,
         enabledPrograms: true,
+        dashboardLayout: true,
       },
     })
 
@@ -61,7 +62,7 @@ export async function PUT(request: Request) {
     const {
       name, privateAttendance, privateProgress, privateStats, privateEvaluations,
       memorizationStartSurah, memorizationStartVerse, memorizationDirection,
-      enabledPrograms,
+      enabledPrograms, dashboardLayout,
     } = body
 
     // Build update data
@@ -109,6 +110,14 @@ export async function PUT(request: Request) {
       updateData.enabledPrograms = enabledPrograms
     }
 
+    // Dashboard layout
+    if (dashboardLayout !== undefined) {
+      if (!Array.isArray(dashboardLayout) || !dashboardLayout.every((s: unknown) => typeof s === 'string')) {
+        return NextResponse.json({ error: 'dashboardLayout invalide' }, { status: 400 })
+      }
+      updateData.dashboardLayout = dashboardLayout
+    }
+
     const user = await prisma.user.update({
       where: { id: effectiveUserId! },
       data: updateData,
@@ -126,6 +135,7 @@ export async function PUT(request: Request) {
         memorizationStartVerse: true,
         memorizationDirection: true,
         enabledPrograms: true,
+        dashboardLayout: true,
       },
     })
 
