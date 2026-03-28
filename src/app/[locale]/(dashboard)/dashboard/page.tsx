@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -3825,6 +3825,7 @@ export default function DashboardPage() {
                       const rev = entry.programs.REVISION
                       const read = entry.programs.READING
                       const adj = (entry.programs as Record<string, unknown>)._adjustment as { readingHizb: number | null; revisionHizb: number | null; surah: number | null; verse: number | null; page: number | null } | undefined
+                      const cycles = (entry.programs as Record<string, unknown>)._cycles as Array<{ type: string; notes: string | null; hizbCount: number | null }> | undefined
                       const isRevObj = typeof rev === 'object' && rev !== null
                       const isReadObj = typeof read === 'object' && read !== null
                       const revCompleted = isRevObj ? (rev as { completed: boolean }).completed : !!rev
@@ -3851,46 +3852,67 @@ export default function DashboardPage() {
                       }
 
                       return (
-                        <tr key={entry.date} className={`border-b last:border-0 hover:bg-muted/30 ${adj ? 'bg-red-50 dark:bg-red-950/20' : ''}`}>
-                          <td className="py-2 px-2 whitespace-nowrap font-medium">
-                            {new Date(entry.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                          </td>
-                          <td className="text-center py-2 px-1">
-                            {entry.programs.MEMORIZATION
-                              ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
-                              : <span className="text-muted-foreground/30">—</span>}
-                          </td>
-                          <td className="text-center py-2 px-1">
-                            {entry.programs.CONSOLIDATION
-                              ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
-                              : <span className="text-muted-foreground/30">—</span>}
-                          </td>
-                          <td className="text-center py-2 px-1">
-                            {revCompleted
-                              ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
-                              : <span className="text-muted-foreground/30">—</span>}
-                          </td>
-                          <td className="text-center py-2 px-1">
-                            {readCompleted
-                              ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
-                              : <span className="text-muted-foreground/30">—</span>}
-                          </td>
-                          <td className="text-center py-2 px-1">
-                            {entry.programs.TAFSIR
-                              ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
-                              : <span className="text-muted-foreground/30">—</span>}
-                          </td>
-                          <td className="py-2 px-2 text-xs whitespace-nowrap">
-                            {adj && formatAdj('revision')
-                              ? <span className="text-red-600 font-medium" title="Modification manuelle">{formatAdj('revision')}</span>
-                              : <span className="text-muted-foreground">{formatPos(rev) || '—'}</span>}
-                          </td>
-                          <td className="py-2 px-2 text-xs whitespace-nowrap">
-                            {adj && formatAdj('reading')
-                              ? <span className="text-red-600 font-medium" title="Modification manuelle">{formatAdj('reading')}</span>
-                              : <span className="text-muted-foreground">{formatPos(read) || '—'}</span>}
-                          </td>
-                        </tr>
+                        <Fragment key={entry.date}>
+                          {cycles && cycles.length > 0 && (
+                            <tr>
+                              <td colSpan={8} className="py-1 px-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 h-0.5 bg-blue-500" />
+                                  <div className="flex gap-1">
+                                    {cycles.map((cycle, i) => (
+                                      <span key={i} className="text-xs font-semibold text-blue-600 bg-blue-50 dark:bg-blue-950/30 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                        {cycle.type === 'REVISION' ? 'Cycle Rév' : 'Cycle Lect'}
+                                        {cycle.hizbCount ? ` (${cycle.hizbCount}H)` : ''}
+                                        {cycle.notes ? ` — ${cycle.notes}` : ''}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <div className="flex-1 h-0.5 bg-blue-500" />
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          <tr className={`border-b last:border-0 hover:bg-muted/30 ${adj ? 'bg-red-50 dark:bg-red-950/20' : ''} ${cycles ? 'border-t-2 border-t-blue-400' : ''}`}>
+                            <td className="py-2 px-2 whitespace-nowrap font-medium">
+                              {new Date(entry.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                            </td>
+                            <td className="text-center py-2 px-1">
+                              {entry.programs.MEMORIZATION
+                                ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
+                                : <span className="text-muted-foreground/30">—</span>}
+                            </td>
+                            <td className="text-center py-2 px-1">
+                              {entry.programs.CONSOLIDATION
+                                ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
+                                : <span className="text-muted-foreground/30">—</span>}
+                            </td>
+                            <td className="text-center py-2 px-1">
+                              {revCompleted
+                                ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
+                                : <span className="text-muted-foreground/30">—</span>}
+                            </td>
+                            <td className="text-center py-2 px-1">
+                              {readCompleted
+                                ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
+                                : <span className="text-muted-foreground/30">—</span>}
+                            </td>
+                            <td className="text-center py-2 px-1">
+                              {entry.programs.TAFSIR
+                                ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
+                                : <span className="text-muted-foreground/30">—</span>}
+                            </td>
+                            <td className="py-2 px-2 text-xs whitespace-nowrap">
+                              {adj && formatAdj('revision')
+                                ? <span className="text-red-600 font-medium" title="Modification manuelle">{formatAdj('revision')}</span>
+                                : <span className="text-muted-foreground">{formatPos(rev) || '—'}</span>}
+                            </td>
+                            <td className="py-2 px-2 text-xs whitespace-nowrap">
+                              {adj && formatAdj('reading')
+                                ? <span className="text-red-600 font-medium" title="Modification manuelle">{formatAdj('reading')}</span>
+                                : <span className="text-muted-foreground">{formatPos(read) || '—'}</span>}
+                            </td>
+                          </tr>
+                        </Fragment>
                       )
                     })}
                   </tbody>

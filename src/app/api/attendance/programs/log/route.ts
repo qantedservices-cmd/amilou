@@ -58,6 +58,30 @@ export async function GET(request: Request) {
       }
     }
 
+    // Fetch completion cycles
+    const cycles = await prisma.completionCycle.findMany({
+      where: {
+        userId: targetUserId,
+        completedAt: { gte: since },
+      },
+      orderBy: { completedAt: 'desc' },
+    })
+
+    // Add cycles to grouped data
+    for (const cycle of cycles) {
+      const dateStr = cycle.completedAt.toISOString().split('T')[0]
+      if (!grouped.has(dateStr)) {
+        grouped.set(dateStr, {})
+      }
+      const entry = grouped.get(dateStr)!
+      if (!entry._cycles) entry._cycles = []
+      ;(entry._cycles as Array<{ type: string; notes: string | null; hizbCount: number | null }>).push({
+        type: cycle.type,
+        notes: cycle.notes,
+        hizbCount: cycle.hizbCount,
+      })
+    }
+
     // Fetch manual position adjustments
     const adjustments = await prisma.positionAdjustment.findMany({
       where: {
