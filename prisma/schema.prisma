@@ -326,6 +326,7 @@ model Verse {
   verseNumber Int
   textAr      String?
   textTajweed String?
+  wordsLines  Json?     // [{text, line}] - word-by-word with line numbers for Mushaf layout
   page        Int
   juz         Int?
   hizb        Float?

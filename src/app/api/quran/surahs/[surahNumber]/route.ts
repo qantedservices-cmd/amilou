@@ -66,6 +66,7 @@ export async function GET(
       verseNumber: number
       textAr: string
       textTajweed: string | null
+      wordsLines: Array<{ t: string; l: number }> | null
       juz: number | null
       hizb: number | null
       isMemorized: boolean
@@ -91,6 +92,7 @@ export async function GET(
         verseNumber: v.verseNumber,
         textAr: v.textAr!,
         textTajweed: v.textTajweed || null,
+        wordsLines: (v.wordsLines as Array<{ t: string; l: number }>) || null,
         juz: v.juz,
         hizb: v.hizb,
         isMemorized,

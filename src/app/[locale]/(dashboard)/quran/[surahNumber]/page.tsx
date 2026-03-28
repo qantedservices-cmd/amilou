@@ -9,12 +9,15 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { ChevronLeft, ChevronRight, ArrowRight, Loader2, BookOpen, Eye, Palette, List, Maximize, Minimize, ZoomIn, ZoomOut } from 'lucide-react'
 
+interface WordLine { t: string; l: number }
+
 interface PageVerse {
   surahNumber: number
   surahNameAr: string
   verseNumber: number
   textAr: string
   textTajweed: string | null
+  wordsLines: WordLine[] | null
   juz: number | null
   hizb: number | null
   isMemorized: boolean
@@ -63,17 +66,126 @@ function TajweedVerse({ html }: { html: string }) {
   return <span dangerouslySetInnerHTML={{ __html: cleaned }} />
 }
 
+// Mushaf mode: renders words line by line, matching the printed Mushaf Madani layout
+function MushafLines({
+  page,
+  positions,
+  currentSurah,
+  fontSize,
+}: {
+  page: MushafPage
+  positions: SurahData['positions']
+  currentSurah: number
+  fontSize: number
+}) {
+  // Collect all words from all verses on this page, with their line numbers
+  const lineMap = new Map<number, Array<{ text: string; verseNumber: number; surahNumber: number; isLastWordOfVerse: boolean }>>()
+
+  // Track surah headers
+  const surahHeaders = new Set<number>() // line numbers that should have a surah header before them
+
+  for (const verse of page.verses) {
+    if (verse.isFirstOfSurah) {
+      // Find the first line of this verse's words
+      const firstLine = verse.wordsLines?.[0]?.l
+      if (firstLine) surahHeaders.add(firstLine)
+    }
+
+    if (!verse.wordsLines || verse.wordsLines.length === 0) continue
+
+    for (let wi = 0; wi < verse.wordsLines.length; wi++) {
+      const w = verse.wordsLines[wi]
+      if (!lineMap.has(w.l)) lineMap.set(w.l, [])
+      lineMap.get(w.l)!.push({
+        text: w.t,
+        verseNumber: verse.verseNumber,
+        surahNumber: verse.surahNumber,
+        isLastWordOfVerse: wi === verse.wordsLines.length - 1,
+      })
+    }
+  }
+
+  const lineNumbers = [...lineMap.keys()].sort((a, b) => a - b)
+
+  // Find surah info for headers
+  const surahNameMap = new Map<number, string>()
+  for (const v of page.verses) {
+    surahNameMap.set(v.surahNumber, v.surahNameAr)
+  }
+
+  return (
+    <div className="flex flex-col h-full justify-between font-quran">
+      {lineNumbers.map(lineNum => {
+        const words = lineMap.get(lineNum)!
+        // Check if any verse on this line has a header
+        const headerSurah = surahHeaders.has(lineNum)
+          ? page.verses.find(v => v.isFirstOfSurah && v.wordsLines?.[0]?.l === lineNum)
+          : null
+
+        return (
+          <div key={lineNum}>
+            {headerSurah && (
+              <div className="text-center my-1">
+                <div className="border-y-2 border-amber-400/40 dark:border-amber-600/30 py-0.5 bg-amber-50/50 dark:bg-amber-900/20">
+                  <div className="font-bold text-amber-900 dark:text-amber-200" style={{ fontSize: fontSize * 0.8 }}>
+                    سورة {surahNameMap.get(headerSurah.surahNumber)}
+                  </div>
+                  {headerSurah.surahNumber !== 1 && headerSurah.surahNumber !== 9 && (
+                    <div className="text-amber-800/60 dark:text-amber-300/60" style={{ fontSize: fontSize * 0.7 }}>
+                      بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-between" style={{ fontSize, lineHeight: 1.8 }}>
+              {words.map((word, wi) => {
+                const isRevisionPos = positions.revisionPage === page.pageNumber && positions.revisionVerse === word.verseNumber
+                const isReadingPos = positions.readingPage === page.pageNumber && positions.readingVerse === word.verseNumber
+                const isOtherSurah = word.surahNumber !== currentSurah
+
+                let cls = ''
+                if (isRevisionPos) cls = 'bg-blue-200/60 dark:bg-blue-800/40 rounded'
+                else if (isReadingPos) cls = 'bg-purple-200/60 dark:bg-purple-800/40 rounded'
+
+                return (
+                  <span key={wi} className={`${cls} ${isOtherSurah ? 'opacity-35' : ''}`}>
+                    {word.text}
+                    {word.isLastWordOfVerse && (
+                      <>
+                        {' '}
+                        <span
+                          className="inline-flex items-center justify-center rounded-full border border-amber-500/30 text-amber-700 dark:text-amber-400 align-middle"
+                          style={{ width: fontSize * 0.75, height: fontSize * 0.75, fontSize: fontSize * 0.35 }}
+                        >
+                          {toArabicNumber(word.verseNumber)}
+                        </span>
+                      </>
+                    )}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function MushafPageView({
   page,
   positions,
   currentSurah,
   tajweedEnabled,
+  mushafMode,
   fontSize,
 }: {
   page: MushafPage
   positions: SurahData['positions']
   currentSurah: number
   tajweedEnabled: boolean
+  mushafMode: boolean
   fontSize: number
 }) {
   const isRightPage = page.side === 'right'
@@ -111,57 +223,61 @@ function MushafPageView({
 
       {/* Page content */}
       <div className="flex-1 px-4 sm:px-6 py-2 overflow-hidden" dir="rtl">
-        {groups.map((group, gi) => (
-          <div key={`${group.surahNumber}-${gi}`}>
-            {group.showHeader && (
-              <div className="text-center my-1.5">
-                <div className="border-y-2 border-amber-400/40 dark:border-amber-600/30 py-1 bg-amber-50/50 dark:bg-amber-900/20">
-                  <div className="font-bold text-amber-900 dark:text-amber-200 font-quran" style={{ fontSize: fontSize * 0.85 }}>
-                    سورة {group.surahNameAr}
-                  </div>
-                  {group.surahNumber !== 1 && group.surahNumber !== 9 && (
-                    <div className="text-amber-800/60 dark:text-amber-300/60 mt-0.5 font-quran" style={{ fontSize: fontSize * 0.75 }}>
-                      بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
+        {mushafMode ? (
+          <MushafLines page={page} positions={positions} currentSurah={currentSurah} fontSize={fontSize} />
+        ) : (
+          groups.map((group, gi) => (
+            <div key={`${group.surahNumber}-${gi}`}>
+              {group.showHeader && (
+                <div className="text-center my-1.5">
+                  <div className="border-y-2 border-amber-400/40 dark:border-amber-600/30 py-1 bg-amber-50/50 dark:bg-amber-900/20">
+                    <div className="font-bold text-amber-900 dark:text-amber-200 font-quran" style={{ fontSize: fontSize * 0.85 }}>
+                      سورة {group.surahNameAr}
                     </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <p className="text-justify font-quran" style={{ fontSize, lineHeight: 2.5, textAlignLast: 'center' }}>
-              {group.verses.map(verse => {
-                const isRevisionPos = positions.revisionPage === page.pageNumber && positions.revisionVerse === verse.verseNumber
-                const isReadingPos = positions.readingPage === page.pageNumber && positions.readingVerse === verse.verseNumber
-                const isOtherSurah = verse.surahNumber !== currentSurah
-
-                let verseClass = ''
-                if (isRevisionPos) verseClass = 'bg-blue-200/60 dark:bg-blue-800/40 rounded px-0.5'
-                else if (isReadingPos) verseClass = 'bg-purple-200/60 dark:bg-purple-800/40 rounded px-0.5'
-                else if (verse.isMemorized) verseClass = 'bg-emerald-100/40 dark:bg-emerald-900/20'
-
-                const useTajweed = tajweedEnabled && verse.textTajweed
-
-                return (
-                  <span key={`${verse.surahNumber}:${verse.verseNumber}`} className={`${verseClass} ${isOtherSurah ? 'opacity-35' : ''}`}>
-                    {useTajweed ? (
-                      <TajweedVerse html={verse.textTajweed!} />
-                    ) : (
-                      <span>{verse.textAr}</span>
+                    {group.surahNumber !== 1 && group.surahNumber !== 9 && (
+                      <div className="text-amber-800/60 dark:text-amber-300/60 mt-0.5 font-quran" style={{ fontSize: fontSize * 0.75 }}>
+                        بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
+                      </div>
                     )}
-                    {' '}
-                    <span
-                      className="inline-flex items-center justify-center rounded-full border border-amber-500/30 text-amber-700 dark:text-amber-400 align-middle"
-                      style={{ width: fontSize * 0.9, height: fontSize * 0.9, fontSize: fontSize * 0.4 }}
-                    >
-                      {toArabicNumber(verse.verseNumber)}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-justify font-quran" style={{ fontSize, lineHeight: 2.5, textAlignLast: 'center' }}>
+                {group.verses.map(verse => {
+                  const isRevisionPos = positions.revisionPage === page.pageNumber && positions.revisionVerse === verse.verseNumber
+                  const isReadingPos = positions.readingPage === page.pageNumber && positions.readingVerse === verse.verseNumber
+                  const isOtherSurah = verse.surahNumber !== currentSurah
+
+                  let verseClass = ''
+                  if (isRevisionPos) verseClass = 'bg-blue-200/60 dark:bg-blue-800/40 rounded px-0.5'
+                  else if (isReadingPos) verseClass = 'bg-purple-200/60 dark:bg-purple-800/40 rounded px-0.5'
+                  else if (verse.isMemorized) verseClass = 'bg-emerald-100/40 dark:bg-emerald-900/20'
+
+                  const useTajweed = tajweedEnabled && verse.textTajweed
+
+                  return (
+                    <span key={`${verse.surahNumber}:${verse.verseNumber}`} className={`${verseClass} ${isOtherSurah ? 'opacity-35' : ''}`}>
+                      {useTajweed ? (
+                        <TajweedVerse html={verse.textTajweed!} />
+                      ) : (
+                        <span>{verse.textAr}</span>
+                      )}
+                      {' '}
+                      <span
+                        className="inline-flex items-center justify-center rounded-full border border-amber-500/30 text-amber-700 dark:text-amber-400 align-middle"
+                        style={{ width: fontSize * 0.9, height: fontSize * 0.9, fontSize: fontSize * 0.4 }}
+                      >
+                        {toArabicNumber(verse.verseNumber)}
+                      </span>
+                      {' '}
                     </span>
-                    {' '}
-                  </span>
-                )
-              })}
-            </p>
-          </div>
-        ))}
+                  )
+                })}
+              </p>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Page footer */}
@@ -182,6 +298,7 @@ export default function SurahPage() {
   const [data, setData] = useState<SurahData | null>(null)
   const [loading, setLoading] = useState(true)
   const [tajweedEnabled, setTajweedEnabled] = useState(false)
+  const [mushafMode, setMushafMode] = useState(false)
   const [scrollMode, setScrollMode] = useState(false)
   const [currentSpread, setCurrentSpread] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -303,6 +420,12 @@ export default function SurahPage() {
             </Label>
           </div>
           <div className="flex items-center gap-1.5">
+            <Switch id="mushaf" checked={mushafMode} onCheckedChange={setMushafMode} className="scale-90" />
+            <Label htmlFor="mushaf" className="text-[11px] cursor-pointer font-quran">
+              مصحف
+            </Label>
+          </div>
+          <div className="flex items-center gap-1.5">
             <Switch id="scroll" checked={scrollMode} onCheckedChange={setScrollMode} className="scale-90" />
             <Label htmlFor="scroll" className="text-[11px] cursor-pointer flex items-center gap-1">
               <List className="h-3 w-3" />
@@ -364,12 +487,12 @@ export default function SurahPage() {
             <div key={si} className="grid grid-cols-1 lg:grid-cols-2" dir="rtl" style={{ height: mushafHeight }}>
               <div className="h-full">
                 {spread.right ? (
-                  <MushafPageView page={spread.right} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} fontSize={fontSize} />
+                  <MushafPageView page={spread.right} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} mushafMode={mushafMode} fontSize={fontSize} />
                 ) : <div />}
               </div>
               <div className="h-full">
                 {spread.left ? (
-                  <MushafPageView page={spread.left} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} fontSize={fontSize} />
+                  <MushafPageView page={spread.left} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} mushafMode={mushafMode} fontSize={fontSize} />
                 ) : <div />}
               </div>
             </div>
@@ -383,12 +506,12 @@ export default function SurahPage() {
               <div key={si} className="grid grid-cols-1 lg:grid-cols-2 flex-1" dir="rtl" style={{ height: mushafHeight }}>
                 <div className="h-full">
                   {spread.right ? (
-                    <MushafPageView page={spread.right} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} fontSize={fontSize} />
+                    <MushafPageView page={spread.right} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} mushafMode={mushafMode} fontSize={fontSize} />
                   ) : <div />}
                 </div>
                 <div className="h-full">
                   {spread.left ? (
-                    <MushafPageView page={spread.left} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} fontSize={fontSize} />
+                    <MushafPageView page={spread.left} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} mushafMode={mushafMode} fontSize={fontSize} />
                   ) : <div />}
                 </div>
               </div>
