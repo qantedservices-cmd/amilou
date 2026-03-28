@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
-import { hizbToPosition } from '@/lib/quran-utils'
+import { hizbToPosition, recalculatePositionsFromCycles } from '@/lib/quran-utils'
 
 // Daily programs in order
 const DAILY_PROGRAMS = ['MEMORIZATION', 'CONSOLIDATION', 'REVISION', 'READING']
@@ -257,6 +257,17 @@ export async function POST(request: Request) {
     }
 
     await Promise.all(operations)
+
+    // Recalculate positions after saving completions
+    const positions = await recalculatePositionsFromCycles(targetUserId)
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: {
+        readingCurrentHizb: positions.readingHizb,
+        revisionCurrentHizb: positions.revisionHizb,
+        revisionSuspendedHizb: positions.revisionSuspended,
+      }
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

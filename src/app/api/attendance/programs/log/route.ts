@@ -58,6 +58,31 @@ export async function GET(request: Request) {
       }
     }
 
+    // Fetch manual position adjustments
+    const adjustments = await prisma.positionAdjustment.findMany({
+      where: {
+        userId: targetUserId,
+        date: { gte: since },
+      },
+      orderBy: { date: 'desc' },
+    })
+
+    // Add adjustments to grouped data
+    for (const adj of adjustments) {
+      const dateStr = adj.date.toISOString().split('T')[0]
+      if (!grouped.has(dateStr)) {
+        grouped.set(dateStr, {})
+      }
+      const entry = grouped.get(dateStr)!
+      entry._adjustment = {
+        readingHizb: adj.readingHizb,
+        revisionHizb: adj.revisionHizb,
+        surah: adj.surahNumber,
+        verse: adj.verseNumber,
+        page: adj.page,
+      }
+    }
+
     // Convert to array sorted by date desc
     const log = Array.from(grouped.entries()).map(([date, programs]) => ({
       date,

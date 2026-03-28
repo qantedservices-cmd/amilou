@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 
     const zone = await getMemorizedZone(userId)
 
-    // Get current positions from DB
+    // Get current positions from DB (always up-to-date since POST recalculates)
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -148,22 +148,28 @@ export async function PUT(request: Request) {
       data
     })
 
-    // Return updated positions with readable format
-    const updatedUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        readingCurrentHizb: true,
-        revisionCurrentHizb: true,
-        revisionSuspendedHizb: true,
+    // Log manual adjustment
+    const zone = await getMemorizedZone(userId)
+    const rHizb = readingHizb ?? (await prisma.user.findUnique({ where: { id: userId }, select: { readingCurrentHizb: true } }))?.readingCurrentHizb ?? 0
+    const rvHizb = revisionHizb ?? (await prisma.user.findUnique({ where: { id: userId }, select: { revisionCurrentHizb: true } }))?.revisionCurrentHizb ?? 0
+
+    const revisionPos = zone && rvHizb > 0 ? await hizbToPosition(zone.startHizb + rvHizb) : null
+    const readingPos = rHizb > 0 ? await hizbToPosition(rHizb + 1) : await hizbToPosition(1)
+
+    const today = new Date()
+    today.setUTCHours(0, 0, 0, 0)
+
+    await prisma.positionAdjustment.create({
+      data: {
+        userId,
+        date: today,
+        readingHizb: readingHizb ?? null,
+        revisionHizb: revisionHizb ?? null,
+        surahNumber: revisionPos?.surahNumber ?? readingPos?.surahNumber ?? null,
+        verseNumber: revisionPos?.verseNumber ?? readingPos?.verseNumber ?? null,
+        page: revisionPos?.page ?? readingPos?.page ?? null,
       }
     })
-
-    const zone = await getMemorizedZone(userId)
-    const rHizb = updatedUser?.readingCurrentHizb ?? 0
-    const rvHizb = updatedUser?.revisionCurrentHizb ?? 0
-
-    const readingPos = rHizb > 0 ? await hizbToPosition(rHizb + 1) : await hizbToPosition(1)
-    const revisionPos = zone && rvHizb > 0 ? await hizbToPosition(zone.startHizb + rvHizb) : null
 
     return NextResponse.json({
       readingCurrentHizb: rHizb,

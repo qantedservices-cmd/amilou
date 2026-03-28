@@ -65,6 +65,7 @@ model User {
   surahMasteries          SurahMastery[]
   surahRecitations        SurahRecitation[]
   completionCycles        CompletionCycle[]
+  positionAdjustments     PositionAdjustment[]
   userBooks               UserBook[]
   userItemProgress        UserItemProgress[]
 }
@@ -513,6 +514,26 @@ model CompletionCycle {
 
   @@index([userId, type])
   @@index([userId, completedAt])
+}
+
+// ============================================
+// Position Adjustments (Modifications manuelles de position)
+// ============================================
+
+model PositionAdjustment {
+  id             String   @id @default(cuid())
+  userId         String
+  date           DateTime
+  readingHizb    Float?
+  revisionHizb   Float?
+  surahNumber    Int?
+  verseNumber    Int?
+  page           Int?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
 }
 
 // ============================================
