@@ -56,7 +56,7 @@ export async function GET(
     const allVerses = await prisma.verse.findMany({
       where: { page: { in: pageNumbers }, textAr: { not: null } },
       orderBy: [{ page: 'asc' }, { surahNumber: 'asc' }, { verseNumber: 'asc' }],
-      include: { surah: { select: { nameAr: true } } }
+      include: { surah: { select: { nameAr: true } } },
     })
 
     // Build pages with surah headers
@@ -65,6 +65,7 @@ export async function GET(
       surahNameAr: string
       verseNumber: number
       textAr: string
+      textTajweed: string | null
       juz: number | null
       hizb: number | null
       isMemorized: boolean
@@ -89,6 +90,7 @@ export async function GET(
         surahNameAr: v.surah.nameAr,
         verseNumber: v.verseNumber,
         textAr: v.textAr!,
+        textTajweed: v.textTajweed || null,
         juz: v.juz,
         hizb: v.hizb,
         isMemorized,

@@ -2,7 +2,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getMessages } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { locales, type Locale } from '@/i18n/config'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist, Geist_Mono, Amiri } from 'next/font/google'
 import { Toaster } from 'sonner'
 import '../globals.css'
 
@@ -14,6 +14,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+})
+
+const amiri = Amiri({
+  variable: '--font-amiri',
+  subsets: ['arabic'],
+  weight: ['400', '700'],
 })
 
 export function generateStaticParams() {
@@ -37,7 +43,7 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'}>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${amiri.variable} antialiased`}>
         <NextIntlClientProvider messages={messages}>
           {children}
           <Toaster position="bottom-right" richColors closeButton />

@@ -325,6 +325,7 @@ model Verse {
   surahNumber Int
   verseNumber Int
   textAr      String?
+  textTajweed String?
   page        Int
   juz         Int?
   hizb        Float?
