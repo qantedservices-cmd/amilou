@@ -268,11 +268,11 @@ export default function SurahPage() {
         </div>
 
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={surahNumber >= 114} onClick={goNext}>
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={surahNumber <= 1} onClick={goPrev} title="السورة السابقة">
             <ChevronRight className="h-4 w-4" />
           </Button>
           <span className="text-sm text-muted-foreground px-1">{toArabicNumber(surahNumber)}</span>
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={surahNumber <= 1} onClick={goPrev}>
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={surahNumber >= 114} onClick={goNext} title="السورة التالية">
             <ChevronLeft className="h-4 w-4" />
           </Button>
         </div>
@@ -337,15 +337,15 @@ export default function SurahPage() {
       {/* Spread navigation (paginated mode) */}
       {!scrollMode && spreads.length > 1 && (
         <div className="flex items-center justify-center gap-4 py-2" dir="rtl">
-          <Button variant="outline" size="sm" disabled={currentSpread >= spreads.length - 1} onClick={() => setCurrentSpread(prev => prev + 1)}>
+          <Button variant="outline" size="sm" disabled={currentSpread <= 0} onClick={() => setCurrentSpread(prev => prev - 1)}>
             <ChevronRight className="h-4 w-4 ml-1" />
-            التالي
+            السابق
           </Button>
           <span className="text-sm text-muted-foreground">
             {toArabicNumber(currentSpread + 1)} / {toArabicNumber(spreads.length)}
           </span>
-          <Button variant="outline" size="sm" disabled={currentSpread <= 0} onClick={() => setCurrentSpread(prev => prev - 1)}>
-            السابق
+          <Button variant="outline" size="sm" disabled={currentSpread >= spreads.length - 1} onClick={() => setCurrentSpread(prev => prev + 1)}>
+            التالي
             <ChevronLeft className="h-4 w-4 mr-1" />
           </Button>
         </div>
@@ -353,16 +353,16 @@ export default function SurahPage() {
 
       {/* Surah navigation */}
       <div className="flex items-center justify-between py-4 border-t" dir="rtl">
-        <Button variant="outline" size="sm" disabled={surahNumber >= 114} onClick={goNext}>
-          السورة التالية
-          <ChevronRight className="h-4 w-4 mr-1" />
+        <Button variant="outline" size="sm" disabled={surahNumber <= 1} onClick={goPrev}>
+          <ChevronRight className="h-4 w-4 ml-1" />
+          السورة السابقة
         </Button>
         <span className="text-xs text-muted-foreground">
           ص {toArabicNumber(data.pages[0]?.pageNumber || 0)} – {toArabicNumber(data.pages[data.pages.length - 1]?.pageNumber || 0)}
         </span>
-        <Button variant="outline" size="sm" disabled={surahNumber <= 1} onClick={goPrev}>
-          <ChevronLeft className="h-4 w-4 ml-1" />
-          السورة السابقة
+        <Button variant="outline" size="sm" disabled={surahNumber >= 114} onClick={goNext}>
+          السورة التالية
+          <ChevronLeft className="h-4 w-4 mr-1" />
         </Button>
       </div>
     </div>
