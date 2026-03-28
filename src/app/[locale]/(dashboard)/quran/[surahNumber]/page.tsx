@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { ChevronLeft, ChevronRight, ArrowRight, Loader2, BookOpen, Eye, Palette, List } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowRight, Loader2, BookOpen, Eye, Palette, List, Maximize, Minimize, ZoomIn, ZoomOut } from 'lucide-react'
 
 interface PageVerse {
   surahNumber: number
@@ -53,10 +53,14 @@ function toArabicNumber(n: number): string {
   return n.toString().split('').map(d => arabicDigits[parseInt(d)]).join('')
 }
 
-// Sanitize tajweed HTML - only allow tajweed and span tags with class attributes
-// This content comes from our own database (seeded from quran.com API), not user input
+// Tajweed HTML from our DB (seeded from quran.com API, trusted content)
 function renderTajweedText(html: string): string {
   return html.replace(/<span class=end>.*?<\/span>/g, '')
+}
+
+function TajweedVerse({ html }: { html: string }) {
+  const cleaned = renderTajweedText(html)
+  return <span dangerouslySetInnerHTML={{ __html: cleaned }} />
 }
 
 function MushafPageView({
@@ -64,11 +68,13 @@ function MushafPageView({
   positions,
   currentSurah,
   tajweedEnabled,
+  fontSize,
 }: {
   page: MushafPage
   positions: SurahData['positions']
   currentSurah: number
   tajweedEnabled: boolean
+  fontSize: number
 }) {
   const isRightPage = page.side === 'right'
 
@@ -91,30 +97,30 @@ function MushafPageView({
   return (
     <div
       className={`
-        relative bg-[#fdf8ef] dark:bg-amber-950/10
+        bg-[#fdf8ef] dark:bg-amber-950/10
         border border-amber-300/60 dark:border-amber-800/30
-        h-[75vh] min-h-[500px] max-h-[900px] flex flex-col overflow-hidden
+        h-full flex flex-col overflow-hidden
         ${isRightPage ? 'border-l-[3px] border-l-amber-400/40' : 'border-r-[3px] border-r-amber-400/40'}
       `}
     >
       {/* Page header */}
-      <div className="flex items-center justify-between px-4 py-1 border-b border-amber-300/30 dark:border-amber-800/20 text-xs text-amber-700/60 dark:text-amber-400/50 shrink-0" dir="rtl">
+      <div className="flex items-center justify-between px-3 py-0.5 border-b border-amber-300/30 dark:border-amber-800/20 text-[10px] text-amber-700/60 dark:text-amber-400/50 shrink-0" dir="rtl">
         <span>{page.juz ? `الجزء ${toArabicNumber(page.juz)}` : ''}</span>
         <span>{page.hizb ? `الحزب ${toArabicNumber(Math.floor(page.hizb))}` : ''}</span>
       </div>
 
       {/* Page content */}
-      <div className="flex-1 px-5 sm:px-8 py-3 overflow-y-auto" dir="rtl">
+      <div className="flex-1 px-4 sm:px-6 py-2 overflow-hidden" dir="rtl">
         {groups.map((group, gi) => (
           <div key={`${group.surahNumber}-${gi}`}>
             {group.showHeader && (
-              <div className="text-center my-2">
-                <div className="border-y-2 border-amber-400/40 dark:border-amber-600/30 py-1.5 bg-amber-50/50 dark:bg-amber-900/20">
-                  <div className="text-base font-bold text-amber-900 dark:text-amber-200 font-quran">
+              <div className="text-center my-1.5">
+                <div className="border-y-2 border-amber-400/40 dark:border-amber-600/30 py-1 bg-amber-50/50 dark:bg-amber-900/20">
+                  <div className="font-bold text-amber-900 dark:text-amber-200 font-quran" style={{ fontSize: fontSize * 0.85 }}>
                     سورة {group.surahNameAr}
                   </div>
                   {group.surahNumber !== 1 && group.surahNumber !== 9 && (
-                    <div className="text-sm text-amber-800/60 dark:text-amber-300/60 mt-0.5 font-quran">
+                    <div className="text-amber-800/60 dark:text-amber-300/60 mt-0.5 font-quran" style={{ fontSize: fontSize * 0.75 }}>
                       بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
                     </div>
                   )}
@@ -122,15 +128,15 @@ function MushafPageView({
               </div>
             )}
 
-            <p className="text-justify font-quran leading-[2.6] sm:leading-[3]" style={{ textAlignLast: 'center' }}>
+            <p className="text-justify font-quran" style={{ fontSize, lineHeight: 2.5, textAlignLast: 'center' }}>
               {group.verses.map(verse => {
                 const isRevisionPos = positions.revisionPage === page.pageNumber && positions.revisionVerse === verse.verseNumber
                 const isReadingPos = positions.readingPage === page.pageNumber && positions.readingVerse === verse.verseNumber
                 const isOtherSurah = verse.surahNumber !== currentSurah
 
                 let verseClass = ''
-                if (isRevisionPos) verseClass = 'bg-blue-200/60 dark:bg-blue-800/40 rounded px-1'
-                else if (isReadingPos) verseClass = 'bg-purple-200/60 dark:bg-purple-800/40 rounded px-1'
+                if (isRevisionPos) verseClass = 'bg-blue-200/60 dark:bg-blue-800/40 rounded px-0.5'
+                else if (isReadingPos) verseClass = 'bg-purple-200/60 dark:bg-purple-800/40 rounded px-0.5'
                 else if (verse.isMemorized) verseClass = 'bg-emerald-100/40 dark:bg-emerald-900/20'
 
                 const useTajweed = tajweedEnabled && verse.textTajweed
@@ -140,12 +146,13 @@ function MushafPageView({
                     {useTajweed ? (
                       <TajweedVerse html={verse.textTajweed!} />
                     ) : (
-                      <span className="text-xl sm:text-[1.55rem]">
-                        {verse.textAr}
-                      </span>
+                      <span>{verse.textAr}</span>
                     )}
                     {' '}
-                    <span className="inline-flex items-center justify-center w-6 h-6 text-[10px] rounded-full border border-amber-500/30 text-amber-700 dark:text-amber-400 align-middle">
+                    <span
+                      className="inline-flex items-center justify-center rounded-full border border-amber-500/30 text-amber-700 dark:text-amber-400 align-middle"
+                      style={{ width: fontSize * 0.9, height: fontSize * 0.9, fontSize: fontSize * 0.4 }}
+                    >
                       {toArabicNumber(verse.verseNumber)}
                     </span>
                     {' '}
@@ -158,18 +165,11 @@ function MushafPageView({
       </div>
 
       {/* Page footer */}
-      <div className="text-center py-1 border-t border-amber-300/30 dark:border-amber-800/20 text-sm text-amber-700/50 dark:text-amber-400/40 shrink-0">
+      <div className="text-center py-0.5 border-t border-amber-300/30 dark:border-amber-800/20 text-xs text-amber-700/50 dark:text-amber-400/40 shrink-0">
         {toArabicNumber(page.pageNumber)}
       </div>
     </div>
   )
-}
-
-// Tajweed verse component - renders pre-sanitized HTML from our database
-// Content is seeded from quran.com API (trusted source), not user-generated
-function TajweedVerse({ html }: { html: string }) {
-  const cleaned = renderTajweedText(html)
-  return <span className="text-xl sm:text-[1.55rem]" dangerouslySetInnerHTML={{ __html: cleaned }} />
 }
 
 export default function SurahPage() {
@@ -177,12 +177,15 @@ export default function SurahPage() {
   const router = useRouter()
   const locale = useLocale()
   const surahNumber = parseInt(params.surahNumber as string)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const [data, setData] = useState<SurahData | null>(null)
   const [loading, setLoading] = useState(true)
   const [tajweedEnabled, setTajweedEnabled] = useState(false)
   const [scrollMode, setScrollMode] = useState(false)
   const [currentSpread, setCurrentSpread] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [fontSize, setFontSize] = useState(20)
 
   useEffect(() => {
     if (isNaN(surahNumber)) return
@@ -224,13 +227,32 @@ export default function SurahPage() {
       setCurrentSpread(prev => Math.min(prev + 1, spreads.length - 1))
     } else if (e.key === 'ArrowRight') {
       setCurrentSpread(prev => Math.max(prev - 1, 0))
+    } else if (e.key === 'Escape' && isFullscreen) {
+      toggleFullscreen()
     }
-  }, [scrollMode, spreads.length])
+  }, [scrollMode, spreads.length, isFullscreen])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
+
+  // Fullscreen
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen()
+      setIsFullscreen(true)
+    } else {
+      document.exitFullscreen()
+      setIsFullscreen(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', handler)
+    return () => document.removeEventListener('fullscreenchange', handler)
+  }, [])
 
   if (loading) {
     return (
@@ -250,121 +272,147 @@ export default function SurahPage() {
 
   const currentPages = scrollMode ? spreads : [spreads[currentSpread]].filter(Boolean)
 
-  return (
-    <div className="space-y-3 max-w-6xl mx-auto">
-      {/* Top bar */}
-      <div className="flex items-center justify-between flex-wrap gap-2" dir="rtl">
-        <Button variant="ghost" size="sm" onClick={() => router.push(`/${locale}/quran`)}>
-          <ArrowRight className="h-4 w-4 ml-1" />
-          السور
-        </Button>
+  // In fullscreen or normal: compute available height
+  // Toolbar ~40px, spread nav ~40px, surah nav ~50px = ~130px of chrome
+  const mushafHeight = isFullscreen ? 'calc(100vh - 100px)' : 'calc(100vh - 220px)'
 
+  return (
+    <div ref={containerRef} className={`flex flex-col max-w-6xl mx-auto ${isFullscreen ? 'bg-background p-4' : ''}`}>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-2 shrink-0" dir="rtl">
+        {/* Left: back + surah info */}
         <div className="flex items-center gap-2">
+          {!isFullscreen && (
+            <Button variant="ghost" size="sm" onClick={() => router.push(`/${locale}/quran`)}>
+              <ArrowRight className="h-4 w-4 ml-1" />
+              السور
+            </Button>
+          )}
           <span className="text-sm font-bold font-quran">{surah.nameAr}</span>
           <span className="text-xs text-muted-foreground">({surah.nameFr})</span>
-          {surah.mastery && (
-            <Badge variant="secondary" className="text-xs">{surah.mastery}</Badge>
-          )}
+          {surah.mastery && <Badge variant="secondary" className="text-xs">{surah.mastery}</Badge>}
         </div>
 
+        {/* Center: options */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <Switch id="tajweed" checked={tajweedEnabled} onCheckedChange={setTajweedEnabled} className="scale-90" />
+            <Label htmlFor="tajweed" className="text-[11px] cursor-pointer flex items-center gap-1">
+              <Palette className="h-3 w-3" />
+              Tajweed
+            </Label>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Switch id="scroll" checked={scrollMode} onCheckedChange={setScrollMode} className="scale-90" />
+            <Label htmlFor="scroll" className="text-[11px] cursor-pointer flex items-center gap-1">
+              <List className="h-3 w-3" />
+              Scroll
+            </Label>
+          </div>
+
+          {/* Zoom */}
+          <div className="flex items-center gap-0.5 border rounded px-1">
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setFontSize(f => Math.max(12, f - 2))}>
+              <ZoomOut className="h-3 w-3" />
+            </Button>
+            <span className="text-[10px] text-muted-foreground w-6 text-center">{fontSize}</span>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setFontSize(f => Math.min(36, f + 2))}>
+              <ZoomIn className="h-3 w-3" />
+            </Button>
+          </div>
+
+          {/* Fullscreen */}
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleFullscreen} title={isFullscreen ? 'Quitter plein écran' : 'Plein écran'}>
+            {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+          </Button>
+        </div>
+
+        {/* Right: surah nav */}
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={surahNumber <= 1} onClick={goPrev} title="السورة السابقة">
+          <Button variant="outline" size="icon" className="h-7 w-7" disabled={surahNumber <= 1} onClick={goPrev}>
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <span className="text-sm text-muted-foreground px-1">{toArabicNumber(surahNumber)}</span>
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={surahNumber >= 114} onClick={goNext} title="السورة التالية">
+          <span className="text-xs text-muted-foreground px-0.5">{toArabicNumber(surahNumber)}</span>
+          <Button variant="outline" size="icon" className="h-7 w-7" disabled={surahNumber >= 114} onClick={goNext}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Options bar */}
-      <div className="flex items-center justify-between flex-wrap gap-3 px-1">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Switch id="tajweed" checked={tajweedEnabled} onCheckedChange={setTajweedEnabled} />
-            <Label htmlFor="tajweed" className="flex items-center gap-1 text-xs cursor-pointer">
-              <Palette className="h-3.5 w-3.5" />
-              Tajweed
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch id="scroll" checked={scrollMode} onCheckedChange={setScrollMode} />
-            <Label htmlFor="scroll" className="flex items-center gap-1 text-xs cursor-pointer">
-              <List className="h-3.5 w-3.5" />
-              Défilement
-            </Label>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
+      {/* Position indicators */}
+      {(positions.revisionVerse || positions.readingVerse) && (
+        <div className="flex flex-wrap gap-2 justify-center mb-1 shrink-0">
           {positions.revisionVerse && (
-            <div className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/30 px-2 py-0.5 rounded-full">
+            <div className="flex items-center gap-1 text-[11px] text-blue-600 bg-blue-50 dark:bg-blue-950/30 px-2 py-0.5 rounded-full">
               <BookOpen className="h-3 w-3" />
               Rév p.{positions.revisionPage}
             </div>
           )}
           {positions.readingVerse && (
-            <div className="flex items-center gap-1 text-xs text-purple-600 bg-purple-50 dark:bg-purple-950/30 px-2 py-0.5 rounded-full">
+            <div className="flex items-center gap-1 text-[11px] text-purple-600 bg-purple-50 dark:bg-purple-950/30 px-2 py-0.5 rounded-full">
               <Eye className="h-3 w-3" />
               Lect p.{positions.readingPage}
             </div>
           )}
         </div>
-      </div>
-
-      {/* Mushaf content */}
-      <div className={scrollMode ? 'space-y-4' : ''}>
-        {currentPages.map((spread, si) => {
-          if (!spread) return null
-          return (
-            <div key={si} className="grid grid-cols-1 lg:grid-cols-2" dir="rtl">
-              <div>
-                {spread.right ? (
-                  <MushafPageView page={spread.right} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} />
-                ) : <div className="h-[75vh] min-h-[500px]" />}
-              </div>
-              <div>
-                {spread.left ? (
-                  <MushafPageView page={spread.left} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} />
-                ) : <div className="h-[75vh] min-h-[500px]" />}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Spread navigation (paginated mode) */}
-      {!scrollMode && spreads.length > 1 && (
-        <div className="flex items-center justify-center gap-4 py-2" dir="rtl">
-          <Button variant="outline" size="sm" disabled={currentSpread <= 0} onClick={() => setCurrentSpread(prev => prev - 1)}>
-            <ChevronRight className="h-4 w-4 ml-1" />
-            السابق
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            {toArabicNumber(currentSpread + 1)} / {toArabicNumber(spreads.length)}
-          </span>
-          <Button variant="outline" size="sm" disabled={currentSpread >= spreads.length - 1} onClick={() => setCurrentSpread(prev => prev + 1)}>
-            التالي
-            <ChevronLeft className="h-4 w-4 mr-1" />
-          </Button>
-        </div>
       )}
 
-      {/* Surah navigation */}
-      <div className="flex items-center justify-between py-4 border-t" dir="rtl">
-        <Button variant="outline" size="sm" disabled={surahNumber <= 1} onClick={goPrev}>
-          <ChevronRight className="h-4 w-4 ml-1" />
-          السورة السابقة
-        </Button>
-        <span className="text-xs text-muted-foreground">
-          ص {toArabicNumber(data.pages[0]?.pageNumber || 0)} – {toArabicNumber(data.pages[data.pages.length - 1]?.pageNumber || 0)}
-        </span>
-        <Button variant="outline" size="sm" disabled={surahNumber >= 114} onClick={goNext}>
-          السورة التالية
-          <ChevronLeft className="h-4 w-4 mr-1" />
-        </Button>
-      </div>
+      {/* Mushaf content */}
+      {scrollMode ? (
+        <div className="space-y-4 flex-1 overflow-y-auto">
+          {spreads.map((spread, si) => (
+            <div key={si} className="grid grid-cols-1 lg:grid-cols-2" dir="rtl" style={{ height: mushafHeight }}>
+              <div className="h-full">
+                {spread.right ? (
+                  <MushafPageView page={spread.right} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} fontSize={fontSize} />
+                ) : <div />}
+              </div>
+              <div className="h-full">
+                {spread.left ? (
+                  <MushafPageView page={spread.left} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} fontSize={fontSize} />
+                ) : <div />}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          {currentPages.map((spread, si) => {
+            if (!spread) return null
+            return (
+              <div key={si} className="grid grid-cols-1 lg:grid-cols-2 flex-1" dir="rtl" style={{ height: mushafHeight }}>
+                <div className="h-full">
+                  {spread.right ? (
+                    <MushafPageView page={spread.right} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} fontSize={fontSize} />
+                  ) : <div />}
+                </div>
+                <div className="h-full">
+                  {spread.left ? (
+                    <MushafPageView page={spread.left} positions={positions} currentSurah={surahNumber} tajweedEnabled={tajweedEnabled} fontSize={fontSize} />
+                  ) : <div />}
+                </div>
+              </div>
+            )
+          })}
+
+          {/* Spread navigation */}
+          {spreads.length > 1 && (
+            <div className="flex items-center justify-center gap-4 py-1.5 shrink-0" dir="rtl">
+              <Button variant="outline" size="sm" disabled={currentSpread <= 0} onClick={() => setCurrentSpread(prev => prev - 1)}>
+                <ChevronRight className="h-4 w-4 ml-1" />
+                السابق
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {toArabicNumber(currentSpread + 1)} / {toArabicNumber(spreads.length)}
+              </span>
+              <Button variant="outline" size="sm" disabled={currentSpread >= spreads.length - 1} onClick={() => setCurrentSpread(prev => prev + 1)}>
+                التالي
+                <ChevronLeft className="h-4 w-4 mr-1" />
+              </Button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
