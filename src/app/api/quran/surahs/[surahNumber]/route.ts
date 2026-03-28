@@ -4,7 +4,7 @@ import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
 import { getMemorizedZone } from '@/lib/quran-utils'
 
-// GET — Get all verses of a surah with user's positions
+// GET — Get all verses of a surah grouped by page, with full page content
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ surahNumber: string }> }
@@ -24,21 +24,19 @@ export async function GET(
       return NextResponse.json({ error: 'Numéro de sourate invalide' }, { status: 400 })
     }
 
-    const [surah, verses, user, zone, mastery] = await Promise.all([
+    // Get surah info and its verses to find which pages it spans
+    const [surah, surahVerses, user, zone, mastery] = await Promise.all([
       prisma.surah.findUnique({ where: { number: surahNumber } }),
       prisma.verse.findMany({
         where: { surahNumber, textAr: { not: null } },
         orderBy: { verseNumber: 'asc' },
-        select: { verseNumber: true, textAr: true, page: true, juz: true, hizb: true }
+        select: { page: true }
       }),
       prisma.user.findUnique({
         where: { id: targetUserId },
         select: {
           readingCurrentHizb: true,
           revisionCurrentHizb: true,
-          memorizationStartSurah: true,
-          memorizationStartVerse: true,
-          memorizationDirection: true,
         }
       }),
       getMemorizedZone(targetUserId),
@@ -51,44 +49,83 @@ export async function GET(
       return NextResponse.json({ error: 'Sourate non trouvée' }, { status: 404 })
     }
 
-    // Find which verses are in the memorized zone
-    const memorizedVerses = new Set<number>()
-    if (zone) {
-      for (const v of verses) {
-        if (v.hizb != null && v.hizb >= zone.startHizb && v.hizb <= zone.endHizb) {
-          memorizedVerses.add(v.verseNumber)
-        }
-      }
+    // Get all pages this surah spans
+    const pageNumbers = [...new Set(surahVerses.map(v => v.page))].sort((a, b) => a - b)
+
+    // Fetch ALL verses on those pages (including other surahs on the same page)
+    const allVerses = await prisma.verse.findMany({
+      where: { page: { in: pageNumbers }, textAr: { not: null } },
+      orderBy: [{ page: 'asc' }, { surahNumber: 'asc' }, { verseNumber: 'asc' }],
+      include: { surah: { select: { nameAr: true } } }
+    })
+
+    // Build pages with surah headers
+    const pages = new Map<number, Array<{
+      surahNumber: number
+      surahNameAr: string
+      verseNumber: number
+      textAr: string
+      juz: number | null
+      hizb: number | null
+      isMemorized: boolean
+      isFirstOfSurah: boolean
+    }>>()
+
+    // Track first verse of each surah on each page
+    const seenSurahOnPage = new Set<string>()
+
+    for (const v of allVerses) {
+      if (!pages.has(v.page)) pages.set(v.page, [])
+      const pageKey = `${v.page}-${v.surahNumber}`
+      const isFirst = !seenSurahOnPage.has(pageKey) && v.verseNumber === 1
+      if (v.verseNumber === 1) seenSurahOnPage.add(pageKey)
+
+      const isMemorized = zone
+        ? v.hizb != null && v.hizb >= zone.startHizb && v.hizb <= zone.endHizb
+        : false
+
+      pages.get(v.page)!.push({
+        surahNumber: v.surahNumber,
+        surahNameAr: v.surah.nameAr,
+        verseNumber: v.verseNumber,
+        textAr: v.textAr!,
+        juz: v.juz,
+        hizb: v.hizb,
+        isMemorized,
+        isFirstOfSurah: isFirst,
+      })
     }
 
-    // Find reading and revision positions in this surah
+    // Find reading and revision positions
+    let readingPage: number | null = null
     let readingVerse: number | null = null
+    let revisionPage: number | null = null
     let revisionVerse: number | null = null
 
     if (user) {
       const readingHizb = user.readingCurrentHizb ?? 0
       const revisionHizb = user.revisionCurrentHizb ?? 0
 
-      if (readingHizb > 0) {
-        const readingAbsoluteHizb = readingHizb + 1 // next position
-        for (const v of verses) {
-          if (v.hizb != null && Math.abs(v.hizb - readingAbsoluteHizb) < 0.5) {
-            readingVerse = v.verseNumber
-            break
-          }
+      for (const v of allVerses) {
+        if (readingHizb > 0 && v.hizb != null && Math.abs(v.hizb - (readingHizb + 1)) < 0.5 && !readingVerse) {
+          readingPage = v.page
+          readingVerse = v.verseNumber
         }
-      }
-
-      if (revisionHizb > 0 && zone) {
-        const revisionAbsoluteHizb = zone.startHizb + revisionHizb
-        for (const v of verses) {
-          if (v.hizb != null && Math.abs(v.hizb - revisionAbsoluteHizb) < 0.5) {
-            revisionVerse = v.verseNumber
-            break
-          }
+        if (revisionHizb > 0 && zone && v.hizb != null && Math.abs(v.hizb - (zone.startHizb + revisionHizb)) < 0.5 && !revisionVerse) {
+          revisionPage = v.page
+          revisionVerse = v.verseNumber
         }
       }
     }
+
+    // Convert to array
+    const pagesArray = pageNumbers.map(pageNum => ({
+      pageNumber: pageNum,
+      side: pageNum % 2 === 1 ? 'right' : 'left' as 'right' | 'left',
+      juz: pages.get(pageNum)?.[0]?.juz || null,
+      hizb: pages.get(pageNum)?.[0]?.hizb || null,
+      verses: pages.get(pageNum) || [],
+    }))
 
     return NextResponse.json({
       surah: {
@@ -100,16 +137,11 @@ export async function GET(
         revelationType: surah.revelationType,
         mastery: mastery?.status || null,
       },
-      verses: verses.map(v => ({
-        number: v.verseNumber,
-        textAr: v.textAr,
-        page: v.page,
-        juz: v.juz,
-        hizb: v.hizb,
-        isMemorized: memorizedVerses.has(v.verseNumber),
-      })),
+      pages: pagesArray,
       positions: {
+        readingPage,
         readingVerse,
+        revisionPage,
         revisionVerse,
       },
       memorizedZone: zone,
