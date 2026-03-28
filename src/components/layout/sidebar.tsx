@@ -17,9 +17,11 @@ import {
   BookOpen,
   Library,
   Grid3X3,
+  FileText,
 } from 'lucide-react'
 
 const navItems = [
+  { href: '/quran', icon: BookOpen, labelKey: 'nav.quran' },
   { href: '/dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
   { href: '/progress', icon: TrendingUp, labelKey: 'nav.progress' },
   { href: '/attendance', icon: CalendarCheck, labelKey: 'nav.attendance' },
@@ -31,7 +33,7 @@ const navItems = [
 ]
 
 const bottomItems = [
-  { href: '/presentation', icon: BookOpen, labelKey: 'nav.presentation' },
+  { href: '/presentation', icon: FileText, labelKey: 'nav.presentation' },
   { href: '/settings', icon: Settings, labelKey: 'nav.settings' },
   { href: '/admin', icon: Shield, labelKey: 'nav.admin', adminOnly: true },
 ]

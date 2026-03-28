@@ -324,6 +324,7 @@ model Verse {
   id          String @id @default(cuid())
   surahNumber Int
   verseNumber Int
+  textAr      String?
   page        Int
   juz         Int?
   hizb        Float?

@@ -96,6 +96,7 @@ Les données privées restent visibles pour :
 
 | Menu | Visible pour | Contenu |
 |------|-------------|---------|
+| Coran | Tous | Mushaf interactif : grille 114 sourates colorées + vue versets |
 | Tableau de bord | Tous | Stats personnelles + stats membres du groupe (si public) |
 | Avancement | Tous | Son avancement (écriture) + avancement groupe (lecture si public) |
 | Assiduité | Tous | Son assiduité (écriture) + sélecteur groupe (lecture si public) |
@@ -137,6 +138,38 @@ Fonctionnalité admin permettant de voir l'application comme un utilisateur spé
 - Configurés dans Paramètres → "Mes objectifs par programme"
 - Chaque objectif : quantité + unité (page, hizb, juz...) + période (jour, semaine...)
 - **Historique** : Chaque modification sauvegarde un snapshot de TOUS les objectifs, avec mise en évidence de celui modifié
+
+## Mushaf interactif (Page Coran)
+
+Page `/quran` — Mushaf interactif avec grille des sourates et vue versets.
+
+### Structure
+- `/quran` : Grille des 114 sourates, colorées par statut `SurahMastery`
+- `/quran/[surahNumber]` : Texte arabe des versets avec indicateurs de position
+
+### Coloration par statut
+| Statut | Couleur |
+|--------|---------|
+| V (validé) | Vert |
+| X (connu) | Bleu |
+| 90% | Vert clair |
+| 50%/51% | Jaune |
+| AM (à mémoriser) | Orange |
+| S (récité) | Violet |
+| _(aucun)_ | Gris |
+
+### Vue sourate
+- Texte arabe Uthmani (champ `textAr` de la table `Verse`, seedé depuis quran.com API)
+- Zone mémorisée en fond vert
+- Position révision en fond bleu
+- Position lecture en fond violet
+- Bismillah automatique (sauf sourates 1 et 9)
+- Navigation sourate précédente/suivante
+- Numéros de versets en chiffres arabes
+
+### APIs
+- `/api/quran/surahs` : liste 114 sourates + statut mastery utilisateur
+- `/api/quran/surahs/[surahNumber]` : versets + positions + zone mémorisée
 
 ## Base de données
 

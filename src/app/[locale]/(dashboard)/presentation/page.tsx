@@ -34,6 +34,7 @@ import {
 } from 'lucide-react'
 
 const guideSections = [
+  { id: 'guide-quran', icon: BookOpen, label: 'Le Mushaf (Coran)', color: 'text-sky-600' },
   { id: 'guide-dashboard', icon: LayoutDashboard, label: 'Le Tableau de Bord', color: 'text-blue-600' },
   { id: 'guide-programmes', icon: CalendarCheck, label: 'Programmes Journaliers', color: 'text-emerald-600' },
   { id: 'guide-objectifs', icon: Target, label: 'Objectifs & Paramètres', color: 'text-amber-600' },
@@ -460,6 +461,40 @@ export default function PresentationPage() {
             </nav>
           </CardContent>
         )}
+      </Card>
+
+      {/* Section 0 : Le Mushaf */}
+      <Card id="guide-quran">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-sky-600" />
+            Le Mushaf (Coran)
+          </CardTitle>
+          <CardDescription>Consultez le texte coranique avec votre progression</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            La page Coran vous offre un accès direct au texte arabe des 114 sourates avec un affichage visuel de votre progression.
+          </p>
+          <div className="space-y-2">
+            <h4 className="font-medium text-sm flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-emerald-600" />
+              Grille des sourates
+            </h4>
+            <p className="text-sm text-muted-foreground pl-6">
+              Les 114 sourates sont affichées en grille, chacune colorée selon votre statut de maîtrise : vert (validé), bleu (connu), jaune (partiel), orange (à mémoriser), gris (non commencé).
+            </p>
+          </div>
+          <div className="space-y-2">
+            <h4 className="font-medium text-sm flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-emerald-600" />
+              Vue des versets
+            </h4>
+            <p className="text-sm text-muted-foreground pl-6">
+              Cliquez sur une sourate pour voir le texte arabe. Les versets mémorisés apparaissent en fond vert, votre position de révision en bleu et votre position de lecture en violet.
+            </p>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Section 1 : Le Tableau de Bord */}

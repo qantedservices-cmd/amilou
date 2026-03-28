@@ -31,6 +31,7 @@
     "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة"
   },
   "nav": {
+    "quran": "القرآن",
     "dashboard": "لوحة التحكم",
     "objectives": "الأهداف",
     "progress": "التقدم",
