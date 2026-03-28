@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, ArrowUp, ArrowDown, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight, ChevronDown, Library, Pause, Navigation, GripVertical } from 'lucide-react'
+import { BookOpen, Calendar, TrendingUp, Target, CheckCircle, Circle, AlertCircle, Award, FileText, ArrowUp, ArrowDown, CalendarDays, RefreshCw, BookMarked, RotateCcw, Plus, Loader2, Pencil, Trash2, X, Check, User, Lock, ChevronLeft, ChevronRight, ChevronDown, Library, Pause, Navigation, GripVertical, List } from 'lucide-react'
 import { toast } from 'sonner'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts'
 import {
@@ -432,6 +432,14 @@ export default function DashboardPage() {
   const [editRevisionHizb, setEditRevisionHizb] = useState<string>('')
   const [savingProgressTracker, setSavingProgressTracker] = useState(false)
   const [recalculating, setRecalculating] = useState(false)
+
+  // Completion log dialog
+  const [completionLogOpen, setCompletionLogOpen] = useState(false)
+  const [completionLog, setCompletionLog] = useState<Array<{
+    date: string
+    programs: Record<string, boolean | { completed: boolean; hizb: number | null; surah: number | null; verse: number | null; page: number | null }>
+  }>>([])
+  const [loadingLog, setLoadingLog] = useState(false)
 
   // Interactive today programs
   const [localTodayPrograms, setLocalTodayPrograms] = useState<TodayProgram[]>([])
@@ -1289,6 +1297,26 @@ export default function DashboardPage() {
     fetchCycleHistory(type)
   }
 
+  async function fetchCompletionLog() {
+    setLoadingLog(true)
+    try {
+      const res = await fetch('/api/attendance/programs/log?days=90')
+      if (res.ok) {
+        const data = await res.json()
+        setCompletionLog(data.log || [])
+      }
+    } catch (error) {
+      console.error('Error fetching completion log:', error)
+    } finally {
+      setLoadingLog(false)
+    }
+  }
+
+  function openCompletionLog() {
+    setCompletionLogOpen(true)
+    fetchCompletionLog()
+  }
+
   function startEditCycle(cycle: { id: string; completedAt: string; notes: string | null; hizbCount: number | null }) {
     setEditingCycleId(cycle.id)
     setEditCycleDate(new Date(cycle.completedAt).toISOString().split('T')[0])
@@ -1883,6 +1911,14 @@ export default function DashboardPage() {
               )}
             </CardTitle>
             <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={openCompletionLog}>
+                    <List className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Journal des cochages</TooltipContent>
+              </Tooltip>
               <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => changeWeekOffset(-1)} disabled={loadingWeek}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -3741,6 +3777,115 @@ export default function DashboardPage() {
               Ajouter un cycle
             </Button>
             <Button variant="ghost" onClick={() => setCycleHistoryOpen(false)}>
+              Fermer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Completion Log Dialog */}
+      <Dialog open={completionLogOpen} onOpenChange={setCompletionLogOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <List className="h-5 w-5 text-blue-600" />
+              Journal des programmes
+            </DialogTitle>
+            <DialogDescription>
+              Historique des 90 derniers jours
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto py-2">
+            {loadingLog ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : completionLog.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Aucune donnée
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-muted-foreground">
+                      <th className="text-left py-2 px-2 font-medium">Date</th>
+                      <th className="text-center py-2 px-1 font-medium">Mémo</th>
+                      <th className="text-center py-2 px-1 font-medium">Cons</th>
+                      <th className="text-center py-2 px-1 font-medium">Rév</th>
+                      <th className="text-center py-2 px-1 font-medium">Lect</th>
+                      <th className="text-center py-2 px-1 font-medium">Tafsir</th>
+                      <th className="text-left py-2 px-2 font-medium">Position Rév</th>
+                      <th className="text-left py-2 px-2 font-medium">Position Lect</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {completionLog.map((entry) => {
+                      const rev = entry.programs.REVISION
+                      const read = entry.programs.READING
+                      const isRevObj = typeof rev === 'object' && rev !== null
+                      const isReadObj = typeof read === 'object' && read !== null
+                      const revCompleted = isRevObj ? (rev as { completed: boolean }).completed : !!rev
+                      const readCompleted = isReadObj ? (read as { completed: boolean }).completed : !!read
+
+                      const formatPos = (prog: unknown) => {
+                        if (!prog || typeof prog !== 'object') return null
+                        const p = prog as { hizb: number | null; surah: number | null; verse: number | null; page: number | null }
+                        if (p.hizb == null) return null
+                        const parts = [`H${p.hizb}`]
+                        if (p.surah != null) parts.push(`S${p.surah}${p.verse != null ? ':' + p.verse : ''}`)
+                        if (p.page != null) parts.push(`p.${p.page}`)
+                        return parts.join(' ')
+                      }
+
+                      return (
+                        <tr key={entry.date} className="border-b last:border-0 hover:bg-muted/30">
+                          <td className="py-2 px-2 whitespace-nowrap font-medium">
+                            {new Date(entry.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                          </td>
+                          <td className="text-center py-2 px-1">
+                            {entry.programs.MEMORIZATION
+                              ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
+                              : <span className="text-muted-foreground/30">—</span>}
+                          </td>
+                          <td className="text-center py-2 px-1">
+                            {entry.programs.CONSOLIDATION
+                              ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
+                              : <span className="text-muted-foreground/30">—</span>}
+                          </td>
+                          <td className="text-center py-2 px-1">
+                            {revCompleted
+                              ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
+                              : <span className="text-muted-foreground/30">—</span>}
+                          </td>
+                          <td className="text-center py-2 px-1">
+                            {readCompleted
+                              ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
+                              : <span className="text-muted-foreground/30">—</span>}
+                          </td>
+                          <td className="text-center py-2 px-1">
+                            {entry.programs.TAFSIR
+                              ? <CheckCircle className="h-4 w-4 text-emerald-600 mx-auto" />
+                              : <span className="text-muted-foreground/30">—</span>}
+                          </td>
+                          <td className="py-2 px-2 text-xs text-muted-foreground whitespace-nowrap">
+                            {formatPos(rev) || '—'}
+                          </td>
+                          <td className="py-2 px-2 text-xs text-muted-foreground whitespace-nowrap">
+                            {formatPos(read) || '—'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="border-t pt-4">
+            <Button variant="ghost" onClick={() => setCompletionLogOpen(false)}>
               Fermer
             </Button>
           </DialogFooter>

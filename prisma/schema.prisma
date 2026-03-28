@@ -398,6 +398,11 @@ model DailyProgramCompletion {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  readingHizb  Float?
+  revisionHizb Float?
+  surahNumber  Int?
+  verseNumber  Int?
+
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
 

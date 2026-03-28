@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
+import { hizbToPosition } from '@/lib/quran-utils'
 
 // Daily programs in order
 const DAILY_PROGRAMS = ['MEMORIZATION', 'CONSOLIDATION', 'REVISION', 'READING']
@@ -173,12 +174,29 @@ export async function POST(request: Request) {
       where: { id: { in: programIds } }
     })
     const validProgramIds = new Set(programs.map(p => p.id))
+    const programCodeMap = new Map(programs.map(p => [p.id, p.code]))
+
+    // Load user positions once if any REVISION/READING is being checked
+    const hasRevisionOrReading = programIds.some(pid => {
+      const code = programCodeMap.get(pid)
+      return (code === 'REVISION' || code === 'READING') &&
+        Object.values(completions[pid] || {}).some((c: unknown) => (c as { completed: boolean }).completed)
+    })
+
+    let userPositions: { readingCurrentHizb: number | null; revisionCurrentHizb: number | null } | null = null
+    if (hasRevisionOrReading) {
+      userPositions = await prisma.user.findUnique({
+        where: { id: targetUserId },
+        select: { readingCurrentHizb: true, revisionCurrentHizb: true }
+      })
+    }
 
     // Process each completion
     const operations = []
     for (const programId of programIds) {
       if (!validProgramIds.has(programId)) continue
 
+      const programCode = programCodeMap.get(programId)
       const programCompletions = completions[programId]
       for (const dayIndex of Object.keys(programCompletions)) {
         const { date, completed } = programCompletions[dayIndex]
@@ -186,6 +204,23 @@ export async function POST(request: Request) {
         const dateObj = new Date(date + 'T00:00:00.000Z')
 
         if (completed) {
+          // Build position data for REVISION/READING
+          let positionData: { readingHizb?: number; revisionHizb?: number; surahNumber?: number; verseNumber?: number } = {}
+          if ((programCode === 'READING' || programCode === 'REVISION') && userPositions) {
+            const hizb = programCode === 'READING'
+              ? userPositions.readingCurrentHizb
+              : userPositions.revisionCurrentHizb
+            if (hizb != null) {
+              const pos = await hizbToPosition(hizb)
+              positionData = {
+                readingHizb: programCode === 'READING' ? hizb : undefined,
+                revisionHizb: programCode === 'REVISION' ? hizb : undefined,
+                surahNumber: pos?.surahNumber,
+                verseNumber: pos?.verseNumber,
+              }
+            }
+          }
+
           operations.push(
             prisma.dailyProgramCompletion.upsert({
               where: {
@@ -195,13 +230,14 @@ export async function POST(request: Request) {
                   date: dateObj
                 }
               },
-              update: { completed: true },
+              update: { completed: true, ...positionData },
               create: {
                 userId: targetUserId,
                 programId,
                 date: dateObj,
                 completed: true,
-                createdBy: session.user.id
+                createdBy: session.user.id,
+                ...positionData
               }
             })
           )
