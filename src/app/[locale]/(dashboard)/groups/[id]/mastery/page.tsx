@@ -704,8 +704,15 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           const inner = match[3].replace(/<[^>]*>/g, '')
           const isBold = tag === 'strong' || tag === 'b'
           let color: string | null = null
-          const cm = attrs.match(/color:\s*(#[0-9a-fA-F]{3,6})/i)
-          if (cm) color = cm[1]
+          const hexMatch = attrs.match(/color:\s*(#[0-9a-fA-F]{3,6})/i)
+          const rgbMatch = attrs.match(/color:\s*rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i)
+          if (hexMatch) color = hexMatch[1]
+          else if (rgbMatch) {
+            const r = parseInt(rgbMatch[1]).toString(16).padStart(2, '0')
+            const g = parseInt(rgbMatch[2]).toString(16).padStart(2, '0')
+            const b = parseInt(rgbMatch[3]).toString(16).padStart(2, '0')
+            color = '#' + r + g + b
+          }
           if (inner) segments.push({ text: inner, bold: isBold, color })
           lastIndex = match.index + match[0].length
         }
@@ -1145,20 +1152,27 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               fillColor: [248, 250, 252]
             },
             margin: { left: 10, right: 10 },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            didParseCell: (hookData: any) => {
+              if (hookData.section === 'body' && hookData.column.index === 4) {
+                const raw = hookData.row.raw[4]
+                if (typeof raw === 'object' && raw?._html) {
+                  const segs = parseHtmlSegments(raw._html)
+                  if (segs.some((s: any) => s.bold || s.color)) {
+                    hookData.cell.text = ['']
+                  }
+                }
+              }
+            },
             didDrawCell: (hookData: any) => {
               if (hookData.section === 'body' && hookData.column.index === 4) {
                 const raw = hookData.row.raw[4]
                 const html = typeof raw === 'object' && raw?._html ? raw._html : null
                 if (html) {
                   const segs = parseHtmlSegments(html)
-                  const hasFormatting = segs.some(s => s.bold || s.color)
-                  if (hasFormatting) {
+                  if (segs.some((s: any) => s.bold || s.color)) {
                     const cell = hookData.cell
                     const px = cell.padding('left')
                     const py = cell.padding('top')
-                    doc.setFillColor(hookData.row.index % 2 === 0 ? 255 : 248, hookData.row.index % 2 === 0 ? 255 : 250, hookData.row.index % 2 === 0 ? 255 : 252)
-                    doc.rect(cell.x + 0.1, cell.y + 0.1, cell.width - 0.2, cell.height - 0.2, 'F')
                     let curX = cell.x + px
                     let curY = cell.y + py + 3
                     const maxW = cell.width - px * 2
@@ -1167,12 +1181,16 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                       doc.setFontSize(12)
                       if (seg.color) { const [r,g,b] = hexToRgb(seg.color); doc.setTextColor(r,g,b) }
                       else { doc.setTextColor(0,0,0) }
-                      const words = seg.text.split(/(\s+)/)
-                      for (const w of words) {
-                        const ww = doc.getTextWidth(w)
-                        if (curX + ww > cell.x + px + maxW && curX > cell.x + px) { curX = cell.x + px; curY += 4.5 }
-                        doc.text(w, curX, curY)
-                        curX += ww
+                      const parts = seg.text.split('\n')
+                      for (let pi = 0; pi < parts.length; pi++) {
+                        if (pi > 0) { curX = cell.x + px; curY += 4.5 }
+                        const words = parts[pi].split(' ').filter(Boolean)
+                        for (const w of words) {
+                          const ww = doc.getTextWidth(w + ' ')
+                          if (curX + ww > cell.x + px + maxW && curX > cell.x + px) { curX = cell.x + px; curY += 4.5 }
+                          doc.text(w, curX, curY)
+                          curX += doc.getTextWidth(w + ' ')
+                        }
                       }
                     }
                     doc.setTextColor(0,0,0)
@@ -1344,20 +1362,27 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 fillColor: [248, 250, 252]
               },
               margin: { left: 10, right: 10 },
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            didDrawCell: (hookData: any) => {
+              didParseCell: (hookData: any) => {
+                if (hookData.section === 'body' && hookData.column.index === 2) {
+                  const raw = hookData.row.raw[2]
+                  if (typeof raw === 'object' && raw?._html) {
+                    const segs = parseHtmlSegments(raw._html)
+                    if (segs.some((s: any) => s.bold || s.color)) {
+                      hookData.cell.text = ['']
+                    }
+                  }
+                }
+              },
+              didDrawCell: (hookData: any) => {
                 if (hookData.section === 'body' && hookData.column.index === 2) {
                   const raw = hookData.row.raw[2]
                   const html = typeof raw === 'object' && raw?._html ? raw._html : null
                   if (html) {
                     const segs = parseHtmlSegments(html)
-                    const hasFormatting = segs.some(s => s.bold || s.color)
-                    if (hasFormatting) {
+                    if (segs.some((s: any) => s.bold || s.color)) {
                       const cell = hookData.cell
                       const px = cell.padding('left')
                       const py = cell.padding('top')
-                      doc.setFillColor(hookData.row.index % 2 === 0 ? 255 : 248, hookData.row.index % 2 === 0 ? 255 : 250, hookData.row.index % 2 === 0 ? 255 : 252)
-                      doc.rect(cell.x + 0.1, cell.y + 0.1, cell.width - 0.2, cell.height - 0.2, 'F')
                       let curX = cell.x + px
                       let curY = cell.y + py + 3
                       const maxW = cell.width - px * 2
@@ -1366,12 +1391,16 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                         doc.setFontSize(11)
                         if (seg.color) { const [r,g,b] = hexToRgb(seg.color); doc.setTextColor(r,g,b) }
                         else { doc.setTextColor(0,0,0) }
-                        const words = seg.text.split(/(\s+)/)
-                        for (const w of words) {
-                          const ww = doc.getTextWidth(w)
-                          if (curX + ww > cell.x + px + maxW && curX > cell.x + px) { curX = cell.x + px; curY += 4 }
-                          doc.text(w, curX, curY)
-                          curX += ww
+                        const parts = seg.text.split('\n')
+                        for (let pi = 0; pi < parts.length; pi++) {
+                          if (pi > 0) { curX = cell.x + px; curY += 4 }
+                          const words = parts[pi].split(' ').filter(Boolean)
+                          for (const w of words) {
+                            const ww = doc.getTextWidth(w + ' ')
+                            if (curX + ww > cell.x + px + maxW && curX > cell.x + px) { curX = cell.x + px; curY += 4 }
+                            doc.text(w, curX, curY)
+                            curX += doc.getTextWidth(w + ' ')
+                          }
                         }
                       }
                       doc.setTextColor(0,0,0)
