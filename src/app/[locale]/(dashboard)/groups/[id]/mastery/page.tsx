@@ -750,15 +750,10 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         return segs.length > 0 ? segs : [{ text: html.replace(/<[^>]*>/g, ''), bold: false, color: null }]
       }
 
-      // Draw formatted segments in a cell, covering the plain text autotable drew
-      function drawRichCell(doc: any, segs: Array<{ text: string; bold: boolean; color: [number,number,number] | null }>, cell: any, font: string, size: number, isAlt: boolean) {
-        // Cover the original text with cell background
-        const bg = isAlt ? [248, 250, 252] : [255, 255, 255]
-        doc.setFillColor(bg[0], bg[1], bg[2])
+      // Draw formatted segments in a cell (called from willDrawCell, autotable won't draw text)
+      function drawRichCell(doc: any, segs: Array<{ text: string; bold: boolean; color: [number,number,number] | null }>, cell: any, font: string, size: number) {
         const px = cell.padding('left')
         const py = cell.padding('top')
-        doc.rect(cell.x + px - 0.5, cell.y + py - 0.5, cell.width - px * 2 + 1, cell.height - py * 2 + 1, 'F')
-
         let curX = cell.x + px
         let curY = cell.y + py + size * 0.35
         const maxW = cell.width - px * 2
@@ -1209,11 +1204,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               fillColor: [248, 250, 252]
             },
             margin: { left: 10, right: 10 },
-            didDrawCell: (data: any) => {
+            willDrawCell: (data: any) => {
               if (data.section === 'body' && data.column.index === 4) {
                 const raw = data.row.raw[4]
                 if (typeof raw === 'object' && raw?._html && hasRichFormat(raw._html)) {
-                  drawRichCell(doc, parseSegments(raw._html), data.cell, pdfFont, 12, data.row.index % 2 !== 0)
+                  drawRichCell(doc, parseSegments(raw._html), data.cell, pdfFont, 12)
+                  return false
                 }
               }
             }
@@ -1380,11 +1376,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 fillColor: [248, 250, 252]
               },
               margin: { left: 10, right: 10 },
-              didDrawCell: (data: any) => {
+              willDrawCell: (data: any) => {
                 if (data.section === 'body' && data.column.index === 2) {
                   const raw = data.row.raw[2]
                   if (typeof raw === 'object' && raw?._html && hasRichFormat(raw._html)) {
-                    drawRichCell(doc, parseSegments(raw._html), data.cell, pdfFont, 11, data.row.index % 2 !== 0)
+                    drawRichCell(doc, parseSegments(raw._html), data.cell, pdfFont, 11)
+                    return false
                   }
                 }
               }
