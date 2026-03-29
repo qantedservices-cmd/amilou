@@ -111,12 +111,15 @@ export async function GET(
       return NextResponse.json({ error: 'Groupe non trouvé' }, { status: 404 })
     }
 
-    // Get all members (excluding REFERENT-only members based on the Samir rule)
-    // REFERENT who is also in Amilou as MEMBER should only show their data in Amilou
+    // Get students: MEMBER role + REFERENT with isStudent=true (e.g., Samir in Aamilou)
     const members = await prisma.groupMember.findMany({
       where: {
         groupId,
-        role: 'MEMBER' // Only get MEMBER role, not REFERENT-only
+        isActive: true,
+        OR: [
+          { role: 'MEMBER' },
+          { role: 'REFERENT', isStudent: true },
+        ]
       },
       include: {
         user: {
@@ -126,7 +129,7 @@ export async function GET(
       orderBy: { user: { name: 'asc' } }
     })
 
-    // Also get REFERENT for permission check but don't include in matrix
+    // Get REFERENT for permission check
     const referent = await prisma.groupMember.findFirst({
       where: { groupId, role: 'REFERENT' },
       include: { user: { select: { id: true, name: true } } }

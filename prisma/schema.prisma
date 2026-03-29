@@ -140,12 +140,13 @@ model Group {
 }
 
 model GroupMember {
-  id       String   @id @default(cuid())
-  userId   String
-  groupId  String
-  role     String   @default("MEMBER")
-  isActive Boolean  @default(true)
-  joinedAt DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  role      String   @default("MEMBER")
+  isActive  Boolean  @default(true)
+  isStudent Boolean  @default(true)
+  joinedAt  DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
