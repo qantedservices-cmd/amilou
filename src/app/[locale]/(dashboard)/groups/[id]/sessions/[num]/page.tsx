@@ -716,7 +716,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                                 </div>
                               </div>
                             ) : (
-                              sc.comment
+                              <div className="prose prose-sm max-w-none dark:prose-invert [&>p]:m-0" dangerouslySetInnerHTML={{ __html: sc.rawComment }} />
                             )}
                           </td>
                           {isReferent && (

@@ -2445,7 +2445,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                             surahNameFr: surahInfo?.nameFr || '',
                             totalVerses: surahInfo?.totalVerses || 0,
                             status: getCellDisplay(member.id, surahNum),
-                            comment: stripHtmlTags(c.comment)
+                            comment: c.comment
                           })
                         }
                       }
@@ -2480,7 +2480,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                                   {STATUS_DISPLAY[sc.status] || sc.status}
                                 </span>
                               </td>
-                              <td className="px-3 py-1.5 text-xs">{sc.comment}</td>
+                              <td className="px-3 py-1.5 text-xs"><div className="prose prose-sm max-w-none dark:prose-invert [&>p]:m-0" dangerouslySetInnerHTML={{ __html: sc.comment }} /></td>
                             </tr>
                           ))}
                         </tbody>
