@@ -701,6 +701,82 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       const autoTableModule = await import('jspdf-autotable')
       const autoTable = autoTableModule.default
 
+      // Check if HTML has bold or color (not just <p> wrappers)
+      function hasRichFormat(html: string): boolean {
+        return /<(strong|b)\b/i.test(html) || /style\s*=\s*"[^"]*color/i.test(html)
+      }
+
+      // Parse HTML into [{text, bold, color}] segments
+      function parseSegments(html: string): Array<{ text: string; bold: boolean; color: [number,number,number] | null }> {
+        const segs: Array<{ text: string; bold: boolean; color: [number,number,number] | null }> = []
+        const cleaned = html.replace(/<\/p>\s*<p[^>]*>/gi, '\n').replace(/<br\s*\/?>/gi, '\n').replace(/<\/?p[^>]*>/gi, '')
+        const re = /<(strong|b|span)([^>]*)>([\s\S]*?)<\/\1>/gi
+        let last = 0
+        let m: RegExpExecArray | null
+        while ((m = re.exec(cleaned)) !== null) {
+          if (m.index > last) {
+            const t = cleaned.substring(last, m.index).replace(/<[^>]*>/g, '').replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')
+            if (t) segs.push({ text: t, bold: false, color: null })
+          }
+          const tag = m[1].toLowerCase()
+          const attrs = m[2]
+          const inner = m[3].replace(/<[^>]*>/g, '').replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')
+          const isBold = tag === 'strong' || tag === 'b'
+          let color: [number,number,number] | null = null
+          const hx = attrs.match(/color:\s*#([0-9a-fA-F]{6})/i)
+          const rgb = attrs.match(/color:\s*rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i)
+          if (hx) color = [parseInt(hx[1].substring(0,2),16), parseInt(hx[1].substring(2,4),16), parseInt(hx[1].substring(4,6),16)]
+          else if (rgb) color = [parseInt(rgb[1]), parseInt(rgb[2]), parseInt(rgb[3])]
+          if (inner) segs.push({ text: inner, bold: isBold, color })
+          last = m.index + m[0].length
+        }
+        if (last < cleaned.length) {
+          const t = cleaned.substring(last).replace(/<[^>]*>/g, '').replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')
+          if (t) segs.push({ text: t, bold: false, color: null })
+        }
+        return segs.length > 0 ? segs : [{ text: html.replace(/<[^>]*>/g, ''), bold: false, color: null }]
+      }
+
+      // Draw formatted segments in a cell, covering the plain text autotable drew
+      function drawRichCell(doc: any, segs: Array<{ text: string; bold: boolean; color: [number,number,number] | null }>, cell: any, font: string, size: number, isAlt: boolean) {
+        // Cover the original text with cell background
+        const bg = isAlt ? [248, 250, 252] : [255, 255, 255]
+        doc.setFillColor(bg[0], bg[1], bg[2])
+        const px = cell.padding('left')
+        const py = cell.padding('top')
+        doc.rect(cell.x + px - 0.5, cell.y + py - 0.5, cell.width - px * 2 + 1, cell.height - py * 2 + 1, 'F')
+
+        let curX = cell.x + px
+        let curY = cell.y + py + size * 0.35
+        const maxW = cell.width - px * 2
+        const lineH = size * 0.42
+
+        for (const seg of segs) {
+          doc.setFont(font, seg.bold ? 'bold' : 'normal')
+          doc.setFontSize(size)
+          if (seg.color) doc.setTextColor(seg.color[0], seg.color[1], seg.color[2])
+          else doc.setTextColor(0, 0, 0)
+
+          const lines = seg.text.split('\n')
+          for (let li = 0; li < lines.length; li++) {
+            if (li > 0) { curX = cell.x + px; curY += lineH }
+            const words = lines[li].split(' ')
+            for (const word of words) {
+              if (!word) continue
+              const ww = doc.getTextWidth(word + ' ')
+              if (curX + ww > cell.x + px + maxW && curX > cell.x + px + 1) {
+                curX = cell.x + px
+                curY += lineH
+              }
+              doc.text(word + ' ', curX, curY)
+              curX += ww
+            }
+          }
+        }
+        doc.setTextColor(0, 0, 0)
+        doc.setFont(font, 'normal')
+      }
+
 
       const targetSessionNumber = reportSessionNumber
 
@@ -818,7 +894,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 surahLabel(parseInt(surahNum), surahInfo, reshapeAr),
                 `1-${surahInfo?.totalVerses || '?'}`,
                 getCellDisplay(member.id, parseInt(surahNum)),
-                stripHtmlTags(c.comment)
+                { content: stripHtmlTags(c.comment), _html: c.comment }
               ])
             }
           }
@@ -826,7 +902,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
 
       // Past comments
-      const pastCommentsByMember: Record<string, { memberName: string; comments: { sessionNum: number; session: string; surah: string; comment: string }[] }> = {}
+      const pastCommentsByMember: Record<string, { memberName: string; comments: { sessionNum: number; session: string; surah: string; comment: string; commentHtml: string }[] }> = {}
       for (const member of data.members) {
         const memberComments = data.commentsMap[member.id]
         if (!memberComments) continue
@@ -846,7 +922,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 sessionNum: c.sessionNumber,
                 session: `S${c.sessionNumber}${dateStr ? ` (${dateStr})` : ''}`,
                 surah: surahLabel(parseInt(surahNum), surahInfo, reshapeAr),
-                comment: stripHtmlTags(c.comment)
+                comment: stripHtmlTags(c.comment),
+                commentHtml: c.comment
               })
             }
           }
@@ -1118,7 +1195,15 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             alternateRowStyles: {
               fillColor: [248, 250, 252]
             },
-            margin: { left: 10, right: 10 }
+            margin: { left: 10, right: 10 },
+            didDrawCell: (data: any) => {
+              if (data.section === 'body' && data.column.index === 4) {
+                const raw = data.row.raw[4]
+                if (typeof raw === 'object' && raw?._html && hasRichFormat(raw._html)) {
+                  drawRichCell(doc, parseSegments(raw._html), data.cell, pdfFont, 12, data.row.index % 2 !== 0)
+                }
+              }
+            }
           })
           yPos = (doc as any).lastAutoTable.finalY + 8
 
@@ -1258,7 +1343,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
             autoTable(doc, {
               head: [['Séance', 'Sourate', 'Commentaire']],
-              body: entry.comments.map(c => [c.session, c.surah, c.comment]),
+              body: entry.comments.map(c => [c.session, c.surah, { content: c.comment, _html: c.commentHtml }]),
               startY: annexeY,
               styles: {
                 font: pdfFont,
@@ -1281,7 +1366,15 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               alternateRowStyles: {
                 fillColor: [248, 250, 252]
               },
-              margin: { left: 10, right: 10 }
+              margin: { left: 10, right: 10 },
+              didDrawCell: (data: any) => {
+                if (data.section === 'body' && data.column.index === 2) {
+                  const raw = data.row.raw[2]
+                  if (typeof raw === 'object' && raw?._html && hasRichFormat(raw._html)) {
+                    drawRichCell(doc, parseSegments(raw._html), data.cell, pdfFont, 11, data.row.index % 2 !== 0)
+                  }
+                }
+              }
             })
             annexeY = (doc as any).lastAutoTable.finalY + 6
           }
