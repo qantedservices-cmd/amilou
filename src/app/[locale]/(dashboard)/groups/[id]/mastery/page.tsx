@@ -687,10 +687,16 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       const autoTableModule = await import('jspdf-autotable')
       const autoTable = autoTableModule.default
 
+      // Check if HTML has real formatting (bold or color), not just <p> wrappers
+      function hasRichFormatting(html: string): boolean {
+        return /<(strong|b)\b/i.test(html) || /style\s*=\s*"[^"]*color/i.test(html)
+      }
+
       // Parse HTML into segments for PDF rendering (bold, colors)
       function parseHtmlSegments(html: string): Array<{ text: string; bold: boolean; color: string | null }> {
         const segments: Array<{ text: string; bold: boolean; color: string | null }> = []
-        const cleaned = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>\s*<p>/gi, '\n')
+        const cleaned = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>\s*<p[^>]*>/gi, '\n').replace(/<\/?p[^>]*>/gi, '')
+        // Process nested tags: first extract <strong>/<b> and <span style="color:...">
         const regex = /<(strong|b|span)([^>]*)>([\s\S]*?)<\/\1>/gi
         let lastIndex = 0
         let match: RegExpExecArray | null
@@ -721,7 +727,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           if (rest) segments.push({ text: rest, bold: false, color: null })
         }
         if (segments.length === 0) {
-          segments.push({ text: html.replace(/<[^>]*>/g, ''), bold: false, color: null })
+          segments.push({ text: html.replace(/<[^>]*>/g, '').replace(/\n+/g, '\n').trim(), bold: false, color: null })
         }
         return segments
       }
@@ -1168,8 +1174,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 const raw = hookData.row.raw[4]
                 const html = typeof raw === 'object' && raw?._html ? raw._html : null
                 if (html) {
-                  const segs = parseHtmlSegments(html)
-                  if (segs.some((s: any) => s.bold || s.color)) {
+                  if (hasRichFormatting(html)) {
+                    const segs = parseHtmlSegments(html)
                     const cell = hookData.cell
                     const px = cell.padding('left')
                     const py = cell.padding('top')
@@ -1365,11 +1371,8 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               didParseCell: (hookData: any) => {
                 if (hookData.section === 'body' && hookData.column.index === 2) {
                   const raw = hookData.row.raw[2]
-                  if (typeof raw === 'object' && raw?._html) {
-                    const segs = parseHtmlSegments(raw._html)
-                    if (segs.some((s: any) => s.bold || s.color)) {
-                      hookData.cell.text = ['']
-                    }
+                  if (typeof raw === 'object' && raw?._html && hasRichFormatting(raw._html)) {
+                    hookData.cell.text = ['']
                   }
                 }
               },
