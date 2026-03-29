@@ -282,8 +282,9 @@ export async function GET(
         }
       }
 
-      // For groups without SurahRecitation (e.g., Amilou), inject Progress as comments
-      if (recitations.length === 0) {
+      // Always inject Progress (MEMORIZATION) as comments in the mastery grid
+      // This ensures entries from the Avancement page appear alongside SurahRecitation comments
+      {
         const sortedProgress = [...progressEntries].sort(
           (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
         )
