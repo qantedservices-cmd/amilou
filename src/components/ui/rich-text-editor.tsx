@@ -18,7 +18,17 @@ interface RichTextEditorProps {
 }
 
 export function stripHtmlTags(html: string): string {
-  return html.replace(/<[^>]*>/g, '').trim()
+  return html
+    .replace(/<\/p>\s*<p[^>]*>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .trim()
 }
 
 export function RichTextEditor({
