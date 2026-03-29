@@ -687,58 +687,6 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       const autoTableModule = await import('jspdf-autotable')
       const autoTable = autoTableModule.default
 
-      // Check if HTML has real formatting (bold or color), not just <p> wrappers
-      function hasRichFormatting(html: string): boolean {
-        return /<(strong|b)\b/i.test(html) || /style\s*=\s*"[^"]*color/i.test(html)
-      }
-
-      // Parse HTML into segments for PDF rendering (bold, colors)
-      function parseHtmlSegments(html: string): Array<{ text: string; bold: boolean; color: string | null }> {
-        const segments: Array<{ text: string; bold: boolean; color: string | null }> = []
-        const cleaned = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>\s*<p[^>]*>/gi, '\n').replace(/<\/?p[^>]*>/gi, '')
-        // Process nested tags: first extract <strong>/<b> and <span style="color:...">
-        const regex = /<(strong|b|span)([^>]*)>([\s\S]*?)<\/\1>/gi
-        let lastIndex = 0
-        let match: RegExpExecArray | null
-        while ((match = regex.exec(cleaned)) !== null) {
-          if (match.index > lastIndex) {
-            const before = cleaned.substring(lastIndex, match.index).replace(/<[^>]*>/g, '')
-            if (before) segments.push({ text: before, bold: false, color: null })
-          }
-          const tag = match[1].toLowerCase()
-          const attrs = match[2]
-          const inner = match[3].replace(/<[^>]*>/g, '')
-          const isBold = tag === 'strong' || tag === 'b'
-          let color: string | null = null
-          const hexMatch = attrs.match(/color:\s*(#[0-9a-fA-F]{3,6})/i)
-          const rgbMatch = attrs.match(/color:\s*rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i)
-          if (hexMatch) color = hexMatch[1]
-          else if (rgbMatch) {
-            const r = parseInt(rgbMatch[1]).toString(16).padStart(2, '0')
-            const g = parseInt(rgbMatch[2]).toString(16).padStart(2, '0')
-            const b = parseInt(rgbMatch[3]).toString(16).padStart(2, '0')
-            color = '#' + r + g + b
-          }
-          if (inner) segments.push({ text: inner, bold: isBold, color })
-          lastIndex = match.index + match[0].length
-        }
-        if (lastIndex < cleaned.length) {
-          const rest = cleaned.substring(lastIndex).replace(/<[^>]*>/g, '')
-          if (rest) segments.push({ text: rest, bold: false, color: null })
-        }
-        if (segments.length === 0) {
-          segments.push({ text: html.replace(/<[^>]*>/g, '').replace(/\n+/g, '\n').trim(), bold: false, color: null })
-        }
-        return segments
-      }
-
-      function hexToRgb(hex: string): [number, number, number] {
-        const h = hex.replace('#', '')
-        if (h.length === 3) {
-          return [parseInt(h[0]+h[0],16), parseInt(h[1]+h[1],16), parseInt(h[2]+h[2],16)]
-        }
-        return [parseInt(h.substring(0,2),16)||0, parseInt(h.substring(2,4),16)||0, parseInt(h.substring(4,6),16)||0]
-      }
 
       const targetSessionNumber = reportSessionNumber
 
@@ -856,7 +804,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 surahLabel(parseInt(surahNum), surahInfo, reshapeAr),
                 `1-${surahInfo?.totalVerses || '?'}`,
                 getCellDisplay(member.id, parseInt(surahNum)),
-                { content: stripHtmlTags(c.comment), _html: c.comment }
+                stripHtmlTags(c.comment)
               ])
             }
           }
@@ -864,7 +812,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       }
 
       // Past comments
-      const pastCommentsByMember: Record<string, { memberName: string; comments: { sessionNum: number; session: string; surah: string; comment: string; commentHtml: string }[] }> = {}
+      const pastCommentsByMember: Record<string, { memberName: string; comments: { sessionNum: number; session: string; surah: string; comment: string }[] }> = {}
       for (const member of data.members) {
         const memberComments = data.commentsMap[member.id]
         if (!memberComments) continue
@@ -884,8 +832,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
                 sessionNum: c.sessionNumber,
                 session: `S${c.sessionNumber}${dateStr ? ` (${dateStr})` : ''}`,
                 surah: surahLabel(parseInt(surahNum), surahInfo, reshapeAr),
-                comment: stripHtmlTags(c.comment),
-                commentHtml: c.comment
+                comment: stripHtmlTags(c.comment)
               })
             }
           }
@@ -1157,54 +1104,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             alternateRowStyles: {
               fillColor: [248, 250, 252]
             },
-            margin: { left: 10, right: 10 },
-            didParseCell: (hookData: any) => {
-              if (hookData.section === 'body' && hookData.column.index === 4) {
-                const raw = hookData.row.raw[4]
-                if (typeof raw === 'object' && raw?._html) {
-                  const segs = parseHtmlSegments(raw._html)
-                  if (segs.some((s: any) => s.bold || s.color)) {
-                    hookData.cell.text = ['']
-                  }
-                }
-              }
-            },
-            didDrawCell: (hookData: any) => {
-              if (hookData.section === 'body' && hookData.column.index === 4) {
-                const raw = hookData.row.raw[4]
-                const html = typeof raw === 'object' && raw?._html ? raw._html : null
-                if (html) {
-                  if (hasRichFormatting(html)) {
-                    const segs = parseHtmlSegments(html)
-                    const cell = hookData.cell
-                    const px = cell.padding('left')
-                    const py = cell.padding('top')
-                    let curX = cell.x + px
-                    let curY = cell.y + py + 3
-                    const maxW = cell.width - px * 2
-                    for (const seg of segs) {
-                      doc.setFont(pdfFont, seg.bold ? 'bold' : 'normal')
-                      doc.setFontSize(12)
-                      if (seg.color) { const [r,g,b] = hexToRgb(seg.color); doc.setTextColor(r,g,b) }
-                      else { doc.setTextColor(0,0,0) }
-                      const parts = seg.text.split('\n')
-                      for (let pi = 0; pi < parts.length; pi++) {
-                        if (pi > 0) { curX = cell.x + px; curY += 4.5 }
-                        const words = parts[pi].split(' ').filter(Boolean)
-                        for (const w of words) {
-                          const ww = doc.getTextWidth(w + ' ')
-                          if (curX + ww > cell.x + px + maxW && curX > cell.x + px) { curX = cell.x + px; curY += 4.5 }
-                          doc.text(w, curX, curY)
-                          curX += doc.getTextWidth(w + ' ')
-                        }
-                      }
-                    }
-                    doc.setTextColor(0,0,0)
-                    doc.setFont(pdfFont, 'normal')
-                  }
-                }
-              }
-            }
+            margin: { left: 10, right: 10 }
           })
           yPos = (doc as any).lastAutoTable.finalY + 8
 
@@ -1344,7 +1244,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
 
             autoTable(doc, {
               head: [['Séance', 'Sourate', 'Commentaire']],
-              body: entry.comments.map(c => [c.session, c.surah, { content: c.comment, _html: c.commentHtml }]),
+              body: entry.comments.map(c => [c.session, c.surah, c.comment]),
               startY: annexeY,
               styles: {
                 font: pdfFont,
@@ -1367,51 +1267,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
               alternateRowStyles: {
                 fillColor: [248, 250, 252]
               },
-              margin: { left: 10, right: 10 },
-              didParseCell: (hookData: any) => {
-                if (hookData.section === 'body' && hookData.column.index === 2) {
-                  const raw = hookData.row.raw[2]
-                  if (typeof raw === 'object' && raw?._html && hasRichFormatting(raw._html)) {
-                    hookData.cell.text = ['']
-                  }
-                }
-              },
-              didDrawCell: (hookData: any) => {
-                if (hookData.section === 'body' && hookData.column.index === 2) {
-                  const raw = hookData.row.raw[2]
-                  const html = typeof raw === 'object' && raw?._html ? raw._html : null
-                  if (html) {
-                    const segs = parseHtmlSegments(html)
-                    if (segs.some((s: any) => s.bold || s.color)) {
-                      const cell = hookData.cell
-                      const px = cell.padding('left')
-                      const py = cell.padding('top')
-                      let curX = cell.x + px
-                      let curY = cell.y + py + 3
-                      const maxW = cell.width - px * 2
-                      for (const seg of segs) {
-                        doc.setFont(pdfFont, seg.bold ? 'bold' : 'normal')
-                        doc.setFontSize(11)
-                        if (seg.color) { const [r,g,b] = hexToRgb(seg.color); doc.setTextColor(r,g,b) }
-                        else { doc.setTextColor(0,0,0) }
-                        const parts = seg.text.split('\n')
-                        for (let pi = 0; pi < parts.length; pi++) {
-                          if (pi > 0) { curX = cell.x + px; curY += 4 }
-                          const words = parts[pi].split(' ').filter(Boolean)
-                          for (const w of words) {
-                            const ww = doc.getTextWidth(w + ' ')
-                            if (curX + ww > cell.x + px + maxW && curX > cell.x + px) { curX = cell.x + px; curY += 4 }
-                            doc.text(w, curX, curY)
-                            curX += doc.getTextWidth(w + ' ')
-                          }
-                        }
-                      }
-                      doc.setTextColor(0,0,0)
-                      doc.setFont(pdfFont, 'normal')
-                    }
-                  }
-                }
-              }
+              margin: { left: 10, right: 10 }
             })
             annexeY = (doc as any).lastAutoTable.finalY + 6
           }
