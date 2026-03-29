@@ -648,8 +648,21 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       const base64 = btoa(binary)
       doc.addFileToVFS('Amiri-Regular.ttf', base64)
       doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal')
-      // Register same font for bold style (no bold TTF available, but prevents fallback to helvetica)
-      doc.addFileToVFS('Amiri-Bold.ttf', base64)
+
+      // Load real bold font
+      try {
+        const boldRes = await fetch('/fonts/Amiri-Bold.ttf')
+        const boldData = await boldRes.arrayBuffer()
+        const boldBytes = new Uint8Array(boldData)
+        let boldBinary = ''
+        for (let i = 0; i < boldBytes.length; i++) {
+          boldBinary += String.fromCharCode(boldBytes[i])
+        }
+        doc.addFileToVFS('Amiri-Bold.ttf', btoa(boldBinary))
+      } catch {
+        // Fallback: use regular font for bold
+        doc.addFileToVFS('Amiri-Bold.ttf', base64)
+      }
       doc.addFont('Amiri-Bold.ttf', 'Amiri', 'bold')
       hasFont = true
     } catch (err) {
