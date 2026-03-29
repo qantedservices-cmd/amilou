@@ -30,6 +30,7 @@ export async function GET() {
         memorizationStartVerse: true,
         memorizationDirection: true,
         enabledPrograms: true,
+        defaultTafsirIds: true,
         dashboardLayout: true,
       },
     })
@@ -62,7 +63,7 @@ export async function PUT(request: Request) {
     const {
       name, privateAttendance, privateProgress, privateStats, privateEvaluations,
       memorizationStartSurah, memorizationStartVerse, memorizationDirection,
-      enabledPrograms, dashboardLayout,
+      enabledPrograms, defaultTafsirIds, dashboardLayout,
     } = body
 
     // Build update data
@@ -110,6 +111,14 @@ export async function PUT(request: Request) {
       updateData.enabledPrograms = enabledPrograms
     }
 
+    // Default tafsir books
+    if (defaultTafsirIds !== undefined) {
+      if (!Array.isArray(defaultTafsirIds) || !defaultTafsirIds.every((id: unknown) => typeof id === 'string')) {
+        return NextResponse.json({ error: 'defaultTafsirIds invalide' }, { status: 400 })
+      }
+      updateData.defaultTafsirIds = defaultTafsirIds
+    }
+
     // Dashboard layout
     if (dashboardLayout !== undefined) {
       if (!Array.isArray(dashboardLayout) || !dashboardLayout.every((s: unknown) => typeof s === 'string')) {
@@ -135,6 +144,7 @@ export async function PUT(request: Request) {
         memorizationStartVerse: true,
         memorizationDirection: true,
         enabledPrograms: true,
+        defaultTafsirIds: true,
         dashboardLayout: true,
       },
     })

@@ -130,6 +130,12 @@ export default function SettingsPage() {
   const [savingPrograms, setSavingPrograms] = useState(false)
   const [programsMessage, setProgramsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // Default tafsir books
+  const [tafsirBooks, setTafsirBooks] = useState<Array<{ id: string; nameAr: string; nameFr: string; author: string | null }>>([])
+  const [defaultTafsirIds, setDefaultTafsirIds] = useState<string[]>([])
+  const [savingTafsir, setSavingTafsir] = useState(false)
+  const [tafsirMessage, setTafsirMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   // Program settings
   const [programs, setPrograms] = useState<Program[]>([])
   const [programSettings, setProgramSettings] = useState<ProgramSetting[]>([])
@@ -143,6 +149,7 @@ export default function SettingsPage() {
     fetchPrograms()
     fetchProgramSettings()
     fetchSurahs()
+    fetchTafsirBooks()
   }, [])
 
   async function fetchProfile() {
@@ -163,6 +170,8 @@ export default function SettingsPage() {
         setMemDirection(data.memorizationDirection || 'FORWARD')
         // Set enabled programs
         setEnabledPrograms(data.enabledPrograms || [])
+        // Set default tafsirs
+        setDefaultTafsirIds(data.defaultTafsirIds || [])
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
@@ -181,6 +190,39 @@ export default function SettingsPage() {
     } catch (error) {
       console.error('Error fetching surahs:', error)
     }
+  }
+
+  async function fetchTafsirBooks() {
+    try {
+      const res = await fetch('/api/tafsir-books')
+      if (res.ok) {
+        const data = await res.json()
+        setTafsirBooks(data.books || [])
+      }
+    } catch (error) {
+      console.error('Error fetching tafsir books:', error)
+    }
+  }
+
+  async function handleTafsirSubmit() {
+    setSavingTafsir(true)
+    setTafsirMessage(null)
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ defaultTafsirIds }),
+      })
+      if (res.ok) {
+        setTafsirMessage({ type: 'success', text: 'Tafsirs par défaut enregistrés' })
+      } else {
+        setTafsirMessage({ type: 'error', text: 'Erreur lors de la sauvegarde' })
+      }
+    } catch {
+      setTafsirMessage({ type: 'error', text: 'Erreur réseau' })
+    }
+    setSavingTafsir(false)
+    setTimeout(() => setTafsirMessage(null), 3000)
   }
 
   async function fetchPrograms() {
@@ -746,6 +788,71 @@ export default function SettingsPage() {
             disabled={savingPrivacy}
           >
             {savingPrivacy ? t('common.loading') : 'Enregistrer'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Default Tafsir Books Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5" />
+            التفاسير — Mes tafsirs
+          </CardTitle>
+          <CardDescription>
+            Sélectionnez les tafsirs que vous lisez habituellement. Ils seront pré-sélectionnés lors du cochage du programme Tafsir.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {tafsirMessage && (
+            <div className={`flex items-center gap-2 rounded-md p-3 text-sm ${
+              tafsirMessage.type === 'success'
+                ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+            }`}>
+              {tafsirMessage.type === 'success' ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+              {tafsirMessage.text}
+            </div>
+          )}
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            {tafsirBooks.map(book => (
+              <label
+                key={book.id}
+                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  defaultTafsirIds.includes(book.id)
+                    ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-700'
+                    : 'hover:bg-muted/50'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300"
+                  checked={defaultTafsirIds.includes(book.id)}
+                  onChange={e => {
+                    if (e.target.checked) {
+                      setDefaultTafsirIds(prev => [...prev, book.id])
+                    } else {
+                      setDefaultTafsirIds(prev => prev.filter(id => id !== book.id))
+                    }
+                  }}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium font-quran" dir="rtl">{book.nameAr}</div>
+                  <div className="text-xs text-muted-foreground">{book.nameFr}{book.author ? ` — ${book.author}` : ''}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          <Button
+            onClick={handleTafsirSubmit}
+            className="bg-emerald-600 hover:bg-emerald-700"
+            disabled={savingTafsir}
+          >
+            {savingTafsir ? t('common.loading') : 'Enregistrer'}
           </Button>
         </CardContent>
       </Card>

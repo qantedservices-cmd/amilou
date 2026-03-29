@@ -285,6 +285,8 @@ interface Stats {
   } | null
   // Enabled programs
   enabledPrograms?: string[]
+  // Default tafsir books
+  defaultTafsirIds?: string[]
   // Dashboard layout
   dashboardLayout?: string[]
 }
@@ -1086,7 +1088,8 @@ export default function DashboardPage() {
           [programId]: {
             [dayIndex]: {
               date: formatDateLocal(targetDate),
-              completed: newCompleted
+              completed: newCompleted,
+              ...(code === 'TAFSIR' && newCompleted ? { tafsirBookIds: stats?.defaultTafsirIds || [] } : {})
             }
           }
         }

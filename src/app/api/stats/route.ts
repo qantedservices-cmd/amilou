@@ -117,6 +117,7 @@ export async function GET(request: Request) {
       where: { id: userId },
       select: {
         enabledPrograms: true,
+        defaultTafsirIds: true,
         dashboardLayout: true,
         readingCurrentHizb: true,
         revisionCurrentHizb: true,
@@ -124,6 +125,7 @@ export async function GET(request: Request) {
       }
     })
     const enabledPrograms = userData?.enabledPrograms || []
+    const defaultTafsirIds = userData?.defaultTafsirIds || []
     const dashboardLayout = userData?.dashboardLayout || []
 
     // Parallel fetch of all independent data
@@ -1164,6 +1166,8 @@ export async function GET(request: Request) {
       progressTracker,
       // Enabled programs
       enabledPrograms,
+      // Default tafsir books
+      defaultTafsirIds,
       // Dashboard layout
       dashboardLayout,
     })

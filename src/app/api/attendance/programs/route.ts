@@ -199,11 +199,14 @@ export async function POST(request: Request) {
       const programCode = programCodeMap.get(programId)
       const programCompletions = completions[programId]
       for (const dayIndex of Object.keys(programCompletions)) {
-        const { date, completed } = programCompletions[dayIndex]
+        const { date, completed, tafsirBookIds: dayTafsirIds } = programCompletions[dayIndex]
         // Parse date as YYYY-MM-DD in UTC to avoid timezone issues
         const dateObj = new Date(date + 'T00:00:00.000Z')
 
         if (completed) {
+          // Build extra data
+          const tafsirData = programCode === 'TAFSIR' && Array.isArray(dayTafsirIds) ? { tafsirBookIds: dayTafsirIds } : {}
+
           // Build position data for REVISION/READING
           let positionData: { readingHizb?: number; revisionHizb?: number; surahNumber?: number; verseNumber?: number } = {}
           if ((programCode === 'READING' || programCode === 'REVISION') && userPositions) {
@@ -230,14 +233,15 @@ export async function POST(request: Request) {
                   date: dateObj
                 }
               },
-              update: { completed: true, ...positionData },
+              update: { completed: true, ...positionData, ...tafsirData },
               create: {
                 userId: targetUserId,
                 programId,
                 date: dateObj,
                 completed: true,
                 createdBy: session.user.id,
-                ...positionData
+                ...positionData,
+                ...tafsirData
               }
             })
           )
