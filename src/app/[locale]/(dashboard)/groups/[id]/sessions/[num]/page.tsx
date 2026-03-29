@@ -32,6 +32,7 @@ import {
   Trophy,
   Users,
   X,
+  Download,
 } from 'lucide-react'
 import { stripHtmlTags } from '@/components/ui/rich-text-editor'
 import Link from 'next/link'
@@ -471,6 +472,13 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
             <Button variant="outline" size="sm">
               <Grid3X3 className="h-4 w-4 mr-1" />
               Grille
+            </Button>
+          </Link>
+
+          <Link href={`/${locale}/groups/${groupId}/mastery?report=${sessionNum}`}>
+            <Button variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-1" />
+              Rapport PDF
             </Button>
           </Link>
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, use, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -144,6 +144,7 @@ const STATUS_OPTIONS = [
 export default function MasteryPage({ params }: { params: Promise<{ id: string; locale: string }> }) {
   const { id: groupId, locale } = use(params)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [data, setData] = useState<MasteryData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -234,6 +235,19 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   useEffect(() => {
     fetchMastery()
   }, [groupId])
+
+  // Auto-open report dialog if ?report=N is in URL
+  const reportParam = searchParams.get('report')
+  const reportAutoOpened = useRef(false)
+  useEffect(() => {
+    if (reportParam && data && !reportAutoOpened.current) {
+      reportAutoOpened.current = true
+      const sessionNum = parseInt(reportParam)
+      if (!isNaN(sessionNum) && sessionNum > 0) {
+        openSessionReportDialog(sessionNum)
+      }
+    }
+  }, [reportParam, data])
 
   async function fetchMastery() {
     try {
