@@ -204,6 +204,23 @@ export async function POST(request: Request) {
               createdBy: session.user.id,
             }
           })
+
+          // Mark user as present in this session
+          await prisma.sessionAttendance.upsert({
+            where: {
+              sessionId_userId: {
+                sessionId: groupSession.id,
+                userId: targetUserId,
+              }
+            },
+            update: { present: true },
+            create: {
+              sessionId: groupSession.id,
+              userId: targetUserId,
+              present: true,
+              excused: false,
+            }
+          })
         }
       } catch (err) {
         // Don't fail the Progress creation if SurahRecitation fails
