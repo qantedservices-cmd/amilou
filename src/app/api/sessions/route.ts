@@ -130,11 +130,15 @@ export async function POST(request: Request) {
       }
     }
 
-    // Get all group members (exclude REFERENT and ADMIN - they are teachers, not students)
+    // Get all students (MEMBER + REFERENT with isStudent=true)
     const members = await prisma.groupMember.findMany({
       where: {
         groupId,
-        role: { notIn: ['REFERENT', 'ADMIN'] }
+        isActive: true,
+        OR: [
+          { role: 'MEMBER' },
+          { role: 'REFERENT', isStudent: true },
+        ]
       },
       select: { userId: true },
     })
