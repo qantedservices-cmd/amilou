@@ -60,6 +60,18 @@ Samir a un rôle particulier :
 
 Les données de Samir (Progress, Attendance, etc.) sont liées au groupe Amilou uniquement.
 
+### Entrées de mémorisation et séances
+
+Quand un utilisateur ajoute une entrée **Progress (MEMORIZATION)** via la page Avancement :
+
+1. L'entrée `Progress` est créée normalement (sourate, versets, date)
+2. **Recherche de séance** : chercher une `GroupSession` existante dans la même semaine (semaine commençant dimanche) pour le groupe de l'utilisateur (`isStudent=true`)
+3. **Si séance trouvée** → créer une `SurahRecitation` rattachée à cette séance
+4. **Si pas de séance** → créer une nouvelle `GroupSession` (date = dimanche de la semaine, weekNumber calculé), puis y rattacher la `SurahRecitation`
+5. La `SurahRecitation` reprend : surahNumber, verseStart, verseEnd, type="MEMORIZATION", status="50%" (partiel) ou "V" (si sourate complète), comment = commentaire du Progress
+
+Cela permet que les entrées de mémorisation apparaissent comme de vraies récitations dans les séances et le rapport PDF.
+
 ## Règles de visibilité et permissions
 
 ### Qui voit quoi

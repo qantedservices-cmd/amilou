@@ -115,11 +115,13 @@ export async function POST(request: Request) {
       )
     }
 
+    const progressDate = date ? new Date(date) : new Date()
+
     const progress = await prisma.progress.create({
       data: {
         userId: targetUserId,
         programId,
-        date: date ? new Date(date) : new Date(),
+        date: progressDate,
         surahNumber,
         verseStart,
         verseEnd,
@@ -139,6 +141,75 @@ export async function POST(request: Request) {
         }
       },
     })
+
+    // For MEMORIZATION entries, auto-create SurahRecitation in the week's session
+    if (progress.program.code === 'MEMORIZATION') {
+      try {
+        // Find the user's group where isStudent=true
+        const membership = await prisma.groupMember.findFirst({
+          where: { userId: targetUserId, isStudent: true, isActive: true }
+        })
+
+        if (membership) {
+          const groupId = membership.groupId
+          const entryDate = new Date(progressDate)
+
+          // Week start = Sunday
+          const weekStart = new Date(entryDate)
+          weekStart.setUTCHours(0, 0, 0, 0)
+          weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay())
+
+          const weekEnd = new Date(weekStart)
+          weekEnd.setUTCDate(weekStart.getUTCDate() + 7)
+
+          // Calculate week number (ISO-like, starting from week 1 of the year)
+          const startOfYear = new Date(Date.UTC(entryDate.getUTCFullYear(), 0, 1))
+          const weekNumber = Math.ceil(((entryDate.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getUTCDay() + 1) / 7)
+
+          // Find existing session this week
+          let groupSession = await prisma.groupSession.findFirst({
+            where: {
+              groupId,
+              date: { gte: weekStart, lt: weekEnd }
+            }
+          })
+
+          // Create session if not found
+          if (!groupSession) {
+            groupSession = await prisma.groupSession.create({
+              data: {
+                groupId,
+                date: weekStart,
+                weekNumber,
+                createdBy: session.user.id,
+              }
+            })
+          }
+
+          // Determine status: "V" if full surah covered, "50%" otherwise
+          const isFullSurah = verseStart === 1 && verseEnd === surah.totalVerses
+          const status = isFullSurah ? 'V' : '50%'
+
+          // Create SurahRecitation
+          await prisma.surahRecitation.create({
+            data: {
+              sessionId: groupSession.id,
+              userId: targetUserId,
+              surahNumber,
+              type: 'MEMORIZATION',
+              verseStart,
+              verseEnd,
+              status,
+              comment: comment || `v.${verseStart}-${verseEnd}`,
+              createdBy: session.user.id,
+            }
+          })
+        }
+      } catch (err) {
+        // Don't fail the Progress creation if SurahRecitation fails
+        console.error('Error auto-creating SurahRecitation:', err)
+      }
+    }
 
     return NextResponse.json(progress)
   } catch (error) {
