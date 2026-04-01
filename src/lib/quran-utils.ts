@@ -143,10 +143,12 @@ export async function getMemorizedZone(userId: string): Promise<MemorizedZone | 
   if (direction === 'FORWARD') {
     const startHizb = Math.floor(startHizbRaw)
     const endHizb = Math.ceil(endVerse.hizb)
+    // totalHizbs = nombre de hizbs à réviser (hizb entamé inclus, sans compter le +1)
+    // Ex: hizb 1 à 19 = 19 hizbs à parcourir (positions 0 à 19)
     return {
       startHizb,
       endHizb,
-      totalHizbs: endHizb - startHizb + 1
+      totalHizbs: endHizb - startHizb
     }
   } else {
     // BACKWARD: start is at higher hizb, end is at lower
@@ -155,7 +157,7 @@ export async function getMemorizedZone(userId: string): Promise<MemorizedZone | 
     return {
       startHizb: endHizb,
       endHizb: startHizb,
-      totalHizbs: startHizb - endHizb + 1
+      totalHizbs: startHizb - endHizb
     }
   }
 }

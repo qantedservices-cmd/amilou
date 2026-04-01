@@ -298,21 +298,45 @@ Les cycles représentent les tours complets du Coran (révision ou lecture).
 
 Tracker temps réel de la position dans les cycles de Révision et Lecture.
 
-### Champs User (positions en hizbs)
-- `readingCurrentHizb` (Float?) : Position lecture (0-60 hizbs)
-- `revisionCurrentHizb` (Float?) : Position révision (0-N hizbs dans zone mémorisée)
-- `revisionSuspendedHizb` (Float?) : Position sauvegardée quand révision suspendue
+### Calcul du nombre de hizbs de révision
+
+Le nombre de hizbs à réviser (`totalHizbs`) = **nombre de hizbs mémorisés, hizb entamé inclus**.
+
+**Calcul** : `totalHizbs = endHizb - startHizb`
+- `startHizb` = hizb du premier verset mémorisé (arrondi vers le bas)
+- `endHizb` = hizb du dernier verset mémorisé (arrondi vers le haut, hizb entamé = compté)
+
+**Exemple** : Mémorisation de S1:v1 (hizb 1) à S9:v33 (hizb 19)
+- `startHizb = floor(1) = 1`
+- `endHizb = ceil(19) = 19`
+- `totalHizbs = 19 - 1 = 19 hizbs` à réviser
+
+Un cycle de révision complet = parcourir les 19 hizbs. La position va de 0 à 19, puis repart à 0 (nouveau cycle).
+
+### Calcul de la position de révision (`recalculatePositionsFromCycles`)
+
+La position est recalculée à chaque cochage de programme :
+1. Part du **dernier cycle** (REVISION ou LECTURE) enregistré
+2. Compte les **jours cochés** (REVISION/READING) depuis ce cycle
+3. Chaque jour coché avance de **l'objectif actif** (ex: 2 hizbs/jour)
+4. Quand la position dépasse `totalHizbs` → **cycle complété** automatiquement (wrap à 0)
+5. Un `CompletionCycle` est créé en DB automatiquement au wrap
 
 ### Phase combinée
 - Quand la Lecture entre dans la zone mémorisée → Révision se suspend, Lecture avance à vitesse doublée
 - Quand la Lecture sort de la zone mémorisée → cycle Révision +1 (note "Mode combiné"), Révision reprend
+
+### Champs User (positions en hizbs)
+- `readingCurrentHizb` (Float?) : Position lecture (0-60 hizbs)
+- `revisionCurrentHizb` (Float?) : Position révision (0-N hizbs dans zone mémorisée)
+- `revisionSuspendedHizb` (Float?) : Position sauvegardée quand révision suspendue
 
 ### API
 - `/api/progress-tracker` : GET (recalcul depuis jours complétés) + PUT (modification manuelle)
 - Intégré dans `/api/stats` via `progressTracker` dans la réponse
 
 ### Utilitaires
-- `src/lib/quran-utils.ts` : `hizbToPosition()`, `getMemorizedZone()`, `objectiveToHizbPerDay()`
+- `src/lib/quran-utils.ts` : `hizbToPosition()`, `getMemorizedZone()`, `objectiveToHizbPerDay()`, `recalculatePositionsFromCycles()`
 
 ### Dashboard
 - Carte "Mon Avancement Révision & Lecture" avec positions, barres de progression
@@ -326,7 +350,7 @@ Chaque utilisateur peut configurer son point de départ de mémorisation :
 - `memorizationStartVerse` : Verset de départ
 - `memorizationDirection` : Sens (FORWARD vers Nas, BACKWARD vers Fatiha)
 
-Ces paramètres sont utilisés pour calculer automatiquement le `hizbCount` des cycles de révision.
+Ces paramètres sont utilisés pour calculer automatiquement le nombre de hizbs de révision. **Chaque utilisateur doit configurer ces paramètres dans Paramètres → Zone de mémorisation** pour que le suivi fonctionne.
 
 ## Calcul du taux d'assiduité
 

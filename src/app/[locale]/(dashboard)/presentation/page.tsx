@@ -663,25 +663,43 @@ export default function PresentationPage() {
           </p>
 
           <div className="space-y-3">
+            <div className="p-3 rounded-lg border-2 border-teal-200 dark:border-teal-800 bg-teal-50/50 dark:bg-teal-950/20">
+              <h4 className="font-semibold text-sm mb-2 flex items-center gap-1">
+                <Info className="h-4 w-4 text-teal-600" />
+                Paramétrage requis
+              </h4>
+              <p className="text-xs text-muted-foreground mb-2">
+                Pour que le suivi de révision fonctionne, vous devez configurer dans <strong>Paramètres</strong> :
+              </p>
+              <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+                <li><strong>Zone de mémorisation</strong> : la sourate et le verset à partir desquels vous avez commencé à mémoriser, et le sens (vers An-Nas ou vers Al-Fatiha)</li>
+                <li><strong>Objectif Révision</strong> : combien de hizbs vous révisez par jour (ex: 2 hizbs/jour)</li>
+                <li><strong>Objectif Lecture</strong> : combien de hizbs vous lisez par jour</li>
+              </ul>
+            </div>
+
             <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-950/30">
-              <h4 className="font-semibold text-sm mb-1">Comment ça marche</h4>
+              <h4 className="font-semibold text-sm mb-1">Nombre de hizbs de révision</h4>
               <p className="text-xs text-muted-foreground">
-                Chaque jour où vous cochez "Révision" ou "Lecture" dans la grille, votre position avance selon l'objectif que vous avez défini.
-                Exemple : si votre objectif est "2 hizbs/jour" en Révision, chaque jour coché avance de 2 hizbs.
+                Le nombre de hizbs à réviser est calculé automatiquement : c'est le <strong>nombre de hizbs mémorisés</strong>, hizb entamé inclus.
+                Par exemple, si vous avez mémorisé de la sourate Al-Fatiha (hizb 1) jusqu'à la sourate At-Tawba verset 33 (hizb 19), vous révisez <strong>19 hizbs</strong>.
+                Un cycle complet = parcourir tous ces hizbs une fois.
               </p>
             </div>
 
             <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-950/30">
-              <h4 className="font-semibold text-sm mb-1">Recalculer</h4>
+              <h4 className="font-semibold text-sm mb-1">Comment ça avance</h4>
               <p className="text-xs text-muted-foreground">
-                Le bouton <strong>Recalculer</strong> recompte les jours complétés depuis votre dernier cycle et met à jour votre position. Si votre position dépasse la fin d'un cycle, un nouveau cycle est automatiquement créé.
+                Chaque jour où vous cochez "Révision" ou "Lecture" dans les programmes journaliers, votre position avance selon votre objectif.
+                Quand la position atteint la fin de votre zone, un <strong>cycle est automatiquement créé</strong> et la position repart à zéro.
               </p>
             </div>
 
             <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-950/30">
-              <h4 className="font-semibold text-sm mb-1">Modifier manuellement</h4>
+              <h4 className="font-semibold text-sm mb-1">Recalculer / Modifier</h4>
               <p className="text-xs text-muted-foreground">
-                Cliquez sur <strong>Modifier</strong> pour ajuster votre position si elle ne correspond pas à la réalité (ex : vous avez avancé plus vite certains jours).
+                <strong>Recalculer</strong> recompte les jours depuis le dernier cycle et met à jour la position.
+                <strong>Modifier</strong> permet d'ajuster manuellement si la position ne correspond pas (ex: vous avez avancé plus vite certains jours).
               </p>
             </div>
 
