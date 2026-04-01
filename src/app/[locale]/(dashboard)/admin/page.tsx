@@ -724,10 +724,10 @@ export default function AdminPage() {
             </div>
             <div>
               <Label>Groupe (optionnel)</Label>
-              <Select value={newGroupId} onValueChange={setNewGroupId}>
+              <Select value={newGroupId || 'none'} onValueChange={v => setNewGroupId(v === 'none' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Aucun" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucun</SelectItem>
+                  <SelectItem value="none">Aucun</SelectItem>
                   {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -867,10 +867,10 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <Label>Groupe (optionnel)</Label>
-                  <Select value={inviteGroupId} onValueChange={setInviteGroupId}>
+                  <Select value={inviteGroupId || 'none'} onValueChange={v => setInviteGroupId(v === 'none' ? '' : v)}>
                     <SelectTrigger><SelectValue placeholder="Aucun" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Aucun</SelectItem>
+                      <SelectItem value="none">Aucun</SelectItem>
                       {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
