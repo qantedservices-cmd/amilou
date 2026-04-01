@@ -201,10 +201,13 @@ export default function AdminPage() {
         fetch('/api/progress?limit=200'),
         fetch('/api/admin/groups'),
       ])
-      setPrograms(Array.isArray(await progRes.json()) ? await progRes.clone().json() : [])
-      setSurahs(Array.isArray(await surahRes.json()) ? await surahRes.clone().json() : [])
-      setProgress(Array.isArray(await progressRes.json()) ? await progressRes.clone().json() : [])
+      const progData = await progRes.json()
+      const surahData = await surahRes.json()
+      const progressData = await progressRes.json()
       const groupsData = await groupsRes.json()
+      setPrograms(Array.isArray(progData) ? progData : [])
+      setSurahs(Array.isArray(surahData) ? surahData : [])
+      setProgress(Array.isArray(progressData) ? progressData : [])
       setGroups(Array.isArray(groupsData) ? groupsData : [])
     } catch { setIsAdmin(false) } finally { setLoading(false) }
   }
