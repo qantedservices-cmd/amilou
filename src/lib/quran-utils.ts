@@ -242,10 +242,8 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
     orderBy: { completedAt: 'desc' }
   })
 
-  // Get completed days after last cycles
-  // Use gte on the cycle DATE (truncated to midnight) so that entries on the
-  // cycle day itself count toward the new cycle. DailyProgramCompletion dates
-  // are stored at midnight, but cycle completedAt can have any time-of-day.
+  // Get completed days AFTER last cycles (gt, not gte)
+  // The cycle day is the last day of the old cycle, not the first of the new one
   const lectureCycleDate = lastLectureCycle
     ? new Date(new Date(lastLectureCycle.completedAt).toISOString().split('T')[0])
     : null
@@ -258,7 +256,7 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
       userId,
       programId: readingProgram.id,
       completed: true,
-      ...(lectureCycleDate ? { date: { gte: lectureCycleDate } } : {})
+      ...(lectureCycleDate ? { date: { gt: lectureCycleDate } } : {})
     },
     orderBy: { date: 'asc' },
     select: { date: true }
@@ -269,7 +267,7 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
       userId,
       programId: revisionProgram.id,
       completed: true,
-      ...(revisionCycleDate ? { date: { gte: revisionCycleDate } } : {})
+      ...(revisionCycleDate ? { date: { gt: revisionCycleDate } } : {})
     },
     orderBy: { date: 'asc' },
     select: { date: true }
