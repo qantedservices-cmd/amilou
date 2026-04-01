@@ -277,6 +277,7 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
   let readingHizb = 0
   let revisionHizb = 0
   let revisionSuspended: number | null = null
+  const newCycles: Array<{ type: 'REVISION' | 'LECTURE'; date: string; hizbCount: number; notes: string }> = []
 
   const isInMemorizedZone = (hizb: number): boolean => {
     if (!zone || zone.totalHizbs <= 0) return false
@@ -301,6 +302,7 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
       // Handle wrap (reading exceeds 60 = full Quran)
       while (readingHizb >= 60) {
         readingHizb -= 60
+        newCycles.push({ type: 'LECTURE', date: dateStr, hizbCount: 60, notes: 'Auto-cycle' })
         if (revisionSuspended !== null) {
           revisionHizb = revisionSuspended
           revisionSuspended = null
@@ -327,7 +329,35 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
       revisionHizb += revisionHizbPerDay
       while (revisionHizb >= zone.totalHizbs) {
         revisionHizb -= zone.totalHizbs
+        newCycles.push({ type: 'REVISION', date: dateStr, hizbCount: zone.totalHizbs, notes: 'Auto-cycle' })
       }
+    }
+  }
+
+  // Create any missing cycles in DB
+  for (const cycle of newCycles) {
+    const cycleDate = new Date(cycle.date + 'T12:00:00.000Z')
+    // Check if cycle already exists for this date/type
+    const existing = await prisma.completionCycle.findFirst({
+      where: {
+        userId,
+        type: cycle.type,
+        completedAt: {
+          gte: new Date(cycle.date + 'T00:00:00.000Z'),
+          lt: new Date(cycle.date + 'T23:59:59.999Z'),
+        }
+      }
+    })
+    if (!existing) {
+      await prisma.completionCycle.create({
+        data: {
+          userId,
+          type: cycle.type,
+          completedAt: cycleDate,
+          hizbCount: cycle.hizbCount,
+          notes: cycle.notes,
+        }
+      })
     }
   }
 
