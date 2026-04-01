@@ -54,6 +54,9 @@ import {
   Trash2,
   Loader2,
   FolderOpen,
+  Mail,
+  Copy,
+  CheckCircle,
 } from 'lucide-react'
 
 interface User {
@@ -159,6 +162,15 @@ export default function AdminPage() {
   const [newRole, setNewRole] = useState('USER')
   const [newGroupId, setNewGroupId] = useState('')
   const [addingUser, setAddingUser] = useState(false)
+
+  // Invite dialog
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [inviteName, setInviteName] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState('USER')
+  const [inviteGroupId, setInviteGroupId] = useState('')
+  const [inviting, setInviting] = useState(false)
+  const [inviteResult, setInviteResult] = useState<{ emailSent: boolean; inviteUrl: string } | null>(null)
 
   // Group member dialog
   const [addMemberOpen, setAddMemberOpen] = useState(false)
@@ -289,6 +301,26 @@ export default function AdminPage() {
     setAddingUser(false)
   }
 
+  // Invite by email
+  async function handleInvite() {
+    if (!inviteName || !inviteEmail) return
+    setInviting(true)
+    setInviteResult(null)
+    try {
+      const res = await fetch('/api/admin/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: inviteName, email: inviteEmail, role: inviteRole, groupId: inviteGroupId || undefined }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setInviteResult({ emailSent: data.emailSent, inviteUrl: data.inviteUrl })
+        await checkAdminAndFetch()
+      } else { alert(data.error || 'Erreur') }
+    } catch { alert('Erreur réseau') }
+    setInviting(false)
+  }
+
   // Group member actions
   async function handleAddMember() {
     if (!addMemberGroupId || !addMemberUserId) return
@@ -414,7 +446,10 @@ export default function AdminPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input placeholder="Rechercher par nom ou email..." value={userSearch} onChange={e => setUserSearch(e.target.value)} className="pl-9" />
                 </div>
-                <Button onClick={() => setAddUserOpen(true)}><Plus className="h-4 w-4 mr-1" />Ajouter</Button>
+                <div className="flex gap-2">
+                  <Button onClick={() => setAddUserOpen(true)}><Plus className="h-4 w-4 mr-1" />Ajouter</Button>
+                  <Button variant="outline" onClick={() => { setInviteOpen(true); setInviteResult(null); setInviteName(''); setInviteEmail(''); setInviteRole('USER'); setInviteGroupId('') }}><Mail className="h-4 w-4 mr-1" />Inviter</Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -783,6 +818,72 @@ export default function AdminPage() {
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>Annuler</Button>
             <Button onClick={handleAddProgress}>Ajouter</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite by email dialog */}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Mail className="h-5 w-5" />Inviter par email</DialogTitle>
+            <DialogDescription>Un email sera envoyé avec un lien pour créer son mot de passe</DialogDescription>
+          </DialogHeader>
+          {inviteResult ? (
+            <div className="space-y-4 py-4">
+              <div className={`flex items-center gap-2 p-3 rounded-lg ${inviteResult.emailSent ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                {inviteResult.emailSent ? <CheckCircle className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
+                <span className="text-sm font-medium">
+                  {inviteResult.emailSent ? 'Invitation envoyée par email' : 'Email non envoyé — partagez le lien manuellement'}
+                </span>
+              </div>
+              <div>
+                <Label>Lien d'invitation</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input value={inviteResult.inviteUrl} readOnly className="text-xs" />
+                  <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText(inviteResult.inviteUrl) }}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={() => setInviteOpen(false)}>Fermer</Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                <div><Label>Nom</Label><Input value={inviteName} onChange={e => setInviteName(e.target.value)} placeholder="Prénom Nom" /></div>
+                <div><Label>Email</Label><Input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} /></div>
+                <div>
+                  <Label>Rôle</Label>
+                  <Select value={inviteRole} onValueChange={setInviteRole}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USER">Utilisateur</SelectItem>
+                      <SelectItem value="REFERENT">Référent</SelectItem>
+                      <SelectItem value="ADMIN">Administrateur</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Groupe (optionnel)</Label>
+                  <Select value={inviteGroupId} onValueChange={setInviteGroupId}>
+                    <SelectTrigger><SelectValue placeholder="Aucun" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Aucun</SelectItem>
+                      {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setInviteOpen(false)}>Annuler</Button>
+                <Button onClick={handleInvite} disabled={inviting}>
+                  {inviting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Envoi...</> : <><Mail className="h-4 w-4 mr-1" />Envoyer l'invitation</>}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
