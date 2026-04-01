@@ -4,7 +4,9 @@ import prisma from '@/lib/db'
 import { Resend } from 'resend'
 import crypto from 'crypto'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 async function checkAdmin() {
   const session = await auth()
@@ -66,7 +68,7 @@ export async function POST(request: Request) {
     const inviteUrl = `${baseUrl}/fr/invite?token=${inviteToken}`
 
     // Send email via Resend
-    const { error: emailError } = await resend.emails.send({
+    const { error: emailError } = await getResend().emails.send({
       from: 'Aamilou <onboarding@resend.dev>',
       to: email,
       subject: 'Invitation à rejoindre Aamilou',
