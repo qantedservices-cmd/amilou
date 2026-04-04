@@ -81,7 +81,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const { programId, date, surahNumber, verseStart, verseEnd, repetitions, comment, userId } = await request.json()
+    const { programId, date, surahNumber, verseStart, verseEnd, repetitions, comment, userId, tafsirBookIds } = await request.json()
 
     if (!programId || !surahNumber || !verseStart || !verseEnd) {
       return NextResponse.json(
@@ -127,6 +127,7 @@ export async function POST(request: Request) {
         verseEnd,
         repetitions,
         comment,
+        tafsirBookIds: tafsirBookIds || [],
         createdBy: session.user.id,
       },
       include: {

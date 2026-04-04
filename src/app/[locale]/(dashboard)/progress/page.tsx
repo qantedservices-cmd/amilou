@@ -66,6 +66,7 @@ interface ProgressEntry {
   verseEnd: number
   repetitions: number | null
   comment: string | null
+  tafsirBookIds?: string[]
   program: Program
   surah: Surah
 }
@@ -128,6 +129,13 @@ interface BookItemData {
   } | null
 }
 
+interface TafsirBook {
+  id: string
+  nameAr: string
+  nameFr: string
+  author: string | null
+}
+
 interface TafsirCoverage {
   global: {
     totalVerses: number
@@ -188,15 +196,19 @@ export default function ProgressPage() {
   const [verseEnd, setVerseEnd] = useState('')
   const [comment, setComment] = useState('')
   const [saving, setSaving] = useState(false)
+  const [tafsirBooks, setTafsirBooks] = useState<TafsirBook[]>([])
+  const [selectedTafsirBooks, setSelectedTafsirBooks] = useState<string[]>([])
 
   // Load manageable users on mount
   useEffect(() => {
     async function init() {
       try {
-        const [usersRes, progRes, surahRes] = await Promise.all([
+        const [usersRes, progRes, surahRes, tbRes, meRes] = await Promise.all([
           fetch('/api/users/manageable?dataType=progress'),
           fetch('/api/programs'),
           fetch('/api/surahs'),
+          fetch('/api/tafsir-books'),
+          fetch('/api/me'),
         ])
         const users = await usersRes.json()
         const progData = await progRes.json()
@@ -207,6 +219,15 @@ export default function ProgressPage() {
         const selfUser = (users as ManageableUser[]).find(u => u.isSelf)
         if (selfUser) {
           setSelectedUserId(selfUser.id)
+        }
+        if (tbRes.ok) {
+          setTafsirBooks(await tbRes.json())
+        }
+        if (meRes.ok) {
+          const meData = await meRes.json()
+          if (meData.defaultTafsirIds?.length > 0) {
+            setSelectedTafsirBooks(meData.defaultTafsirIds)
+          }
         }
       } catch (error) {
         console.error('Error initializing:', error)
@@ -421,17 +442,25 @@ export default function ProgressPage() {
 
   const selectedSurahData = surahs.find(s => s.number === parseInt(selectedSurah))
 
+  const isTafsirProgram = useMemo(() => {
+    const prog = programs.find(p => p.id === selectedProgram)
+    return prog?.code === 'TAFSIR'
+  }, [selectedProgram, programs])
+
   async function handleSubmit() {
     if (!selectedProgram || !selectedSurah || !verseStart || !verseEnd || saving) return
 
     setSaving(true)
-    const payload = {
+    const payload: Record<string, unknown> = {
       programId: selectedProgram,
       date: selectedDate,
       surahNumber: parseInt(selectedSurah),
       verseStart: parseInt(verseStart),
       verseEnd: parseInt(verseEnd),
       comment: comment || null,
+    }
+    if (isTafsirProgram && selectedTafsirBooks.length > 0) {
+      payload.tafsirBookIds = selectedTafsirBooks
     }
 
     try {
@@ -706,6 +735,38 @@ export default function ProgressPage() {
                   placeholder="Notes ou remarques"
                 />
               </div>
+
+              {isTafsirProgram && tafsirBooks.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Livres de Tafsir</Label>
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    {tafsirBooks.map(book => (
+                      <label
+                        key={book.id}
+                        className={`flex items-center gap-2 p-2 rounded-md border cursor-pointer text-sm transition-colors ${
+                          selectedTafsirBooks.includes(book.id)
+                            ? 'bg-rose-50 border-rose-300 dark:bg-rose-900/20 dark:border-rose-700'
+                            : 'hover:bg-muted/50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300"
+                          checked={selectedTafsirBooks.includes(book.id)}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setSelectedTafsirBooks(prev => [...prev, book.id])
+                            } else {
+                              setSelectedTafsirBooks(prev => prev.filter(id => id !== book.id))
+                            }
+                          }}
+                        />
+                        <span>{book.nameFr}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
@@ -895,6 +956,18 @@ export default function ProgressPage() {
                       <span className="text-muted-foreground text-xs ml-1">
                         ({entry.verseEnd - entry.verseStart + 1})
                       </span>
+                      {entry.tafsirBookIds && entry.tafsirBookIds.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {entry.tafsirBookIds.map((bookId: string) => {
+                            const book = tafsirBooks.find(b => b.id === bookId)
+                            return book ? (
+                              <Badge key={bookId} variant="outline" className="text-[10px] py-0 border-rose-200 text-rose-600">
+                                {book.nameFr.replace('Tafsir ', '')}
+                              </Badge>
+                            ) : null
+                          })}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       {canEdit && (
