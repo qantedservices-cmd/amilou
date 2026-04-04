@@ -40,6 +40,12 @@ export default function LoginPage() {
         body: JSON.stringify({ email }),
       }).catch(() => {})
     } else {
+      // Log successful login with IP/UA
+      fetch('/api/auth/login-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, success: true }),
+      }).catch(() => {})
       router.push('/dashboard')
     }
   }

@@ -33,20 +33,27 @@ import {
   List
 } from 'lucide-react'
 
-const guideSections = [
-  { id: 'guide-quran', icon: BookOpen, label: 'Le Mushaf (Coran)', color: 'text-sky-600' },
-  { id: 'guide-dashboard', icon: LayoutDashboard, label: 'Le Tableau de Bord', color: 'text-blue-600' },
-  { id: 'guide-programmes', icon: CalendarCheck, label: 'Programmes Journaliers', color: 'text-emerald-600' },
-  { id: 'guide-objectifs', icon: Target, label: 'Objectifs & Paramètres', color: 'text-amber-600' },
-  { id: 'guide-tracker', icon: Navigation, label: 'Tracker Révision & Lecture', color: 'text-teal-600' },
-  { id: 'guide-cycles', icon: RefreshCw, label: 'Cycles de Complétion', color: 'text-purple-600' },
-  { id: 'guide-mastery', icon: Grid3X3, label: 'Grille de Suivi (Mastery)', color: 'text-indigo-600' },
-  { id: 'guide-livres', icon: Library, label: 'Livres (Mutun & Hadiths)', color: 'text-rose-600' },
-  { id: 'guide-roles', icon: Shield, label: 'Rôles & Permissions', color: 'text-slate-600' },
+const tocSections = [
+  { id: 'importance-coran', icon: Star, label: 'L\'importance du Coran', color: 'text-emerald-600' },
+  { id: 'programmes-apprentissage', icon: Target, label: 'Les programmes d\'apprentissage', color: 'text-blue-600' },
+  { id: 'guide', icon: List, label: 'Guide de l\'application', color: 'text-slate-600', children: [
+    { id: 'guide-quran', icon: BookOpen, label: 'Le Mushaf (Coran)', color: 'text-sky-600' },
+    { id: 'guide-dashboard', icon: LayoutDashboard, label: 'Le Tableau de Bord', color: 'text-blue-600' },
+    { id: 'guide-programmes', icon: CalendarCheck, label: 'Programmes Journaliers', color: 'text-emerald-600' },
+    { id: 'guide-objectifs', icon: Target, label: 'Objectifs & Paramètres', color: 'text-amber-600' },
+    { id: 'guide-tracker', icon: Navigation, label: 'Tracker Révision & Lecture', color: 'text-teal-600' },
+    { id: 'guide-cycles', icon: RefreshCw, label: 'Cycles de Complétion', color: 'text-purple-600' },
+    { id: 'guide-mastery', icon: Grid3X3, label: 'Grille de Suivi (Mastery)', color: 'text-indigo-600' },
+    { id: 'guide-livres', icon: Library, label: 'Livres (Mutun & Hadiths)', color: 'text-rose-600' },
+    { id: 'guide-roles', icon: Shield, label: 'Rôles & Permissions', color: 'text-slate-600' },
+  ]},
 ]
+
+const guideSections = tocSections.find(s => s.id === 'guide')?.children || []
 
 export default function PresentationPage() {
   const [guideExpanded, setGuideExpanded] = useState(true)
+  const [tocOpen, setTocOpen] = useState(true)
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
@@ -56,8 +63,63 @@ export default function PresentationPage() {
         <p className="text-muted-foreground">Au nom d'Allah, le Tout Miséricordieux, le Très Miséricordieux</p>
       </div>
 
+      {/* Table des matières */}
+      <Card className="border-2 border-blue-200 dark:border-blue-800">
+        <CardHeader
+          className="cursor-pointer select-none pb-2"
+          onClick={() => setTocOpen(!tocOpen)}
+        >
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <List className="h-5 w-5 text-blue-600" />
+            Table des matières
+            <span className="ml-auto">
+              {tocOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        {tocOpen && (
+          <CardContent className="pt-0">
+            <nav className="space-y-1">
+              {tocSections.map((section) => (
+                <div key={section.id}>
+                  <a
+                    href={`#${section.id}`}
+                    className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 transition-colors group"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }}
+                  >
+                    <section.icon className={`h-4 w-4 ${section.color} group-hover:scale-110 transition-transform`} />
+                    <span className="text-sm font-medium">{section.label}</span>
+                  </a>
+                  {'children' in section && section.children && (
+                    <div className="ml-6 space-y-0.5">
+                      {section.children.map((child) => (
+                        <a
+                          key={child.id}
+                          href={`#${child.id}`}
+                          className="flex items-center gap-2 py-1 px-2 rounded-md hover:bg-muted/50 transition-colors group"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            document.getElementById(child.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          }}
+                        >
+                          <child.icon className={`h-3.5 w-3.5 ${child.color} group-hover:scale-110 transition-transform`} />
+                          <span className="text-xs text-muted-foreground group-hover:text-foreground">{child.label}</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </nav>
+          </CardContent>
+        )}
+      </Card>
+
       {/* Importance du Coran */}
-      <Card className="border-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/30 dark:to-background">
+      <Card id="importance-coran" className="border-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/30 dark:to-background">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
             <BookOpen className="h-6 w-6" />
@@ -164,7 +226,7 @@ export default function PresentationPage() {
       </Card>
 
       {/* Les Programmes d'apprentissage */}
-      <Card>
+      <Card id="programmes-apprentissage">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-6 w-6 text-blue-600" />
