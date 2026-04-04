@@ -221,7 +221,8 @@ export default function ProgressPage() {
           setSelectedUserId(selfUser.id)
         }
         if (tbRes.ok) {
-          setTafsirBooks(await tbRes.json())
+          const tbData = await tbRes.json()
+          setTafsirBooks(Array.isArray(tbData) ? tbData : tbData.books || [])
         }
         if (meRes.ok) {
           const meData = await meRes.json()
