@@ -73,6 +73,8 @@ model User {
   positionAdjustments     PositionAdjustment[]
   userBooks               UserBook[]
   userItemProgress        UserItemProgress[]
+  loginLogs               LoginLog[]
+  invitationsSent         InvitationLog[]
 }
 
 model Account {
@@ -100,6 +102,44 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LoginLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String
+  success   Boolean
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([email])
+  @@index([createdAt])
+}
+
+model InvitationLog {
+  id         String    @id @default(cuid())
+  email      String
+  name       String?
+  role       String    @default("USER")
+  groupId    String?
+  invitedBy  String
+  status     String    @default("PENDING")
+  token      String
+  sentAt     DateTime  @default(now())
+  acceptedAt DateTime?
+  expiresAt  DateTime
+
+  inviter User   @relation(fields: [invitedBy], references: [id])
+  group   Group? @relation(fields: [groupId], references: [id])
+
+  @@index([email])
+  @@index([status])
+  @@index([invitedBy])
+  @@index([sentAt])
 }
 
 model VerificationToken {
@@ -139,6 +179,7 @@ model Group {
   sessions       GroupSession[]
   researchTopics ResearchTopic[]
   groupBooks     GroupBook[]
+  invitationLogs InvitationLog[]
 }
 
 model GroupMember {
