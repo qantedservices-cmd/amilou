@@ -920,7 +920,10 @@ export default function PresentationPage() {
               </div>
               <ul className="text-xs text-muted-foreground space-y-1 ml-6 list-disc">
                 <li>Accès total à toutes les données de tous les utilisateurs</li>
-                <li>Gestion des utilisateurs (création, modification, suppression)</li>
+                <li>Gestion des utilisateurs : création, modification, invitation par email</li>
+                <li>Tableau utilisateurs avec filtres (rôle, groupe, activité, invitation) et groupement</li>
+                <li>Historique complet des connexions (succès et échecs) et des invitations</li>
+                <li>Indicateurs d'activité : pastilles vert/orange/rouge selon la dernière connexion</li>
                 <li>Fonction "Voir en tant que" (impersonation) pour dépanner un utilisateur</li>
                 <li>Voit tous les groupes et peut tout modifier</li>
               </ul>

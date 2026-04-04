@@ -118,7 +118,55 @@ Les données privées restent visibles pour :
 | Livres | Tous | Catalogue + mes livres + livres de groupe |
 | Paramètres | Tous | Profil, mot de passe, confidentialité, objectifs par programme |
 | Présentation | Tous | Contenu spirituel sur le Coran et explication des programmes |
-| Admin | ADMIN seulement | Gestion utilisateurs, impersonation |
+| Admin | ADMIN seulement | Gestion utilisateurs, historique connexions, invitations, impersonation |
+
+## Page Administration
+
+Page `/admin` — réservée aux ADMIN. Organisée en 5 onglets :
+
+### Onglet Utilisateurs
+- **Tableau** avec 9 colonnes : Nom, Email, Rôle, Groupes, Dernière connexion, Nb connexions, Activité, Invitation, Actions
+- **Filtres** : par rôle (ADMIN/REFERENT/USER), groupe, statut d'activité (actif/moyen/inactif/jamais connecté), statut invitation (acceptée/en attente/expirée/aucune)
+- **Groupement** : par rôle ou par groupe (sections collapsibles)
+- **Tri** : cliquable sur les colonnes (nom, email, rôle, dernière connexion, nb connexions)
+- **Indicateurs (cartes)** : Total utilisateurs, Actifs (<7j), Inactifs (>30j), Jamais connectés, Invitations en attente
+- **Pastilles d'activité** : vert (<7j), orange (7-30j), rouge (>30j), gris (jamais)
+- **Actions** : Modifier, Voir en tant que, Ajouter, Inviter par email
+- Clic sur "Dernière cnx" ou "Nb cnx" → bascule vers l'onglet Historique filtré sur cet utilisateur
+
+### Onglet Historique
+- **Log chronologique** de tous les événements : connexions réussies, échecs de connexion, invitations envoyées, comptes activés
+- **Filtres** : par utilisateur, par type (connexion/échec/invitation), par période (aujourd'hui/7j/30j/tout)
+- **Pagination** : 50 entrées par page
+- **Détails** : IP + navigateur (connexions), nom + rôle + groupe (invitations)
+
+### Autres onglets
+- **Groupes** : gestion des membres par groupe (ajouter/retirer, rôle, élève oui/non)
+- **Classement** : tableau des utilisateurs triés par pages mémorisées
+- **Progressions** : dernières entrées de progression avec filtres
+
+### Modèles de données associés
+
+- `LoginLog` : id, userId?, email, success, ipAddress?, userAgent?, createdAt
+- `InvitationLog` : id, email, name?, role, groupId?, invitedBy, status (PENDING/ACCEPTED/EXPIRED), token, sentAt, acceptedAt?, expiresAt
+
+### Captation des événements
+- **Connexions réussies** : callback `signIn` dans NextAuth (`src/lib/auth.ts`)
+- **Connexions échouées** : appel client depuis la page login vers `POST /api/auth/login-log`
+- **Invitations** : créées dans `POST /api/admin/invite`, mises à jour dans `POST /api/invite` (activation)
+- **Expiration** : calculée à la volée (pas de cron), `PENDING` + `expiresAt < now` = `EXPIRED`
+
+### APIs
+- `GET /api/admin/stats` : inclut `loginStats`, `lastLogins`, `loginCounts`, `inviteStatuses`
+- `GET /api/admin/logs` : logs paginés avec filtres (userId, type, period, page, limit)
+- `POST /api/auth/login-log` : enregistre un échec de connexion (appelé côté client)
+
+### Invitation par email
+- Utilise **Resend** (`RESEND_API_KEY` dans `.env`)
+- Crée un utilisateur sans mot de passe avec `inviteToken` + `inviteExpires` (48h)
+- Email envoyé avec lien `/{locale}/invite?token=...`
+- L'utilisateur choisit son mot de passe via la page d'activation
+- `InvitationLog` tracé à l'envoi et mis à jour à l'activation
 
 ## Impersonation ("Voir en tant que")
 
@@ -210,6 +258,8 @@ Base PostgreSQL hébergée sur Supabase. Schéma Prisma dans `prisma/schema.pris
 - `GroupBook` : Livres assignés à un groupe par le référent
 - `UserBook` : Livres personnels d'un utilisateur
 - `UserItemProgress` : Progression par item (checkbox completed)
+- `LoginLog` : Historique des connexions (succès/échecs, IP, user-agent)
+- `InvitationLog` : Historique des invitations par email (statut, expiration)
 
 ## Suivi de Livres (Mutun & Hadiths)
 
