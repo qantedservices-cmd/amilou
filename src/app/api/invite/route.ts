@@ -78,6 +78,15 @@ export async function POST(request: Request) {
       }
     })
 
+    // Update invitation log
+    await prisma.invitationLog.updateMany({
+      where: { token },
+      data: {
+        status: 'ACCEPTED',
+        acceptedAt: new Date(),
+      }
+    })
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error accepting invite:', error)
