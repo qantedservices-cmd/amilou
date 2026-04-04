@@ -639,7 +639,7 @@ export default function ProgressPage() {
               </Button>
             </DialogTrigger>
           )}
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingId ? t('common.edit') : t('progress.addEntry')}
@@ -728,31 +728,22 @@ export default function ProgressPage() {
                 </p>
               )}
 
-              <div className="space-y-2">
-                <Label>{t('progress.comment')} (optionnel)</Label>
-                <Input
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Notes ou remarques"
-                />
-              </div>
-
               {isTafsirProgram && tafsirBooks.length > 0 && (
                 <div className="space-y-2">
                   <Label>Livres de Tafsir</Label>
-                  <div className="grid gap-1.5 sm:grid-cols-2">
+                  <div className="grid gap-1 sm:grid-cols-2 max-h-40 overflow-y-auto rounded-md border p-2">
                     {tafsirBooks.map(book => (
                       <label
                         key={book.id}
-                        className={`flex items-center gap-2 p-2 rounded-md border cursor-pointer text-sm transition-colors ${
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-xs transition-colors ${
                           selectedTafsirBooks.includes(book.id)
-                            ? 'bg-rose-50 border-rose-300 dark:bg-rose-900/20 dark:border-rose-700'
+                            ? 'bg-rose-50 text-rose-700 dark:bg-rose-900/20'
                             : 'hover:bg-muted/50'
                         }`}
                       >
                         <input
                           type="checkbox"
-                          className="rounded border-gray-300"
+                          className="rounded border-gray-300 h-3.5 w-3.5"
                           checked={selectedTafsirBooks.includes(book.id)}
                           onChange={e => {
                             if (e.target.checked) {
@@ -762,15 +753,22 @@ export default function ProgressPage() {
                             }
                           }}
                         />
-                        <div className="flex flex-col">
-                          <span>{book.nameFr}</span>
-                          <span className="text-xs text-muted-foreground font-arabic">{book.nameAr}</span>
-                        </div>
+                        <span>{book.nameFr}</span>
+                        <span className="text-muted-foreground font-arabic">{book.nameAr}</span>
                       </label>
                     ))}
                   </div>
                 </div>
               )}
+
+              <div className="space-y-2">
+                <Label>{t('progress.comment')} (optionnel)</Label>
+                <Input
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Notes ou remarques"
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
