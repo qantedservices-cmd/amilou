@@ -28,12 +28,29 @@ import {
   Library,
   Grid3X3,
   FileText,
+  ChevronDown,
+  BookMarked,
 } from 'lucide-react'
 
-const navItems = [
+interface NavItem {
+  href: string
+  icon: typeof LayoutDashboard
+  labelKey: string
+  adminOnly?: boolean
+  children?: { href: string; icon: typeof LayoutDashboard; labelKey: string }[]
+}
+
+const navItems: NavItem[] = [
   { href: '/quran', icon: BookOpen, labelKey: 'nav.quran' },
   { href: '/dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
-  { href: '/progress', icon: TrendingUp, labelKey: 'nav.progress' },
+  {
+    href: '/progress',
+    icon: TrendingUp,
+    labelKey: 'nav.progress',
+    children: [
+      { href: '/tafsir', icon: BookMarked, labelKey: 'nav.tafsir' },
+    ],
+  },
   { href: '/attendance', icon: CalendarCheck, labelKey: 'nav.attendance' },
   { href: '/groups', icon: Users, labelKey: 'nav.groups' },
   { href: '/evaluations', icon: ClipboardCheck, labelKey: 'nav.evaluations' },
@@ -42,7 +59,7 @@ const navItems = [
   { href: '/books', icon: Library, labelKey: 'nav.books' },
 ]
 
-const bottomItems = [
+const bottomItems: NavItem[] = [
   { href: '/presentation', icon: FileText, labelKey: 'nav.presentation' },
   { href: '/settings', icon: Settings, labelKey: 'nav.settings' },
   { href: '/admin', icon: Shield, labelKey: 'nav.admin', adminOnly: true },
@@ -54,14 +71,95 @@ export function MobileSidebar() {
   const t = useTranslations()
   const { effectiveRole } = useImpersonation()
 
+  const pathWithoutLocale = pathname.replace(/^\/(fr|ar|en)/, '')
+
   const isActive = (href: string) => {
-    const pathWithoutLocale = pathname.replace(/^\/(fr|ar|en)/, '')
     return pathWithoutLocale === href || pathWithoutLocale.startsWith(href + '/')
   }
 
-  // Close sheet when navigating
+  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => {
+    const initial = new Set<string>()
+    for (const item of navItems) {
+      if (item.children?.some(child => isActive(child.href))) {
+        initial.add(item.href)
+      }
+    }
+    return initial
+  })
+
+  function toggleExpand(href: string) {
+    setExpandedMenus(prev => {
+      const next = new Set(prev)
+      if (next.has(href)) next.delete(href)
+      else next.add(href)
+      return next
+    })
+  }
+
   const handleLinkClick = () => {
     setOpen(false)
+  }
+
+  function renderNavItem(item: NavItem) {
+    const Icon = item.icon
+    const active = isActive(item.href)
+    const hasChildren = item.children && item.children.length > 0
+    const isExpanded = expandedMenus.has(item.href)
+    const childActive = item.children?.some(child => isActive(child.href))
+
+    return (
+      <div key={item.href}>
+        <div className="flex items-center">
+          <Link
+            href={item.href}
+            onClick={handleLinkClick}
+            className={cn(
+              'flex flex-1 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              active && !childActive
+                ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-50'
+                : childActive
+                  ? 'text-emerald-700 dark:text-emerald-300'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            )}
+          >
+            <Icon className="h-5 w-5" />
+            {t(item.labelKey)}
+          </Link>
+          {hasChildren && (
+            <button
+              onClick={() => toggleExpand(item.href)}
+              className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
+            >
+              <ChevronDown className={cn('h-4 w-4 transition-transform', isExpanded && 'rotate-180')} />
+            </button>
+          )}
+        </div>
+        {hasChildren && isExpanded && (
+          <div className="ml-4 mt-0.5 space-y-0.5 border-l border-border pl-2">
+            {item.children!.map(child => {
+              const ChildIcon = child.icon
+              const childIsActive = isActive(child.href)
+              return (
+                <Link
+                  key={child.href}
+                  href={child.href}
+                  onClick={handleLinkClick}
+                  className={cn(
+                    'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm transition-colors',
+                    childIsActive
+                      ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-50 font-medium'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  )}
+                >
+                  <ChildIcon className="h-4 w-4" />
+                  {t(child.labelKey)}
+                </Link>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -87,26 +185,7 @@ export function MobileSidebar() {
         </SheetHeader>
 
         <nav className="flex-1 space-y-1 p-4">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const active = isActive(item.href)
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={handleLinkClick}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  active
-                    ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-50'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                {t(item.labelKey)}
-              </Link>
-            )
-          })}
+          {navItems.map(renderNavItem)}
         </nav>
 
         <div className="border-t p-4 space-y-1">
