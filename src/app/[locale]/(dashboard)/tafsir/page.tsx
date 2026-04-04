@@ -59,7 +59,14 @@ interface SurahStat {
   coveredVerses: number
   percentage: number
   isComplete: boolean
-  entries: { id: string; date: string; verseStart: number; verseEnd: number }[]
+  entries: { id: string; date: string; verseStart: number; verseEnd: number; tafsirBookIds: string[]; comment: string | null }[]
+}
+
+interface TafsirBook {
+  id: string
+  nameAr: string
+  nameFr: string
+  author: string | null
 }
 
 interface TafsirData {
@@ -87,7 +94,6 @@ export default function TafsirPage() {
   const [data, setData] = useState<TafsirData | null>(null)
   const [surahs, setSurahs] = useState<Surah[]>([])
   const [loading, setLoading] = useState(true)
-  const [showAll, setShowAll] = useState(false)
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -112,9 +118,21 @@ export default function TafsirPage() {
   // Expanded surah rows (show entries)
   const [expandedSurahs, setExpandedSurahs] = useState<Set<number>>(new Set())
 
+  // Tafsir books
+  const [tafsirBooks, setTafsirBooks] = useState<TafsirBook[]>([])
+  const [selectedBookFilter, setSelectedBookFilter] = useState('all')
+
+  // Dialog: tafsir books + comment
+  const [dialogTafsirBooks, setDialogTafsirBooks] = useState<string[]>([])
+  const [dialogComment, setDialogComment] = useState('')
+
+  // Collapsed empty surah ranges
+  const [expandedEmptyRanges, setExpandedEmptyRanges] = useState<Set<string>>(new Set())
+
   useEffect(() => {
     fetchData()
     fetchSurahs()
+    fetchTafsirBooks()
   }, [])
 
   async function fetchData() {
@@ -143,6 +161,25 @@ export default function TafsirPage() {
     }
   }
 
+  async function fetchTafsirBooks() {
+    try {
+      const [tbRes, meRes] = await Promise.all([
+        fetch('/api/tafsir-books'),
+        fetch('/api/me'),
+      ])
+      if (tbRes.ok) {
+        const tbData = await tbRes.json()
+        setTafsirBooks(Array.isArray(tbData) ? tbData : tbData.books || [])
+      }
+      if (meRes.ok) {
+        const meData = await meRes.json()
+        if (meData.defaultTafsirIds?.length > 0) {
+          setDialogTafsirBooks(meData.defaultTafsirIds)
+        }
+      }
+    } catch (e) { console.error(e) }
+  }
+
   const selectedSurahData = surahs.find(s => s.number === parseInt(selectedSurah))
 
   async function handleSave() {
@@ -157,7 +194,9 @@ export default function TafsirPage() {
           surahNumber: parseInt(selectedSurah),
           verseStart: parseInt(verseStart),
           verseEnd: parseInt(verseEnd),
-          date: entryDate
+          date: entryDate,
+          comment: dialogComment || null,
+          tafsirBookIds: dialogTafsirBooks,
         })
       })
 
@@ -166,6 +205,7 @@ export default function TafsirPage() {
         setSelectedSurah('')
         setVerseStart('')
         setVerseEnd('')
+        setDialogComment('')
         fetchData()
       }
     } catch (error) {
@@ -181,6 +221,7 @@ export default function TafsirPage() {
     setVerseStart('1')
     setVerseEnd(surah?.totalVerses.toString() || '')
     setEntryDate(new Date().toISOString().split('T')[0])
+    setDialogComment('')
     setDialogOpen(true)
   }
 
@@ -263,10 +304,81 @@ export default function TafsirPage() {
     }
   }
 
+  const filteredData = useMemo(() => {
+    if (!data || selectedBookFilter === 'all') return data
+
+    // Recompute coverage for the selected book only
+    const bookId = selectedBookFilter
+    const filteredSurahs = data.allSurahs.map(surah => {
+      const bookEntries = surah.entries.filter(e => e.tafsirBookIds.includes(bookId))
+      const coveredVerses = new Set<number>()
+      for (const entry of bookEntries) {
+        for (let v = entry.verseStart; v <= entry.verseEnd; v++) {
+          coveredVerses.add(v)
+        }
+      }
+      const coveredCount = coveredVerses.size
+      const percentage = surah.totalVerses > 0 ? Math.round((coveredCount / surah.totalVerses) * 100) : 0
+      return {
+        ...surah,
+        coveredVerses: coveredCount,
+        percentage,
+        isComplete: coveredCount >= surah.totalVerses,
+        entries: bookEntries,
+      }
+    })
+
+    const totalCovered = filteredSurahs.reduce((s, x) => s + x.coveredVerses, 0)
+    return {
+      global: {
+        ...data.global,
+        coveredVerses: totalCovered,
+        percentage: Math.round((totalCovered / 6236) * 100),
+        completedSurahs: filteredSurahs.filter(s => s.isComplete).length,
+        inProgressSurahs: filteredSurahs.filter(s => s.coveredVerses > 0 && !s.isComplete).length,
+      },
+      surahs: filteredSurahs.filter(s => s.coveredVerses > 0 || s.entries.length > 0),
+      allSurahs: filteredSurahs,
+    }
+  }, [data, selectedBookFilter])
+
+  const surahDisplayGroups = useMemo(() => {
+    if (!filteredData) return []
+    const allSurahs = filteredData.allSurahs
+    const groups: Array<{ type: 'surah'; surah: SurahStat } | { type: 'empty-range'; start: number; end: number; key: string }> = []
+
+    let emptyStart: number | null = null
+    let emptyEnd: number | null = null
+
+    for (const surah of allSurahs) {
+      const hasData = surah.coveredVerses > 0 || surah.entries.length > 0
+      if (hasData) {
+        // Flush any pending empty range
+        if (emptyStart !== null && emptyEnd !== null) {
+          groups.push({ type: 'empty-range', start: emptyStart, end: emptyEnd, key: `empty-${emptyStart}-${emptyEnd}` })
+          emptyStart = null
+          emptyEnd = null
+        }
+        groups.push({ type: 'surah', surah })
+      } else {
+        if (emptyStart === null) {
+          emptyStart = surah.surahNumber
+        }
+        emptyEnd = surah.surahNumber
+      }
+    }
+    // Flush last range
+    if (emptyStart !== null && emptyEnd !== null) {
+      groups.push({ type: 'empty-range', start: emptyStart, end: emptyEnd, key: `empty-${emptyStart}-${emptyEnd}` })
+    }
+
+    return groups
+  }, [filteredData])
+
   // Transform data into segments for SegmentedProgressBar
   const tafsirSegments: SegmentData[] = useMemo(() => {
-    if (!data?.allSurahs) return []
-    return data.allSurahs.map(s => ({
+    if (!filteredData?.allSurahs) return []
+    return filteredData.allSurahs.map(s => ({
       id: s.surahNumber.toString(),
       label: `${s.surahNumber}. ${s.surahName}`,
       labelAr: s.surahNameAr,
@@ -279,12 +391,12 @@ export default function TafsirPage() {
       totalItems: s.totalVerses,
       completedItems: s.coveredVerses,
     }))
-  }, [data?.allSurahs])
+  }, [filteredData?.allSurahs])
 
   const fetchTafsirHistory = useCallback(async (segmentId: string) => {
     // Use entries from data instead of API call
     const surahNum = parseInt(segmentId)
-    const surah = data?.allSurahs?.find(s => s.surahNumber === surahNum)
+    const surah = filteredData?.allSurahs?.find(s => s.surahNumber === surahNum)
     if (!surah?.entries?.length) return []
     return surah.entries.map(e => ({
       date: e.date,
@@ -292,7 +404,7 @@ export default function TafsirPage() {
       verseStart: e.verseStart,
       verseEnd: e.verseEnd,
     }))
-  }, [data?.allSurahs])
+  }, [filteredData?.allSurahs])
 
   if (loading) {
     return (
@@ -301,8 +413,6 @@ export default function TafsirPage() {
       </div>
     )
   }
-
-  const displaySurahs = showAll ? data?.allSurahs : data?.surahs
 
   return (
     <div className="p-6 space-y-6">
@@ -324,16 +434,38 @@ export default function TafsirPage() {
       {/* Global Stats */}
       <Card className="bg-gradient-to-r from-rose-50 to-purple-50 dark:from-rose-950/30 dark:to-purple-950/30">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-rose-600" />
-            Progression Globale Tafsir
-          </CardTitle>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-rose-600" />
+              Progression Tafsir
+              {selectedBookFilter !== 'all' && (
+                <Badge className="bg-rose-100 text-rose-700 text-xs ml-2">
+                  {tafsirBooks.find(b => b.id === selectedBookFilter)?.nameAr}
+                </Badge>
+              )}
+            </CardTitle>
+            {tafsirBooks.length > 0 && (
+              <Select value={selectedBookFilter} onValueChange={setSelectedBookFilter}>
+                <SelectTrigger className="w-52">
+                  <SelectValue placeholder="Tous les tafsirs" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les tafsirs</SelectItem>
+                  {tafsirBooks.map(book => (
+                    <SelectItem key={book.id} value={book.id}>
+                      {book.nameFr} — {book.nameAr}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Couverture du Coran</span>
-              <span className="font-bold text-2xl text-rose-600">{data?.global.percentage || 0}%</span>
+              <span className="font-bold text-2xl text-rose-600">{filteredData?.global.percentage || 0}%</span>
             </div>
             {tafsirSegments.length > 0 ? (
               <SegmentedProgressBar
@@ -343,23 +475,23 @@ export default function TafsirPage() {
                 fetchHistory={fetchTafsirHistory}
               />
             ) : (
-              <Progress value={data?.global.percentage || 0} className="h-4" />
+              <Progress value={filteredData?.global.percentage || 0} className="h-4" />
             )}
             <div className="grid grid-cols-4 gap-4 pt-4">
               <div className="text-center">
-                <p className="text-2xl font-bold text-rose-600">{data?.global.coveredVerses || 0}</p>
+                <p className="text-2xl font-bold text-rose-600">{filteredData?.global.coveredVerses || 0}</p>
                 <p className="text-xs text-muted-foreground">Versets couverts</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-muted-foreground">{data?.global.totalVerses || 6236}</p>
+                <p className="text-2xl font-bold text-muted-foreground">{filteredData?.global.totalVerses || 6236}</p>
                 <p className="text-xs text-muted-foreground">Total versets</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-emerald-600">{data?.global.completedSurahs || 0}</p>
+                <p className="text-2xl font-bold text-emerald-600">{filteredData?.global.completedSurahs || 0}</p>
                 <p className="text-xs text-muted-foreground">Sourates complètes</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-amber-600">{data?.global.inProgressSurahs || 0}</p>
+                <p className="text-2xl font-bold text-amber-600">{filteredData?.global.inProgressSurahs || 0}</p>
                 <p className="text-xs text-muted-foreground">En cours</p>
               </div>
             </div>
@@ -370,20 +502,13 @@ export default function TafsirPage() {
       {/* Surahs Table */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <CardTitle>Détail par Sourate</CardTitle>
               <CardDescription>
-                {showAll ? 'Toutes les 114 sourates' : `${data?.surahs?.length || 0} sourates avec progression`}
+                {filteredData?.surahs?.length || 0} sourates avec progression
               </CardDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAll(!showAll)}
-            >
-              {showAll ? 'Afficher en cours' : 'Afficher tout'}
-            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -398,9 +523,61 @@ export default function TafsirPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displaySurahs?.map((surah) => {
+              {surahDisplayGroups.map((group) => {
+                if (group.type === 'empty-range') {
+                  const isExpanded = expandedEmptyRanges.has(group.key)
+                  const count = group.end - group.start + 1
+                  return (
+                    <React.Fragment key={group.key}>
+                      <TableRow
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => {
+                          setExpandedEmptyRanges(prev => {
+                            const next = new Set(prev)
+                            if (next.has(group.key)) next.delete(group.key)
+                            else next.add(group.key)
+                            return next
+                          })
+                        }}
+                      >
+                        <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-2">
+                          <div className="flex items-center justify-center gap-2">
+                            {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                            Sourates {group.start}–{group.end} ({count} sourate{count > 1 ? 's' : ''}, aucune donnée)
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && filteredData?.allSurahs
+                        .filter(s => s.surahNumber >= group.start && s.surahNumber <= group.end)
+                        .map(surah => (
+                          <TableRow key={surah.surahNumber} className="bg-muted/10">
+                            <TableCell className="text-muted-foreground text-xs">{surah.surahNumber}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {surah.surahName} <span className="font-arabic">{surah.surahNameAr}</span>
+                            </TableCell>
+                            <TableCell className="text-center text-xs text-muted-foreground">0/{surah.totalVerses}</TableCell>
+                            <TableCell><Progress value={0} className="h-2" /></TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="sm" onClick={() => openDialogForSurah(surah.surahNumber)}>
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      }
+                    </React.Fragment>
+                  )
+                }
+
+                // Regular surah with data
+                const surah = group.surah
                 const isExpanded = expandedSurahs.has(surah.surahNumber)
                 const hasEntries = surah.entries && surah.entries.length > 0
+
+                // Get unique books used for this surah
+                const usedBookIds = new Set<string>()
+                surah.entries.forEach(e => e.tafsirBookIds?.forEach(id => usedBookIds.add(id)))
+
                 return (
                   <React.Fragment key={surah.surahNumber}>
                     <TableRow
@@ -421,10 +598,22 @@ export default function TafsirPage() {
                           <span className="text-muted-foreground text-sm ml-2 font-arabic">{surah.surahNameAr}</span>
                           {hasEntries && (
                             <span className="text-xs text-muted-foreground ml-2">
-                              ({surah.entries.length} {surah.entries.length === 1 ? 'entree' : 'entrees'})
+                              ({surah.entries.length} {surah.entries.length === 1 ? 'entrée' : 'entrées'})
                             </span>
                           )}
                         </div>
+                        {selectedBookFilter === 'all' && usedBookIds.size > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {Array.from(usedBookIds).map(bookId => {
+                              const book = tafsirBooks.find(b => b.id === bookId)
+                              return book ? (
+                                <Badge key={bookId} variant="outline" className="text-[10px] py-0 border-rose-200 text-rose-600">
+                                  {book.nameAr}
+                                </Badge>
+                              ) : null
+                            })}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">
                         <span className="font-medium">{surah.coveredVerses}</span>
@@ -474,7 +663,7 @@ export default function TafsirPage() {
                                 onChange={(e) => setEditVerseStart(e.target.value)}
                                 className="w-16 h-8 text-xs"
                               />
-                              <span className="text-xs">-</span>
+                              <span className="text-xs">–</span>
                               <Input
                                 type="number"
                                 min={1}
@@ -485,10 +674,29 @@ export default function TafsirPage() {
                               />
                             </div>
                           ) : (
-                            <div className="text-sm text-muted-foreground">
-                              {new Date(entry.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-                              {' — '}Versets {entry.verseStart}–{entry.verseEnd}
-                              <span className="text-xs ml-1">({entry.verseEnd - entry.verseStart + 1}v)</span>
+                            <div>
+                              <div className="text-sm text-muted-foreground">
+                                {new Date(entry.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                {' — '}Versets {entry.verseStart}–{entry.verseEnd}
+                                <span className="text-xs ml-1">({entry.verseEnd - entry.verseStart + 1}v)</span>
+                              </div>
+                              {entry.tafsirBookIds.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                  {entry.tafsirBookIds.map(bookId => {
+                                    const book = tafsirBooks.find(b => b.id === bookId)
+                                    return book ? (
+                                      <Badge key={bookId} variant="outline" className="text-[10px] py-0 border-rose-200 text-rose-600">
+                                        {book.nameAr}
+                                      </Badge>
+                                    ) : null
+                                  })}
+                                </div>
+                              )}
+                              {entry.comment && (
+                                <p className="text-xs text-muted-foreground mt-1 italic">
+                                  {entry.comment}
+                                </p>
+                              )}
                             </div>
                           )}
                         </TableCell>
@@ -592,6 +800,50 @@ export default function TafsirPage() {
                 type="date"
                 value={entryDate}
                 onChange={(e) => setEntryDate(e.target.value)}
+              />
+            </div>
+
+            {tafsirBooks.length > 0 && (
+              <div className="space-y-2">
+                <Label>Livres de Tafsir</Label>
+                <div className="grid gap-1.5 sm:grid-cols-2">
+                  {tafsirBooks.map(book => (
+                    <label
+                      key={book.id}
+                      className={`flex items-center gap-2 p-2 rounded-md border cursor-pointer text-sm transition-colors ${
+                        dialogTafsirBooks.includes(book.id)
+                          ? 'bg-rose-50 border-rose-300 dark:bg-rose-900/20 dark:border-rose-700'
+                          : 'hover:bg-muted/50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300"
+                        checked={dialogTafsirBooks.includes(book.id)}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setDialogTafsirBooks(prev => [...prev, book.id])
+                          } else {
+                            setDialogTafsirBooks(prev => prev.filter(id => id !== book.id))
+                          }
+                        }}
+                      />
+                      <div className="flex flex-col">
+                        <span>{book.nameFr}</span>
+                        <span className="text-xs text-muted-foreground font-arabic">{book.nameAr}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Commentaire (optionnel)</Label>
+              <Input
+                value={dialogComment}
+                onChange={(e) => setDialogComment(e.target.value)}
+                placeholder="Notes ou remarques sur cette lecture"
               />
             </div>
           </div>

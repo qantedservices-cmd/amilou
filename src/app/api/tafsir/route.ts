@@ -47,7 +47,7 @@ export async function GET() {
       surahNameAr: string
       totalVerses: number
       coveredVerses: Set<number>
-      entries: { id: string; date: string; verseStart: number; verseEnd: number }[]
+      entries: { id: string; date: string; verseStart: number; verseEnd: number; tafsirBookIds: string[]; comment: string | null }[]
     }> = {}
 
     // Initialize all surahs
@@ -73,7 +73,9 @@ export async function GET() {
           id: entry.id,
           date: entry.date.toISOString().split('T')[0],
           verseStart: entry.verseStart,
-          verseEnd: entry.verseEnd
+          verseEnd: entry.verseEnd,
+          tafsirBookIds: (entry as any).tafsirBookIds || [],
+          comment: entry.comment || null,
         })
       }
     }
@@ -133,7 +135,7 @@ export async function POST(request: Request) {
 
     const userId = session.user.id
     const body = await request.json()
-    const { surahNumber, verseStart, verseEnd, date, comment } = body
+    const { surahNumber, verseStart, verseEnd, date, comment, tafsirBookIds } = body
 
     if (!surahNumber || !verseStart || !verseEnd) {
       return NextResponse.json({ error: 'Sourate et versets requis' }, { status: 400 })
@@ -171,6 +173,7 @@ export async function POST(request: Request) {
         verseStart,
         verseEnd,
         comment: comment || null,
+        tafsirBookIds: tafsirBookIds || [],
         createdBy: userId
       },
       include: {
