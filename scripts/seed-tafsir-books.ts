@@ -13,6 +13,7 @@ async function main() {
     { nameAr: 'زاد المسير', nameFr: 'Tafsir Ibn Al-Jawzi', author: 'Ibn Al-Jawzi', sortOrder: 8 },
     { nameAr: 'التفسير الميسر', nameFr: 'Tafsir Al-Mouyassar', author: 'Complexe du Roi Fahd', sortOrder: 9 },
     { nameAr: 'أيسر التفاسير', nameFr: 'Aysar At-Tafasir', author: "Abu Bakr Al-Jaza'iri", sortOrder: 10 },
+    { nameAr: 'التحرير والتنوير', nameFr: 'Tafsir At-Tahrir wa At-Tanwir', author: 'Ibn Ashour', sortOrder: 11 },
   ]
 
   await prisma.tafsirBook.deleteMany({})
