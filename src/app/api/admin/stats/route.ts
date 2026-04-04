@@ -174,12 +174,75 @@ export async function GET(request: Request) {
       orderBy: { name: 'asc' }
     })
 
+    // Login stats
+    const now7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const now30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+
+    const lastLoginsByUser = await prisma.loginLog.groupBy({
+      by: ['userId'],
+      where: { success: true, userId: { not: null } },
+      _max: { createdAt: true },
+      _count: true,
+    })
+
+    const lastLogins: Record<string, string> = {}
+    const loginCounts: Record<string, number> = {}
+    let activeCount = 0
+    let mediumCount = 0
+    let inactiveLoginCount = 0
+
+    for (const entry of lastLoginsByUser) {
+      if (!entry.userId) continue
+      const lastDate = entry._max.createdAt!
+      lastLogins[entry.userId] = lastDate.toISOString()
+      loginCounts[entry.userId] = entry._count
+      if (lastDate > now7d) activeCount++
+      else if (lastDate > now30d) mediumCount++
+      else inactiveLoginCount++
+    }
+
+    const usersWithLogins = new Set(lastLoginsByUser.map(e => e.userId).filter(Boolean))
+    const allUserIds = validStats.map(u => u?.id).filter(Boolean)
+    const neverConnected = allUserIds.filter(id => !usersWithLogins.has(id!)).length
+
+    // Invitation stats
+    const pendingInvites = await prisma.invitationLog.count({
+      where: {
+        status: 'PENDING',
+        expiresAt: { gt: new Date() },
+      }
+    })
+
+    const inviteLogs = await prisma.invitationLog.findMany({
+      select: { email: true, status: true, expiresAt: true },
+      orderBy: { sentAt: 'desc' },
+    })
+
+    const inviteStatuses: Record<string, string> = {}
+    for (const inv of inviteLogs) {
+      if (!inviteStatuses[inv.email]) {
+        inviteStatuses[inv.email] = inv.status === 'PENDING' && inv.expiresAt < new Date()
+          ? 'EXPIRED'
+          : inv.status
+      }
+    }
+
     return NextResponse.json({
       users: validStats,
       globalAttendanceRate,
       inactiveUsersCount,
       totalUsers: validStats.length,
-      groups
+      groups,
+      loginStats: {
+        activeCount,
+        mediumCount,
+        inactiveCount: inactiveLoginCount,
+        neverConnected,
+        pendingInvites,
+      },
+      lastLogins,
+      loginCounts,
+      inviteStatuses,
     })
   } catch (error) {
     console.error('Error fetching admin stats:', error)
