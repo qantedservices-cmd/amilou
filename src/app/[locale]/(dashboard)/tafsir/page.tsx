@@ -109,6 +109,8 @@ export default function TafsirPage() {
   const [editVerseEnd, setEditVerseEnd] = useState('')
   const [editDate, setEditDate] = useState('')
   const [editSaving, setEditSaving] = useState(false)
+  const [editComment, setEditComment] = useState('')
+  const [editTafsirBooks, setEditTafsirBooks] = useState<string[]>([])
 
   // Delete confirmation
   const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null)
@@ -237,11 +239,13 @@ export default function TafsirPage() {
     })
   }
 
-  function startEdit(entry: { id: string; date: string; verseStart: number; verseEnd: number }) {
+  function startEdit(entry: { id: string; date: string; verseStart: number; verseEnd: number; tafsirBookIds: string[]; comment: string | null }) {
     setEditingEntryId(entry.id)
     setEditVerseStart(entry.verseStart.toString())
     setEditVerseEnd(entry.verseEnd.toString())
     setEditDate(entry.date)
+    setEditComment(entry.comment || '')
+    setEditTafsirBooks(entry.tafsirBookIds || [])
   }
 
   function cancelEdit() {
@@ -249,6 +253,8 @@ export default function TafsirPage() {
     setEditVerseStart('')
     setEditVerseEnd('')
     setEditDate('')
+    setEditComment('')
+    setEditTafsirBooks([])
   }
 
   async function handleEditSave() {
@@ -262,6 +268,8 @@ export default function TafsirPage() {
           verseStart: parseInt(editVerseStart),
           verseEnd: parseInt(editVerseEnd),
           date: editDate,
+          comment: editComment || null,
+          tafsirBookIds: editTafsirBooks,
         }),
       })
       if (res.ok) {
@@ -647,30 +655,63 @@ export default function TafsirPage() {
                         <TableCell></TableCell>
                         <TableCell colSpan={2}>
                           {editingEntryId === entry.id ? (
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Input
+                                  type="date"
+                                  value={editDate}
+                                  onChange={(e) => setEditDate(e.target.value)}
+                                  className="w-36 h-8 text-xs"
+                                />
+                                <span className="text-xs">v.</span>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={surah.totalVerses}
+                                  value={editVerseStart}
+                                  onChange={(e) => setEditVerseStart(e.target.value)}
+                                  className="w-16 h-8 text-xs"
+                                />
+                                <span className="text-xs">–</span>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={surah.totalVerses}
+                                  value={editVerseEnd}
+                                  onChange={(e) => setEditVerseEnd(e.target.value)}
+                                  className="w-16 h-8 text-xs"
+                                />
+                              </div>
+                              {tafsirBooks.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {tafsirBooks.map(book => (
+                                    <label
+                                      key={book.id}
+                                      className={`flex items-center gap-1 px-2 py-1 rounded border cursor-pointer text-xs transition-colors ${
+                                        editTafsirBooks.includes(book.id)
+                                          ? 'bg-rose-50 border-rose-300 dark:bg-rose-900/20'
+                                          : 'hover:bg-muted/50'
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        className="rounded border-gray-300 h-3 w-3"
+                                        checked={editTafsirBooks.includes(book.id)}
+                                        onChange={e => {
+                                          if (e.target.checked) setEditTafsirBooks(prev => [...prev, book.id])
+                                          else setEditTafsirBooks(prev => prev.filter(id => id !== book.id))
+                                        }}
+                                      />
+                                      <span className="font-arabic">{book.nameAr}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
                               <Input
-                                type="date"
-                                value={editDate}
-                                onChange={(e) => setEditDate(e.target.value)}
-                                className="w-36 h-8 text-xs"
-                              />
-                              <span className="text-xs">v.</span>
-                              <Input
-                                type="number"
-                                min={1}
-                                max={surah.totalVerses}
-                                value={editVerseStart}
-                                onChange={(e) => setEditVerseStart(e.target.value)}
-                                className="w-16 h-8 text-xs"
-                              />
-                              <span className="text-xs">–</span>
-                              <Input
-                                type="number"
-                                min={1}
-                                max={surah.totalVerses}
-                                value={editVerseEnd}
-                                onChange={(e) => setEditVerseEnd(e.target.value)}
-                                className="w-16 h-8 text-xs"
+                                value={editComment}
+                                onChange={(e) => setEditComment(e.target.value)}
+                                placeholder="Commentaire..."
+                                className="h-8 text-xs"
                               />
                             </div>
                           ) : (

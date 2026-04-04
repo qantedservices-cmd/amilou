@@ -13,7 +13,7 @@ export async function PUT(
     }
 
     const { id } = await params
-    const { date, surahNumber, verseStart, verseEnd, repetitions, comment } = await request.json()
+    const { date, surahNumber, verseStart, verseEnd, repetitions, comment, tafsirBookIds } = await request.json()
 
     const existing = await prisma.progress.findFirst({
       where: { id, userId: session.user.id },
@@ -53,6 +53,7 @@ export async function PUT(
         verseEnd,
         repetitions,
         comment,
+        ...(tafsirBookIds !== undefined && { tafsirBookIds }),
       },
       include: {
         program: true,
