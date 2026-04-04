@@ -90,9 +90,22 @@ export async function POST(request: Request) {
       `,
     })
 
+    // Log the invitation
+    await prisma.invitationLog.create({
+      data: {
+        email: email.trim().toLowerCase(),
+        name: name.trim(),
+        role: role || 'USER',
+        groupId: groupId || null,
+        invitedBy: adminId,
+        status: 'PENDING',
+        token: inviteToken,
+        expiresAt: inviteExpires,
+      }
+    })
+
     if (emailError) {
       console.error('Resend error:', emailError)
-      // User created but email failed — return the invite URL for manual sharing
       return NextResponse.json({
         user,
         emailSent: false,
