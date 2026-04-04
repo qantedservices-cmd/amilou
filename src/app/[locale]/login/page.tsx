@@ -33,6 +33,12 @@ export default function LoginPage() {
     if (result?.error) {
       setError(t('auth.invalidCredentials'))
       setLoading(false)
+      // Log failed attempt
+      fetch('/api/auth/login-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      }).catch(() => {})
     } else {
       router.push('/dashboard')
     }
