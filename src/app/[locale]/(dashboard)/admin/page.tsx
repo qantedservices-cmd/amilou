@@ -117,12 +117,34 @@ interface GroupData {
   }>
 }
 
+interface LoginStats {
+  activeCount: number
+  mediumCount: number
+  inactiveCount: number
+  neverConnected: number
+  pendingInvites: number
+}
+
+interface LogEntry {
+  id: string
+  type: 'login' | 'login-fail' | 'invitation-sent' | 'invitation-accepted'
+  date: string
+  userId: string | null
+  userName: string | null
+  userEmail: string
+  details: Record<string, any>
+}
+
 interface AdminStats {
   users: UserRanking[]
   globalAttendanceRate: number
   inactiveUsersCount: number
   totalUsers: number
   groups: { id: string; name: string }[]
+  loginStats?: LoginStats
+  lastLogins?: Record<string, string>
+  loginCounts?: Record<string, number>
+  inviteStatuses?: Record<string, string>
 }
 
 export default function AdminPage() {
@@ -172,6 +194,26 @@ export default function AdminPage() {
   const [inviting, setInviting] = useState(false)
   const [inviteResult, setInviteResult] = useState<{ emailSent: boolean; inviteUrl: string } | null>(null)
 
+  // History tab
+  const [logs, setLogs] = useState<LogEntry[]>([])
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [logsPage, setLogsPage] = useState(1)
+  const [logsTotalPages, setLogsTotalPages] = useState(1)
+  const [logsTotal, setLogsTotal] = useState(0)
+  const [logFilterUser, setLogFilterUser] = useState('all')
+  const [logFilterType, setLogFilterType] = useState('all')
+  const [logFilterPeriod, setLogFilterPeriod] = useState('30d')
+
+  // Users tab filters
+  const [filterRole, setFilterRole] = useState('all')
+  const [filterGroup, setFilterGroup] = useState('all')
+  const [filterActivity, setFilterActivity] = useState('all')
+  const [filterInvite, setFilterInvite] = useState('all')
+  const [groupBy, setGroupBy] = useState('none')
+  const [sortColumn, setSortColumn] = useState<string>('name')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [activeTab, setActiveTab] = useState('users')
+
   // Group member dialog
   const [addMemberOpen, setAddMemberOpen] = useState(false)
   const [addMemberGroupId, setAddMemberGroupId] = useState('')
@@ -198,6 +240,10 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAdmin) fetchProgress()
   }, [selectedUser, selectedProgram, isAdmin])
+
+  useEffect(() => {
+    if (isAdmin && activeTab === 'history') fetchLogs()
+  }, [isAdmin, activeTab, logsPage, logFilterUser, logFilterType, logFilterPeriod])
 
   async function checkAdminAndFetch() {
     try {
@@ -246,6 +292,23 @@ export default function AdminPage() {
     const res = await fetch('/api/admin/groups')
     const data = await res.json()
     setGroups(Array.isArray(data) ? data : [])
+  }
+
+  async function fetchLogs() {
+    setLogsLoading(true)
+    try {
+      const params = new URLSearchParams({ page: logsPage.toString(), limit: '50', period: logFilterPeriod })
+      if (logFilterUser !== 'all') params.set('userId', logFilterUser)
+      if (logFilterType !== 'all') params.set('type', logFilterType)
+      const res = await fetch(`/api/admin/logs?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setLogs(data.logs)
+        setLogsTotalPages(data.totalPages)
+        setLogsTotal(data.total)
+      }
+    } catch (e) { console.error(e) }
+    setLogsLoading(false)
   }
 
   // User actions
@@ -395,17 +458,187 @@ export default function AdminPage() {
     return { MEMORIZATION: 'bg-emerald-100 text-emerald-800', CONSOLIDATION: 'bg-blue-100 text-blue-800', REVISION: 'bg-amber-100 text-amber-800', READING: 'bg-purple-100 text-purple-800', TAFSIR: 'bg-rose-100 text-rose-800' }[code] || 'bg-gray-100 text-gray-800'
   }
 
-  const filteredUsers = useMemo(() =>
-    users.filter(u => {
-      if (!userSearch) return true
-      const s = userSearch.toLowerCase()
-      return (u.name || '').toLowerCase().includes(s) || u.email.toLowerCase().includes(s)
-    }),
-  [users, userSearch])
+  function getActivityBadge(status: string) {
+    if (status === 'active') return <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" title="Actif (< 7j)" />
+    if (status === 'medium') return <span className="inline-block w-2.5 h-2.5 rounded-full bg-orange-400" title="Moyen (7-30j)" />
+    if (status === 'inactive') return <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500" title="Inactif (> 30j)" />
+    return <span className="inline-block w-2.5 h-2.5 rounded-full bg-gray-300" title="Jamais connecté" />
+  }
 
-  // Get user's groups for display
-  function getUserGroups(userId: string) {
-    return groups.filter(g => g.members.some(m => m.userId === userId)).map(g => g.name)
+  function getInviteBadge(status: string | null) {
+    if (!status) return null
+    if (status === 'ACCEPTED') return <Badge className="bg-emerald-100 text-emerald-700 text-xs">Acceptée</Badge>
+    if (status === 'PENDING') return <Badge className="bg-blue-100 text-blue-700 text-xs">En attente</Badge>
+    if (status === 'EXPIRED') return <Badge className="bg-gray-100 text-gray-500 text-xs">Expirée</Badge>
+    return null
+  }
+
+  function formatRelativeDate(dateStr: string | null) {
+    if (!dateStr) return 'Jamais'
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const days = Math.floor(diff / 86400000)
+    if (days === 0) return "Aujourd'hui"
+    if (days === 1) return 'Hier'
+    if (days < 7) return `Il y a ${days}j`
+    if (days < 30) return `Il y a ${Math.floor(days / 7)} sem.`
+    return `Il y a ${Math.floor(days / 30)} mois`
+  }
+
+  function toggleSort(col: string) {
+    if (sortColumn === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortColumn(col); setSortDir('asc') }
+  }
+
+  function getSortIcon(col: string) {
+    if (sortColumn !== col) return null
+    return sortDir === 'asc' ? <ArrowUp className="inline h-3 w-3 ml-1" /> : <ArrowDown className="inline h-3 w-3 ml-1" />
+  }
+
+  function viewUserLogs(userId: string) {
+    setLogFilterUser(userId)
+    setLogFilterType('all')
+    setLogFilterPeriod('all')
+    setLogsPage(1)
+    setActiveTab('history')
+  }
+
+  function getLogTypeBadge(type: string) {
+    if (type === 'login') return <Badge className="bg-emerald-100 text-emerald-700 text-xs">Connexion</Badge>
+    if (type === 'login-fail') return <Badge className="bg-red-100 text-red-700 text-xs">Échec</Badge>
+    if (type === 'invitation-sent') return <Badge className="bg-blue-100 text-blue-700 text-xs">Invitation</Badge>
+    if (type === 'invitation-accepted') return <Badge className="bg-emerald-100 text-emerald-700 text-xs">Activation</Badge>
+    return <Badge variant="outline">{type}</Badge>
+  }
+
+  function shortenUA(ua: string | null) {
+    if (!ua) return ''
+    if (ua.includes('Chrome')) return 'Chrome'
+    if (ua.includes('Firefox')) return 'Firefox'
+    if (ua.includes('Safari')) return 'Safari'
+    if (ua.includes('Edge')) return 'Edge'
+    return ua.substring(0, 30)
+  }
+
+  const enrichedUsers = useMemo(() => {
+    return users.map(u => ({
+      ...u,
+      groups: groups.filter(g => g.members.some(m => m.userId === u.id)).map(g => g.name),
+      lastLogin: adminStats?.lastLogins?.[u.id] || null,
+      loginCount: adminStats?.loginCounts?.[u.id] || 0,
+      inviteStatus: adminStats?.inviteStatuses?.[u.email] || null,
+      activityStatus: (() => {
+        const last = adminStats?.lastLogins?.[u.id]
+        if (!last) return 'never'
+        const d = Date.now() - new Date(last).getTime()
+        if (d < 7 * 86400000) return 'active'
+        if (d < 30 * 86400000) return 'medium'
+        return 'inactive'
+      })(),
+    }))
+  }, [users, groups, adminStats])
+
+  const filteredUsers = useMemo(() => {
+    let result = enrichedUsers
+    if (userSearch) {
+      const s = userSearch.toLowerCase()
+      result = result.filter(u => (u.name || '').toLowerCase().includes(s) || u.email.toLowerCase().includes(s))
+    }
+    if (filterRole !== 'all') result = result.filter(u => u.role === filterRole)
+    if (filterGroup !== 'all') result = result.filter(u => u.groups.some(g => groups.find(gr => gr.id === filterGroup)?.name === g))
+    if (filterActivity !== 'all') result = result.filter(u => u.activityStatus === filterActivity)
+    if (filterInvite !== 'all') {
+      if (filterInvite === 'none') result = result.filter(u => !u.inviteStatus)
+      else result = result.filter(u => u.inviteStatus === filterInvite)
+    }
+    result = [...result].sort((a, b) => {
+      let cmp = 0
+      if (sortColumn === 'name') cmp = (a.name || '').localeCompare(b.name || '')
+      else if (sortColumn === 'email') cmp = a.email.localeCompare(b.email)
+      else if (sortColumn === 'role') cmp = a.role.localeCompare(b.role)
+      else if (sortColumn === 'lastLogin') {
+        const da = a.lastLogin ? new Date(a.lastLogin).getTime() : 0
+        const db = b.lastLogin ? new Date(b.lastLogin).getTime() : 0
+        cmp = da - db
+      }
+      else if (sortColumn === 'loginCount') cmp = a.loginCount - b.loginCount
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return result
+  }, [enrichedUsers, userSearch, filterRole, filterGroup, filterActivity, filterInvite, sortColumn, sortDir])
+
+  const groupedUsers = useMemo(() => {
+    if (groupBy === 'none') return null
+    const map = new Map<string, typeof filteredUsers>()
+    for (const u of filteredUsers) {
+      if (groupBy === 'role') {
+        const key = u.role
+        if (!map.has(key)) map.set(key, [])
+        map.get(key)!.push(u)
+      } else if (groupBy === 'group') {
+        if (u.groups.length === 0) {
+          const key = 'Sans groupe'
+          if (!map.has(key)) map.set(key, [])
+          map.get(key)!.push(u)
+        } else {
+          for (const g of u.groups) {
+            if (!map.has(g)) map.set(g, [])
+            map.get(g)!.push(u)
+          }
+        }
+      }
+    }
+    return map
+  }, [filteredUsers, groupBy])
+
+  function renderUsersTable(userList: typeof filteredUsers) {
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('name')}>Nom{getSortIcon('name')}</TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('email')}>Email{getSortIcon('email')}</TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('role')}>Rôle{getSortIcon('role')}</TableHead>
+            <TableHead>Groupes</TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('lastLogin')}>Dernière cnx{getSortIcon('lastLogin')}</TableHead>
+            <TableHead className="cursor-pointer select-none text-center" onClick={() => toggleSort('loginCount')}>Cnx{getSortIcon('loginCount')}</TableHead>
+            <TableHead className="text-center">Activité</TableHead>
+            <TableHead>Invitation</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {userList.map(user => (
+            <TableRow key={user.id}>
+              <TableCell className="font-medium">{user.name || '-'}</TableCell>
+              <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
+              <TableCell><Badge className={getRoleBadgeColor(user.role)}>{user.role}</Badge></TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {user.groups.map(g => <Badge key={g} variant="outline" className="text-xs">{g}</Badge>)}
+                  {user.groups.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
+                </div>
+              </TableCell>
+              <TableCell className="text-sm cursor-pointer hover:underline" onClick={() => viewUserLogs(user.id)} title="Voir l'historique">
+                {formatRelativeDate(user.lastLogin)}
+              </TableCell>
+              <TableCell className="text-center text-sm cursor-pointer hover:underline" onClick={() => viewUserLogs(user.id)} title="Voir l'historique">
+                {user.loginCount}
+              </TableCell>
+              <TableCell className="text-center">{getActivityBadge(user.activityStatus)}</TableCell>
+              <TableCell>{getInviteBadge(user.inviteStatus)}</TableCell>
+              <TableCell className="text-right">
+                <div className="flex items-center justify-end gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)} title="Modifier"><Pencil className="h-3.5 w-3.5" /></Button>
+                  {user.id !== session?.user?.id && (
+                    <Button variant="ghost" size="sm" onClick={() => startImpersonation(user.id)} className="text-amber-600" title="Voir en tant que"><Eye className="h-3.5 w-3.5" /></Button>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    )
   }
 
   if (loading) return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
@@ -421,17 +654,19 @@ export default function AdminPage() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Utilisateurs</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{adminStats?.totalUsers || users.length}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Assiduité globale</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{adminStats?.globalAttendanceRate || 0}%</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Inactifs</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-amber-600">{adminStats?.inactiveUsersCount || 0}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Groupes</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{groups.length}</div></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />Actifs</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-emerald-600">{adminStats?.loginStats?.activeCount || 0}</div><p className="text-xs text-muted-foreground">{"connexion < 7j"}</p></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-500" />Inactifs</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-red-600">{adminStats?.loginStats?.inactiveCount || 0}</div><p className="text-xs text-muted-foreground">{"connexion > 30j"}</p></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-gray-300" />Jamais connectés</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-gray-500">{adminStats?.loginStats?.neverConnected || 0}</div></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Invitations en attente</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-blue-600">{adminStats?.loginStats?.pendingInvites || 0}</div></CardContent></Card>
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="users">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="users" className="flex items-center gap-1"><Users className="h-4 w-4" />Utilisateurs</TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-1"><Activity className="h-4 w-4" />Historique</TabsTrigger>
           <TabsTrigger value="groups" className="flex items-center gap-1"><FolderOpen className="h-4 w-4" />Groupes</TabsTrigger>
           <TabsTrigger value="ranking" className="flex items-center gap-1"><Trophy className="h-4 w-4" />Classement</TabsTrigger>
           <TabsTrigger value="progress" className="flex items-center gap-1"><TrendingUp className="h-4 w-4" />Progressions</TabsTrigger>
@@ -441,7 +676,7 @@ export default function AdminPage() {
         <TabsContent value="users">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="relative flex-1 max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input placeholder="Rechercher par nom ou email..." value={userSearch} onChange={e => setUserSearch(e.target.value)} className="pl-9" />
@@ -451,46 +686,158 @@ export default function AdminPage() {
                   <Button variant="outline" onClick={() => { setInviteOpen(true); setInviteResult(null); setInviteName(''); setInviteEmail(''); setInviteRole('USER'); setInviteGroupId('') }}><Mail className="h-4 w-4 mr-1" />Inviter</Button>
                 </div>
               </div>
+              <div className="flex gap-2 flex-wrap mt-3">
+                <Select value={filterRole} onValueChange={setFilterRole}>
+                  <SelectTrigger className="w-36"><SelectValue placeholder="Rôle" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les rôles</SelectItem>
+                    <SelectItem value="ADMIN">Admin</SelectItem>
+                    <SelectItem value="REFERENT">Référent</SelectItem>
+                    <SelectItem value="USER">Utilisateur</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterGroup} onValueChange={setFilterGroup}>
+                  <SelectTrigger className="w-40"><SelectValue placeholder="Groupe" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les groupes</SelectItem>
+                    {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={filterActivity} onValueChange={setFilterActivity}>
+                  <SelectTrigger className="w-36"><SelectValue placeholder="Activité" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toute activité</SelectItem>
+                    <SelectItem value="active">Actif</SelectItem>
+                    <SelectItem value="medium">Moyen</SelectItem>
+                    <SelectItem value="inactive">Inactif</SelectItem>
+                    <SelectItem value="never">Jamais connecté</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterInvite} onValueChange={setFilterInvite}>
+                  <SelectTrigger className="w-36"><SelectValue placeholder="Invitation" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes</SelectItem>
+                    <SelectItem value="ACCEPTED">Acceptée</SelectItem>
+                    <SelectItem value="PENDING">En attente</SelectItem>
+                    <SelectItem value="EXPIRED">Expirée</SelectItem>
+                    <SelectItem value="none">Aucune</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={groupBy} onValueChange={setGroupBy}>
+                  <SelectTrigger className="w-40"><SelectValue placeholder="Grouper par" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Pas de groupement</SelectItem>
+                    <SelectItem value="role">Par rôle</SelectItem>
+                    <SelectItem value="group">Par groupe</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">{filteredUsers.length} utilisateur{filteredUsers.length > 1 ? 's' : ''}</p>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nom</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Rôle</TableHead>
-                    <TableHead>Groupes</TableHead>
-                    <TableHead>Entrées</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map(user => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name || '-'}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
-                      <TableCell><Badge className={getRoleBadgeColor(user.role)}>{user.role}</Badge></TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {getUserGroups(user.id).map(g => (
-                            <Badge key={g} variant="outline" className="text-xs">{g}</Badge>
-                          ))}
-                          {getUserGroups(user.id).length === 0 && <span className="text-xs text-muted-foreground">—</span>}
-                        </div>
-                      </TableCell>
-                      <TableCell><span className="text-emerald-600 font-medium">{user._count.progressEntries}</span></TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)} title="Modifier"><Pencil className="h-3.5 w-3.5" /></Button>
-                          {user.id !== session?.user?.id && (
-                            <Button variant="ghost" size="sm" onClick={() => startImpersonation(user.id)} className="text-amber-600" title="Voir en tant que"><Eye className="h-3.5 w-3.5" /></Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
+              {groupedUsers ? (
+                <div className="space-y-6">
+                  {Array.from(groupedUsers.entries()).map(([groupName, groupUsers]) => (
+                    <div key={groupName}>
+                      <h3 className="font-semibold text-sm text-muted-foreground mb-2">{groupName} ({groupUsers.length})</h3>
+                      {renderUsersTable(groupUsers)}
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+              ) : (
+                renderUsersTable(filteredUsers)
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ===== HISTORY TAB ===== */}
+        <TabsContent value="history">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" />Historique des événements</CardTitle>
+                <div className="flex gap-2 flex-wrap">
+                  <Select value={logFilterUser} onValueChange={v => { setLogFilterUser(v); setLogsPage(1) }}>
+                    <SelectTrigger className="w-44"><SelectValue placeholder="Utilisateur" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les utilisateurs</SelectItem>
+                      {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={logFilterType} onValueChange={v => { setLogFilterType(v); setLogsPage(1) }}>
+                    <SelectTrigger className="w-36"><SelectValue placeholder="Type" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les types</SelectItem>
+                      <SelectItem value="login">Connexions</SelectItem>
+                      <SelectItem value="login-fail">Échecs</SelectItem>
+                      <SelectItem value="invitation">Invitations</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={logFilterPeriod} onValueChange={v => { setLogFilterPeriod(v); setLogsPage(1) }}>
+                    <SelectTrigger className="w-36"><SelectValue placeholder="Période" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">Aujourd'hui</SelectItem>
+                      <SelectItem value="7d">7 derniers jours</SelectItem>
+                      <SelectItem value="30d">30 derniers jours</SelectItem>
+                      <SelectItem value="all">Tout</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{logsTotal} événement{logsTotal > 1 ? 's' : ''}</p>
+            </CardHeader>
+            <CardContent>
+              {logsLoading ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : logs.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">Aucun événement</p>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date/Heure</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Utilisateur</TableHead>
+                        <TableHead>Détails</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {logs.map(log => (
+                        <TableRow key={log.id}>
+                          <TableCell className="text-sm whitespace-nowrap">{new Date(log.date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</TableCell>
+                          <TableCell>{getLogTypeBadge(log.type)}</TableCell>
+                          <TableCell>
+                            <div>
+                              <span className="font-medium text-sm">{log.userName || log.userEmail.split('@')[0]}</span>
+                              <span className="text-xs text-muted-foreground ml-2">{log.userEmail}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {(log.type === 'login' || log.type === 'login-fail') && (
+                              <span>{log.details.ipAddress || ''}{log.details.ipAddress && log.details.userAgent ? ' \u2014 ' : ''}{shortenUA(log.details.userAgent as string)}</span>
+                            )}
+                            {log.type === 'invitation-sent' && (
+                              <span>{log.details.inviteName} ({log.details.role}){log.details.groupName ? ` \u2014 ${log.details.groupName}` : ''}</span>
+                            )}
+                            {log.type === 'invitation-accepted' && (
+                              <span>Compte activé{log.details.groupName ? ` \u2014 ${log.details.groupName}` : ''}</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {logsTotalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4">
+                      <Button variant="outline" size="sm" disabled={logsPage <= 1} onClick={() => setLogsPage(p => p - 1)}>Précédent</Button>
+                      <span className="text-sm text-muted-foreground">Page {logsPage} sur {logsTotalPages}</span>
+                      <Button variant="outline" size="sm" disabled={logsPage >= logsTotalPages} onClick={() => setLogsPage(p => p + 1)}>Suivant</Button>
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
