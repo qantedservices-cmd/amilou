@@ -762,7 +762,10 @@ export default function ProgressPage() {
                             }
                           }}
                         />
-                        <span>{book.nameFr}</span>
+                        <div className="flex flex-col">
+                          <span>{book.nameFr}</span>
+                          <span className="text-xs text-muted-foreground font-arabic">{book.nameAr}</span>
+                        </div>
                       </label>
                     ))}
                   </div>
@@ -849,6 +852,30 @@ export default function ProgressPage() {
                 <span>{tafsirData.global.completedSurahs} sourates completes</span>
                 <span>{tafsirData.global.inProgressSurahs} en cours</span>
               </div>
+              {/* Résumé par livre de tafsir */}
+              {tafsirBooks.length > 0 && (() => {
+                const tafsirEntries = entries.filter(e => e.program.code === 'TAFSIR' && e.tafsirBookIds && e.tafsirBookIds.length > 0)
+                if (tafsirEntries.length === 0) return null
+                const bookCounts = new Map<string, number>()
+                for (const entry of tafsirEntries) {
+                  for (const bookId of entry.tafsirBookIds!) {
+                    bookCounts.set(bookId, (bookCounts.get(bookId) || 0) + 1)
+                  }
+                }
+                return (
+                  <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t">
+                    {Array.from(bookCounts.entries()).map(([bookId, count]) => {
+                      const book = tafsirBooks.find(b => b.id === bookId)
+                      if (!book) return null
+                      return (
+                        <Badge key={bookId} variant="outline" className="text-xs border-rose-200 text-rose-600">
+                          {book.nameAr} <span className="ml-1 text-muted-foreground">({count})</span>
+                        </Badge>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
             </div>
           </CardContent>
         </Card>
@@ -963,7 +990,7 @@ export default function ProgressPage() {
                             const book = tafsirBooks.find(b => b.id === bookId)
                             return book ? (
                               <Badge key={bookId} variant="outline" className="text-[10px] py-0 border-rose-200 text-rose-600">
-                                {book.nameFr.replace('Tafsir ', '')}
+                                {book.nameAr}
                               </Badge>
                             ) : null
                           })}
