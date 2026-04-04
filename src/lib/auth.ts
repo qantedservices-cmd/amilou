@@ -56,6 +56,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ user }) {
+      if (user?.id && user?.email) {
+        try {
+          await prisma.loginLog.create({
+            data: {
+              userId: user.id,
+              email: user.email,
+              success: true,
+            }
+          })
+        } catch (e) {
+          console.error('Failed to log login:', e)
+        }
+      }
+      return true
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
