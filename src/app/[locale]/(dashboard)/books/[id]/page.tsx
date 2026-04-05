@@ -19,7 +19,17 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { ArrowLeft, BookOpen, Check, ChevronDown, List, FolderTree } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { ArrowLeft, BookOpen, Check, ChevronDown, List, FolderTree, Hash } from 'lucide-react'
 import { SegmentedProgressBar, SegmentData } from '@/components/segmented-progress-bar'
 
 interface BookItem {
@@ -93,6 +103,13 @@ export default function BookDetailPage() {
   const [toggling, setToggling] = useState<Set<string>>(new Set())
   const [openChapters, setOpenChapters] = useState<string[]>([])
   const [viewMode, setViewMode] = useState<'accordion' | 'list'>('accordion')
+
+  // Range marking dialog
+  const [rangeDialogOpen, setRangeDialogOpen] = useState(false)
+  const [rangeChapterId, setRangeChapterId] = useState('')
+  const [rangeStart, setRangeStart] = useState('')
+  const [rangeEnd, setRangeEnd] = useState('')
+  const [rangeMarking, setRangeMarking] = useState(false)
 
   const fetchBook = useCallback(async () => {
     try {
@@ -273,6 +290,61 @@ export default function BookDetailPage() {
     }
   }
 
+  function openRangeDialog(chapterId: string) {
+    setRangeChapterId(chapterId)
+    const items = chapterItems[chapterId]
+    if (items && items.length > 0) {
+      setRangeStart(items[0].itemNumber.toString())
+      setRangeEnd(items[items.length - 1].itemNumber.toString())
+    } else {
+      setRangeStart('')
+      setRangeEnd('')
+    }
+    setRangeDialogOpen(true)
+  }
+
+  async function handleMarkRange() {
+    const items = chapterItems[rangeChapterId]
+    if (!items) return
+    const start = parseInt(rangeStart)
+    const end = parseInt(rangeEnd)
+    if (isNaN(start) || isNaN(end) || start > end) return
+
+    setRangeMarking(true)
+    const itemIds = items
+      .filter(item => item.itemNumber >= start && item.itemNumber <= end)
+      .map(item => item.id)
+
+    if (itemIds.length === 0) {
+      setRangeMarking(false)
+      return
+    }
+
+    try {
+      await fetch(`/api/books/${bookId}/progress`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIds, completed: true }),
+      })
+      // Update local state
+      setChapterItems(prev => ({
+        ...prev,
+        [rangeChapterId]: prev[rangeChapterId].map(item =>
+          item.itemNumber >= start && item.itemNumber <= end
+            ? { ...item, userProgress: { completed: true, completedAt: new Date().toISOString(), notes: item.userProgress?.notes, rating: item.userProgress?.rating } }
+            : item
+        ),
+      }))
+      await fetchProgress()
+      await fetchBook()
+      setRangeDialogOpen(false)
+    } catch (e) {
+      console.error('Error marking range:', e)
+    } finally {
+      setRangeMarking(false)
+    }
+  }
+
   // Helper: flatten all chapters (including children) for counting
   function getAllChapters(chapters: Chapter[]): Chapter[] {
     const result: Chapter[] = []
@@ -427,6 +499,15 @@ export default function BookDetailPage() {
                   onClick={() => toggleChapter(chapter.id, false)}
                 >
                   {t('unmarkAll')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-7"
+                  onClick={() => openRangeDialog(chapter.id)}
+                >
+                  <Hash className="h-3 w-3 mr-1" />
+                  Plage
                 </Button>
               </div>
 
@@ -685,6 +766,52 @@ export default function BookDetailPage() {
           </CardContent>
         </Card>
       )}
+      {/* Range marking dialog */}
+      <Dialog open={rangeDialogOpen} onOpenChange={setRangeDialogOpen}>
+        <DialogContent className="sm:max-w-[350px]">
+          <DialogHeader>
+            <DialogTitle>Marquer une plage</DialogTitle>
+            <DialogDescription>
+              Cocher tous les éléments entre les numéros indiqués
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Du n°</Label>
+              <Input
+                type="number"
+                min="1"
+                value={rangeStart}
+                onChange={(e) => setRangeStart(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Au n°</Label>
+              <Input
+                type="number"
+                min="1"
+                value={rangeEnd}
+                onChange={(e) => setRangeEnd(e.target.value)}
+              />
+            </div>
+          </div>
+          {rangeStart && rangeEnd && parseInt(rangeEnd) >= parseInt(rangeStart) && (
+            <p className="text-sm text-muted-foreground">
+              {parseInt(rangeEnd) - parseInt(rangeStart) + 1} éléments seront marqués comme lus
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRangeDialogOpen(false)}>Annuler</Button>
+            <Button
+              onClick={handleMarkRange}
+              disabled={rangeMarking || !rangeStart || !rangeEnd || parseInt(rangeEnd) < parseInt(rangeStart)}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {rangeMarking ? 'Marquage...' : 'Marquer comme lu'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
