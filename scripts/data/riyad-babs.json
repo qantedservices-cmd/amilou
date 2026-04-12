@@ -1,0 +1,2729 @@
+{
+  "source": "sunnah.com",
+  "fetchedAt": "2026-04-12T09:06:45.138Z",
+  "books": [
+    {
+      "bookNumber": 0,
+      "bookNameAr": "كتاب المقدمات",
+      "bookNameEn": "The Book of Miscellany",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/introduction",
+      "babs": [
+        {
+          "babNumber": 1,
+          "babNameAr": "باب الإخلاص وإحضارالنية",
+          "babNameEn": "Sincerity and Significance of Intentions and all Actions, Apparent and Hidden",
+          "hadithStart": 1,
+          "hadithEnd": 12
+        },
+        {
+          "babNumber": 2,
+          "babNameAr": "باب التوبة",
+          "babNameEn": "Repentance",
+          "hadithStart": 13,
+          "hadithEnd": 24
+        },
+        {
+          "babNumber": 3,
+          "babNameAr": "باب الصبر",
+          "babNameEn": "Patience and Perseverance",
+          "hadithStart": 25,
+          "hadithEnd": 53
+        },
+        {
+          "babNumber": 4,
+          "babNameAr": "باب الصدق‏.‏",
+          "babNameEn": "Truthfulness",
+          "hadithStart": 54,
+          "hadithEnd": 59
+        },
+        {
+          "babNumber": 5,
+          "babNameAr": "باب المراقبة",
+          "babNameEn": "Watchfulness",
+          "hadithStart": 60,
+          "hadithEnd": 68
+        },
+        {
+          "babNumber": 6,
+          "babNameAr": "باب التقوى",
+          "babNameEn": "Piety",
+          "hadithStart": 69,
+          "hadithEnd": 73
+        },
+        {
+          "babNumber": 7,
+          "babNameAr": "باب اليقين والتوكل",
+          "babNameEn": "Firm Belief and Perfect Reliance on Allah",
+          "hadithStart": 74,
+          "hadithEnd": 84
+        },
+        {
+          "babNumber": 8,
+          "babNameAr": "باب الاستقامة",
+          "babNameEn": "Uprightness and Steadfastness",
+          "hadithStart": 85,
+          "hadithEnd": 86
+        },
+        {
+          "babNumber": 10,
+          "babNameAr": "باب المبادرة إلى الخيرات وحث من توجه لخير على الإقبال عليه بالجد من غير تردد",
+          "babNameEn": "Hastening to do Good Deeds",
+          "hadithStart": 87,
+          "hadithEnd": 94
+        },
+        {
+          "babNumber": 11,
+          "babNameAr": "باب المجاهدة",
+          "babNameEn": "The Struggle (in the Cause of Allah)",
+          "hadithStart": 95,
+          "hadithEnd": 111
+        },
+        {
+          "babNumber": 12,
+          "babNameAr": "باب الحث على الازدياد من الخير في أواخر العمر",
+          "babNameEn": "Urging towards increasing Good Actions in later part of Life",
+          "hadithStart": 112,
+          "hadithEnd": 116
+        },
+        {
+          "babNumber": 13,
+          "babNameAr": "باب بيان كثرة طرق الخير‏.‏",
+          "babNameEn": "Numerous ways of doing Good",
+          "hadithStart": 117,
+          "hadithEnd": 141
+        },
+        {
+          "babNumber": 14,
+          "babNameAr": "باب في الاقتصاد في العبادة",
+          "babNameEn": "Moderation in Worship",
+          "hadithStart": 142,
+          "hadithEnd": 152
+        },
+        {
+          "babNumber": 15,
+          "babNameAr": "باب المحافظة على الأعمال",
+          "babNameEn": "Righteous Conduct on a Regular Basis",
+          "hadithStart": 153,
+          "hadithEnd": 155
+        },
+        {
+          "babNumber": 16,
+          "babNameAr": "باب الأمر بالمحافظة على السنة وآدابهـا",
+          "babNameEn": "Observing the Sunnah and the manners of its obedience",
+          "hadithStart": 156,
+          "hadithEnd": 167
+        },
+        {
+          "babNumber": 17,
+          "babNameAr": "باب وجوب الانقياد لحكم الله تعالى",
+          "babNameEn": "Obedience to the command of Allah is an obligatory duty",
+          "hadithStart": 168,
+          "hadithEnd": 168
+        },
+        {
+          "babNumber": 18,
+          "babNameAr": "باب النهي عن البدع ومحدثات الأمور",
+          "babNameEn": "Prohibition of heresies in religion",
+          "hadithStart": 169,
+          "hadithEnd": 170
+        },
+        {
+          "babNumber": 19,
+          "babNameAr": "باب فيمن سن سنة حسنة أو سيئة‏.‏",
+          "babNameEn": "Heretics doing desirable or undesirable deeds",
+          "hadithStart": 171,
+          "hadithEnd": 172
+        },
+        {
+          "babNumber": 20,
+          "babNameAr": "باب الدلالة على خير والدعاء إلى هدى أو ضلالة",
+          "babNameEn": "Calling to right guidance and forbidding depravity",
+          "hadithStart": 173,
+          "hadithEnd": 176
+        },
+        {
+          "babNumber": 21,
+          "babNameAr": "باب التعاون على البر والتقوى",
+          "babNameEn": "Assistance towards righteousness and piety",
+          "hadithStart": 177,
+          "hadithEnd": 180
+        },
+        {
+          "babNumber": 22,
+          "babNameAr": "باب النصيحة",
+          "babNameEn": "Giving Counsel",
+          "hadithStart": 181,
+          "hadithEnd": 183
+        },
+        {
+          "babNumber": 23,
+          "babNameAr": "باب الأمر بالمعروف والنهي عن المنكر",
+          "babNameEn": "Enjoining Good and forbidding Evil",
+          "hadithStart": 184,
+          "hadithEnd": 197
+        },
+        {
+          "babNumber": 24,
+          "babNameAr": "باب تغليظ عقوبة من أمر بمعروف أو نهى عن منكر وخالف قوله فعله",
+          "babNameEn": "Chastisement for one who enjoins good and forbids evil but acts otherwise",
+          "hadithStart": 198,
+          "hadithEnd": 198
+        },
+        {
+          "babNumber": 25,
+          "babNameAr": "باب الأمر بأداء الأمانة",
+          "babNameEn": "Discharging the Trusts",
+          "hadithStart": 199,
+          "hadithEnd": 202
+        },
+        {
+          "babNumber": 26,
+          "babNameAr": "باب تحريم الظلم والأمر برد المظالم",
+          "babNameEn": "Unlawfulness of Oppression and Restoring Others Rights",
+          "hadithStart": 203,
+          "hadithEnd": 221
+        },
+        {
+          "babNumber": 27,
+          "babNameAr": "باب تعظيم حرمات المسلمين وبيان حقوقهم والشفقة عليهم ورحمتهم",
+          "babNameEn": "Reverence towards the Sanctity of the Muslims",
+          "hadithStart": 222,
+          "hadithEnd": 239
+        },
+        {
+          "babNumber": 28,
+          "babNameAr": "باب ستر عورات المسلمين والنهي عن إشاعتها لغير ضرورة",
+          "babNameEn": "Covering Faults of the Muslims",
+          "hadithStart": 240,
+          "hadithEnd": 243
+        },
+        {
+          "babNumber": 29,
+          "babNameAr": "باب قضاء حوائج المسلمين",
+          "babNameEn": "Fulfillment of the needs of the Muslims",
+          "hadithStart": 244,
+          "hadithEnd": 245
+        },
+        {
+          "babNumber": 30,
+          "babNameAr": "باب الشفاعة",
+          "babNameEn": "Intercession",
+          "hadithStart": 246,
+          "hadithEnd": 247
+        },
+        {
+          "babNumber": 31,
+          "babNameAr": "باب الإصلاح بين الناس",
+          "babNameEn": "Making Peace among People",
+          "hadithStart": 248,
+          "hadithEnd": 251
+        },
+        {
+          "babNumber": 32,
+          "babNameAr": "باب فضل ضعفة المسلمين والفقراء الخاملين",
+          "babNameEn": "Superiority of Poor, Weak and unrenowned Muslims",
+          "hadithStart": 252,
+          "hadithEnd": 259
+        },
+        {
+          "babNumber": 33,
+          "babNameAr": "باب ملاطفة اليتيم والبنات وسائر الضعفة والمساكين والمنكسرين والإحسان إليهم والشفقة عليهم‏ والتواضع معهم، وخفض الجناح لهم",
+          "babNameEn": "Benevolent Treatment towards Orphans, Girls, the Weak, the Poor and the Humble Persons",
+          "hadithStart": 260,
+          "hadithEnd": 272
+        },
+        {
+          "babNumber": 34,
+          "babNameAr": "باب الوصية بالنساء",
+          "babNameEn": "Recommendations with regard to Women",
+          "hadithStart": 273,
+          "hadithEnd": 280
+        },
+        {
+          "babNumber": 35,
+          "babNameAr": "باب حق الزوج على المرأة",
+          "babNameEn": "Husband's rights concerning his Wife",
+          "hadithStart": 281,
+          "hadithEnd": 288
+        },
+        {
+          "babNumber": 36,
+          "babNameAr": "باب النفقة على العيال",
+          "babNameEn": "Sustentation of the Members of the Family",
+          "hadithStart": 289,
+          "hadithEnd": 296
+        },
+        {
+          "babNumber": 37,
+          "babNameAr": "باب الإنفاق مما يحب ومن الجيد",
+          "babNameEn": "Spending favorite things for Allah's sake",
+          "hadithStart": 297,
+          "hadithEnd": 297
+        },
+        {
+          "babNumber": 38,
+          "babNameAr": "باب وجوب أمر أهله وأولاده المميزين وسائر من في رعيته بطاعة الله تعالى، ونهيهم عن المخالفة وتأديبهم، ومنعهم من ارتكاب منهي عنه",
+          "babNameEn": "Urging one's kith and kin to Obey Allah and refrain from evils",
+          "hadithStart": 298,
+          "hadithEnd": 302
+        },
+        {
+          "babNumber": 39,
+          "babNameAr": "باب حق الجار والوصية به",
+          "babNameEn": "Rights of Neighbors",
+          "hadithStart": 303,
+          "hadithEnd": 311
+        },
+        {
+          "babNumber": 40,
+          "babNameAr": "باب بر الوالدين وصلة الأرحام",
+          "babNameEn": "Kind Treatment towards Parents and establishment of the ties of Blood Relationship",
+          "hadithStart": 312,
+          "hadithEnd": 335
+        },
+        {
+          "babNumber": 41,
+          "babNameAr": "باب تحريم العقوق وقطيعة الرحم",
+          "babNameEn": "Prohibition of Disobeying Parents and severance of Relations",
+          "hadithStart": 336,
+          "hadithEnd": 340
+        },
+        {
+          "babNumber": 42,
+          "babNameAr": "باب فضل بر أصدقاء الأب والأم والأقارب والزوجة وسائر من يندب إكرامه",
+          "babNameEn": "Excellence in doing Good to the Friends of Parents and other Relatives",
+          "hadithStart": 341,
+          "hadithEnd": 345
+        },
+        {
+          "babNumber": 43,
+          "babNameAr": "باب إكرام أهل بيت رسول الله صلى الله عليه وسلم وبيان فضلهم",
+          "babNameEn": "Showing reverence to the Family of Allah's Messenger (pbuh)",
+          "hadithStart": 346,
+          "hadithEnd": 347
+        },
+        {
+          "babNumber": 44,
+          "babNameAr": "باب توقير العلماء والكبار وأهل الفضل وتقديمهم على غيرهم، ورفع مجالسهم، وإظهار مرتبتهم",
+          "babNameEn": "Revering the Scholars and Elders, Preferring them to others and raising their Status",
+          "hadithStart": 348,
+          "hadithEnd": 359
+        },
+        {
+          "babNumber": 45,
+          "babNameAr": "باب زيارة أهل الخير ومجالستهم وصحبتهم ومحبتهم وطلب زيارتهم والدعاء منهم وزيارة المواضع الفاضلة",
+          "babNameEn": "Visiting the Pious Persons, loving them and adoption of their company",
+          "hadithStart": 360,
+          "hadithEnd": 374
+        },
+        {
+          "babNumber": 46,
+          "babNameAr": "باب فضل الحب في الله والحث عليه وإعلام الرجل من يحبه أنه يحبه، وماذا يقول له إذا أعلمه",
+          "babNameEn": "Excellence and Etiquette of Sincere love for the sake of Allah",
+          "hadithStart": 375,
+          "hadithEnd": 385
+        },
+        {
+          "babNumber": 47,
+          "babNameAr": "باب علامات حب الله تعالى للعبد والحث على التخلق بها والسعي في تحصيلها‏.‏",
+          "babNameEn": "Signs of Allah's love for His slaves and the efforts for its Achievement",
+          "hadithStart": 386,
+          "hadithEnd": 388
+        },
+        {
+          "babNumber": 48,
+          "babNameAr": "باب التحذير من إيذاء الصالحين و الضعفة و المساكين",
+          "babNameEn": "Warning against persecution of the Pious, the Weak and the Indigent",
+          "hadithStart": 389,
+          "hadithEnd": 389
+        },
+        {
+          "babNumber": 49,
+          "babNameAr": "باب إجراء أحكام الناس على الظاهر وسرائرهم إلى الله تعالى",
+          "babNameEn": "Making Judgment of people keeping in view their evident actions and leaving their hidden Actions to Allah (swt)",
+          "hadithStart": 390,
+          "hadithEnd": 395
+        },
+        {
+          "babNumber": 50,
+          "babNameAr": "باب الخوف",
+          "babNameEn": "Fear (of Allah)",
+          "hadithStart": 396,
+          "hadithEnd": 411
+        },
+        {
+          "babNumber": 51,
+          "babNameAr": "باب الرجاء",
+          "babNameEn": "Hope in Allah's Mercy",
+          "hadithStart": 412,
+          "hadithEnd": 439
+        },
+        {
+          "babNumber": 52,
+          "babNameAr": "باب فضل الرجاء",
+          "babNameEn": "Excellence of Good Hopes",
+          "hadithStart": 440,
+          "hadithEnd": 442
+        },
+        {
+          "babNumber": 53,
+          "babNameAr": "باب الجمع بين الخوف والرجاء",
+          "babNameEn": "Combining Hope and Fear (of Allah)",
+          "hadithStart": 443,
+          "hadithEnd": 445
+        },
+        {
+          "babNumber": 54,
+          "babNameAr": "باب فضل البكاء من خشية الله تعالى و شوقا اليه",
+          "babNameEn": "Excellence of Weeping out of Fear from Allah (swt)",
+          "hadithStart": 446,
+          "hadithEnd": 455
+        },
+        {
+          "babNumber": 55,
+          "babNameAr": "باب فضل الزهد في الدنيا و الحث على التقلل منها و فضل الفقر",
+          "babNameEn": "Excellence of Leading an Ascetic Life, and Virtues of Simple Life",
+          "hadithStart": 456,
+          "hadithEnd": 489
+        },
+        {
+          "babNumber": 56,
+          "babNameAr": "باب فضل الجوع وخشونة العيش والإقتصار على القليل من المأكول والمشروب والملبوس وغيرها من حظوظ النفس وترك الشهوات",
+          "babNameEn": "Excellence of Simple Living and being Content with Little",
+          "hadithStart": 490,
+          "hadithEnd": 520
+        },
+        {
+          "babNumber": 57,
+          "babNameAr": "باب القناعة والعفاف والاقتصاد في المعيشة والإنفاق وذم السؤال من غير ضرورة",
+          "babNameEn": "Contentment and Self-esteem and avoidance of unnecessary begging of People",
+          "hadithStart": 521,
+          "hadithEnd": 536
+        },
+        {
+          "babNumber": 58,
+          "babNameAr": "باب جواز الأخذ من غير مسألة ولا تطلع إليه",
+          "babNameEn": "Permissibility of Assistance without Greed",
+          "hadithStart": 537,
+          "hadithEnd": 537
+        },
+        {
+          "babNumber": 59,
+          "babNameAr": "باب الحث على الأكل من عمل يده والتعفف به عن السؤال والتعرض للإعطاء",
+          "babNameEn": "Encouraging Livelihood by (working with) Hands and Abstaining from Begging",
+          "hadithStart": 538,
+          "hadithEnd": 542
+        },
+        {
+          "babNumber": 60,
+          "babNameAr": "باب الكرم والجود والإنفاق فى وجوه الخير ثقة بالله تعالى",
+          "babNameEn": "Excellence of Generosity and Spending in a Good cause with Reliance on Allah",
+          "hadithStart": 543,
+          "hadithEnd": 561
+        },
+        {
+          "babNumber": 61,
+          "babNameAr": "باب النهى عن البخل والشح",
+          "babNameEn": "Prohibition of Miserliness",
+          "hadithStart": 562,
+          "hadithEnd": 562
+        },
+        {
+          "babNumber": 62,
+          "babNameAr": "باب الإيثار والمواساة‏.‏",
+          "babNameEn": "Selflessness and Sympathy",
+          "hadithStart": 563,
+          "hadithEnd": 567
+        },
+        {
+          "babNumber": 63,
+          "babNameAr": "باب التنافس فى أمور الآخرة والإستكثار مما يتبرك به",
+          "babNameEn": "Competition in matters of the Hereafter",
+          "hadithStart": 568,
+          "hadithEnd": 569
+        },
+        {
+          "babNumber": 64,
+          "babNameAr": "باب فضل الغني الشاكر وهو من أخذ المال من وجهه وصرفه فى وجوهه المأمور بها",
+          "babNameEn": "Excellence of a Grateful Rich Man",
+          "hadithStart": 570,
+          "hadithEnd": 572
+        },
+        {
+          "babNumber": 65,
+          "babNameAr": "باب ذكر الموت وقصر الأمل",
+          "babNameEn": "Remembrance of Death and Restraint of Wishes",
+          "hadithStart": 573,
+          "hadithEnd": 579
+        },
+        {
+          "babNumber": 66,
+          "babNameAr": "باب استحباب زيارة القبور للرجال وما يقوله الزائر",
+          "babNameEn": "Desirability of visiting the Graves for men, and that they should say",
+          "hadithStart": 580,
+          "hadithEnd": 583
+        },
+        {
+          "babNumber": 67,
+          "babNameAr": "باب كراهة تمنى الموت بسبب ضر نزل به ولا بأس به لخوف الفتنة فى الدين",
+          "babNameEn": "Abomination of longing for Death",
+          "hadithStart": 584,
+          "hadithEnd": 586
+        },
+        {
+          "babNumber": 68,
+          "babNameAr": "باب الورع وترك الشبهات",
+          "babNameEn": "Leading an Abstemious Life and refraining from the Doubtful",
+          "hadithStart": 587,
+          "hadithEnd": 595
+        },
+        {
+          "babNumber": 69,
+          "babNameAr": "باب استحباب العزلة عند فساد الناس والزمان أو الخوف من فتنة فى الدين ووقوع فى حرام وشبهات ونحوها",
+          "babNameEn": "Desirability of Seclusion at times of corruption committed by the people of the World",
+          "hadithStart": 596,
+          "hadithEnd": 600
+        },
+        {
+          "babNumber": 71,
+          "babNameAr": "باب التواضع وخفض الجناح للمؤمنين",
+          "babNameEn": "Modesty and Courtesy towards the Believers",
+          "hadithStart": 601,
+          "hadithEnd": 610
+        },
+        {
+          "babNumber": 72,
+          "babNameAr": "باب تحريم الكبر والإعجاب",
+          "babNameEn": "Condemnation of Pride and Self-Conceit",
+          "hadithStart": 611,
+          "hadithEnd": 619
+        },
+        {
+          "babNumber": 73,
+          "babNameAr": "باب حسن الخلق",
+          "babNameEn": "Good Conduct",
+          "hadithStart": 620,
+          "hadithEnd": 630
+        },
+        {
+          "babNumber": 74,
+          "babNameAr": "باب الحلم والأناة والرفق",
+          "babNameEn": "Clemency, Tolerance and Gentleness",
+          "hadithStart": 631,
+          "hadithEnd": 641
+        },
+        {
+          "babNumber": 75,
+          "babNameAr": "باب العفو والإعراض عن الجاهلين",
+          "babNameEn": "Forgiveness of the Ignorant",
+          "hadithStart": 642,
+          "hadithEnd": 646
+        },
+        {
+          "babNumber": 76,
+          "babNameAr": "باب احتمال الأذى",
+          "babNameEn": "Endurance of Afflictions",
+          "hadithStart": 647,
+          "hadithEnd": 647
+        },
+        {
+          "babNumber": 77,
+          "babNameAr": "باب الغضب إذا انتهكت حرمات الشرع والانتصار لدين الله تعالى",
+          "babNameEn": "Indignation against the Transgression of Divine Laws",
+          "hadithStart": 648,
+          "hadithEnd": 651
+        },
+        {
+          "babNumber": 78,
+          "babNameAr": "باب أمر ولاة الأمور بالرفق برعاياهم ونصيحتهم والشفقة والنهى عن غشهم والتشديد عليهم وإهمال مصالحهم والغفلة عنهم وعن حوائجهم",
+          "babNameEn": "Obligation of Rulers to show Kindness to their Subjects",
+          "hadithStart": 652,
+          "hadithEnd": 657
+        },
+        {
+          "babNumber": 79,
+          "babNameAr": "باب الوالى العادل",
+          "babNameEn": "The Just Ruler",
+          "hadithStart": 658,
+          "hadithEnd": 661
+        },
+        {
+          "babNumber": 80,
+          "babNameAr": "باب وجوب طاعة ولاة الأمر في غير معصية وتحريم طاعتهم في المعصية",
+          "babNameEn": "Obligation of Obedience to the Ruler in what is Lawful and Prohibition of Obeying them in what is Unlawful",
+          "hadithStart": 662,
+          "hadithEnd": 672
+        },
+        {
+          "babNumber": 81,
+          "babNameAr": "باب النهى عن سؤال الإمارة واختيار ترك الولايات إذا لم يتعين عليه أو تدع حاجة اليه",
+          "babNameEn": "Undesirability of Aspiring for Office",
+          "hadithStart": 673,
+          "hadithEnd": 676
+        },
+        {
+          "babNumber": 82,
+          "babNameAr": "باب حث السلطان والقاضي وغيرهما من ولاة الأمور على اتخاذ وزير صالح وتحذيرهم  من قرناء السوء والقبول منهم",
+          "babNameEn": "Appointment of Pious Governors, Advisors and Judges",
+          "hadithStart": 677,
+          "hadithEnd": 678
+        },
+        {
+          "babNumber": 83,
+          "babNameAr": "باب النهى عن تولية الإمارة والقضاء وغيرهما من الولايات لمن سألها أو حرص عليها فعرض بها",
+          "babNameEn": "Prohibition on Appointing an Aspirant Person to Public",
+          "hadithStart": 679,
+          "hadithEnd": 679
+        }
+      ]
+    },
+    {
+      "bookNumber": 1,
+      "bookNameAr": "كتاب الأدب",
+      "bookNameEn": "The Book of Good Manners",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/1",
+      "babs": [
+        {
+          "babNumber": 84,
+          "babNameAr": "باب الحياء وفضله والحث على التخلق به",
+          "babNameEn": "Exaltation of Modesty",
+          "hadithStart": 680,
+          "hadithEnd": 683
+        },
+        {
+          "babNumber": 85,
+          "babNameAr": "باب حفظ السر",
+          "babNameEn": "Secrecy of Private Matters (Guarding Secrets)",
+          "hadithStart": 684,
+          "hadithEnd": 687
+        },
+        {
+          "babNumber": 86,
+          "babNameAr": "باب الوفاء بالعهد وإنجاز الوعد",
+          "babNameEn": "Fulfillment of Promises",
+          "hadithStart": 688,
+          "hadithEnd": 690
+        },
+        {
+          "babNumber": 87,
+          "babNameAr": "باب المحافظة على ما اعتاده من الخير",
+          "babNameEn": "Safeguarding and Perpetuating Good Habits",
+          "hadithStart": 691,
+          "hadithEnd": 691
+        },
+        {
+          "babNumber": 88,
+          "babNameAr": "باب استحباب طيبب الكلام وطلاقته الوجه عند اللقاء",
+          "babNameEn": "Excellence of Meeting with a Smiling Countenance and Politeness in Speech",
+          "hadithStart": 692,
+          "hadithEnd": 694
+        },
+        {
+          "babNumber": 89,
+          "babNameAr": "باب استحباب بيان الكلام وإيضاحه للمخاطب وتكريره ليفهم إذا لم يفهم إلا بذلك",
+          "babNameEn": "Clarity of Discourse",
+          "hadithStart": 695,
+          "hadithEnd": 696
+        },
+        {
+          "babNumber": 90,
+          "babNameAr": "باب إصغاء الجليس لحديث جليسه الذى ليس بحرام واستنصات العالم والواعظ حاضري مجلسه",
+          "babNameEn": "Listening Attentively",
+          "hadithStart": 697,
+          "hadithEnd": 697
+        },
+        {
+          "babNumber": 91,
+          "babNameAr": "باب الوعظ والأقتصاد فيه",
+          "babNameEn": "Brevity in Preaching",
+          "hadithStart": 698,
+          "hadithEnd": 701
+        },
+        {
+          "babNumber": 92,
+          "babNameAr": "باب الوقار والسكينة",
+          "babNameEn": "Dignity and Tranquility",
+          "hadithStart": 702,
+          "hadithEnd": 702
+        },
+        {
+          "babNumber": 93,
+          "babNameAr": "باب الندب إلى إتيان الصلاة والعلم ونحوهما من العبادات بالسكينة والوقار",
+          "babNameEn": "Excellence of Walking Solemnly (Towards the Mosque) to Perform As-Salat (The Prayer) and Other Religious Duties",
+          "hadithStart": 703,
+          "hadithEnd": 704
+        },
+        {
+          "babNumber": 94,
+          "babNameAr": "باب إكرام الضيف",
+          "babNameEn": "Honoring the Guest",
+          "hadithStart": 705,
+          "hadithEnd": 706
+        },
+        {
+          "babNumber": 95,
+          "babNameAr": "باب استحباب التبشير والتهنئة بالخير",
+          "babNameEn": "Excellence of Conveying Glad Tidings and Congratulations",
+          "hadithStart": 707,
+          "hadithEnd": 710
+        },
+        {
+          "babNumber": 96,
+          "babNameAr": "باب وداع الصاحب ووصيته عند فراقه لسفر وغيره والدعاء له وطلب الدعاء منه",
+          "babNameEn": "Bidding Farewell and Advising on the Eve of Departure for a Journey or Other Things",
+          "hadithStart": 711,
+          "hadithEnd": 716
+        },
+        {
+          "babNumber": 97,
+          "babNameAr": "باب الإستخارة والمشاورة",
+          "babNameEn": "Istikhara (Seeking Guidance from Allah), and Consultation",
+          "hadithStart": 717,
+          "hadithEnd": 717
+        },
+        {
+          "babNumber": 98,
+          "babNameAr": "باب استحباب الذهاب إلى العيد وعيادة المريض والحج والغزو الجنازة ونحوها من طريق والرجوع من طريق آخر لتكثير مواضع العبادة",
+          "babNameEn": "Excellence of Adopting Different Routes for Going and Returning on 'Eid Prayer and Various Other Occasions",
+          "hadithStart": 718,
+          "hadithEnd": 719
+        },
+        {
+          "babNumber": 99,
+          "babNameAr": "باب استحباب تقديم اليمين في كل ماهو من باب التكريم كالوضوء والغسل والتيمم، ولبس الثوب والنعل والخف والسراويل ودخول المسجد، والسواك، والاكتحال، وتقليم الأظفار، وقص الشارب ونتف الإبط، وحلق الرأس، والسلام من الصلاة، والأكل والشرب، والمصافحة، واستلام الحجر الأسود، والخرود من الخلاء، والأخذ والعطاء، وغير ذك مما هو في معناه‏.‏ ويستحب تقديم اليسار في ضد ذلك، كالامتخاط والبصاق عن اليسار، ودخول الخلاء، والخروج من المسجد، وخلع الخف والنعل والسراويل والثوب، والإستنجاء وفعل المستقذرات وأشباه ذلك",
+          "babNameEn": "Excellence of Using the Right Hand for Performing Various Good Acts",
+          "hadithStart": 720,
+          "hadithEnd": 726
+        }
+      ]
+    },
+    {
+      "bookNumber": 2,
+      "bookNameAr": "كتـــــاب أدب الطعام",
+      "bookNameEn": "The Book About the Etiquette of Eating",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/2",
+      "babs": [
+        {
+          "babNumber": 100,
+          "babNameAr": "باب التسمية في أوله والحمد في آخره",
+          "babNameEn": "Saying Bismillah Before and Al-Hamdulillah After Eating",
+          "hadithStart": 727,
+          "hadithEnd": 734
+        },
+        {
+          "babNumber": 101,
+          "babNameAr": "باب : لا يعيب الطعام واستحباب مدحه",
+          "babNameEn": "Prohibition of Criticizing Food",
+          "hadithStart": 735,
+          "hadithEnd": 736
+        },
+        {
+          "babNumber": 102,
+          "babNameAr": "باب ما يقوله من حضر الطعام وهو صائم إذا لم يفطر",
+          "babNameEn": "Response to an Invitation Extended to a Man Observing Saum (Fasting)",
+          "hadithStart": 737,
+          "hadithEnd": 737
+        },
+        {
+          "babNumber": 103,
+          "babNameAr": "باب ما يقوله من دعي إلى طعام فتبعه غيره",
+          "babNameEn": "What should One say to the Host if an Invited Person is Accompanied by an Uninvited Person",
+          "hadithStart": 738,
+          "hadithEnd": 738
+        },
+        {
+          "babNumber": 104,
+          "babNameAr": "باب الأكل مما يليه ووعظه وتأديبه من يسئ أكله",
+          "babNameEn": "Eating from What is in Front of One",
+          "hadithStart": 739,
+          "hadithEnd": 741
+        },
+        {
+          "babNumber": 106,
+          "babNameAr": "باب ما يقوله ويفعله من يأكل ولا يشبع",
+          "babNameEn": "What Should a Person Say or Do When He Eats and is Unsatisfied",
+          "hadithStart": 742,
+          "hadithEnd": 742
+        },
+        {
+          "babNumber": 107,
+          "babNameAr": "باب الأمر بالأكل من جانب القصعة والنهى عن الأكل من وسطها",
+          "babNameEn": "Eating from the Side of the Vessel",
+          "hadithStart": 743,
+          "hadithEnd": 744
+        },
+        {
+          "babNumber": 108,
+          "babNameAr": "باب كراهية الأكل متكئاً",
+          "babNameEn": "Undesirability of Eating in a Reclining Posture",
+          "hadithStart": 745,
+          "hadithEnd": 746
+        },
+        {
+          "babNumber": 109,
+          "babNameAr": "باب استحباب الأكل بثلاث أصابع واستحباب لعق الأصابع، وكراهة مسحها قبل لعقها واستحباب لعق القصعة وأخذ اللقمة التي تسقط منه وأكلها ومسحها بعد اللعق بالساعد والقدم وغيرها",
+          "babNameEn": "Excellence of Eating with Three Fingers and Licking Them",
+          "hadithStart": 747,
+          "hadithEnd": 753
+        },
+        {
+          "babNumber": 110,
+          "babNameAr": "باب تكثير الأيدي على الطعام",
+          "babNameEn": "Merit of Sharing Food",
+          "hadithStart": 754,
+          "hadithEnd": 755
+        },
+        {
+          "babNumber": 111,
+          "babNameAr": "باب أدب الشرب واستحباب التنفس ثلاثاً خارج الإناء وكراهة التنفس في الإناء واستحباب إدارة الإناء على الأيمن فالأيمن بعد المبتدئ",
+          "babNameEn": "Etiquette of Drinking Water",
+          "hadithStart": 756,
+          "hadithEnd": 760
+        },
+        {
+          "babNumber": 112,
+          "babNameAr": "باب كراهة الشرب من فم القربة ونحوها وبيان أنه كراهة تنزيه لا تحريم",
+          "babNameEn": "Undesirability of Drinking Directly from the Mouth of a Water-Skin",
+          "hadithStart": 761,
+          "hadithEnd": 763
+        },
+        {
+          "babNumber": 113,
+          "babNameAr": "باب كراهة النفخ في الشراب",
+          "babNameEn": "Undesirability of Blowing into the Vessel while Drinking",
+          "hadithStart": 764,
+          "hadithEnd": 765
+        },
+        {
+          "babNumber": 114,
+          "babNameAr": "باب بيان جواز الشرب قائماً وبيان الأكمل والأفضل الشرب قاعداً",
+          "babNameEn": "Permission to Drink While Standing",
+          "hadithStart": 766,
+          "hadithEnd": 771
+        },
+        {
+          "babNumber": 115,
+          "babNameAr": "باب استحباب كون ساقي القوم آخرهم شرباً",
+          "babNameEn": "Excellence of the Cupbearer Drinking Last",
+          "hadithStart": 772,
+          "hadithEnd": 772
+        },
+        {
+          "babNumber": 116,
+          "babNameAr": "باب جواز الشرب من جميع الأواني الطاهرة غير الذهب والفضة وجواز الكرع - وهو الشرب بالفم من النهر وغيره- بغير إناء ولا يد وتحريم استعمال إناء الذهب والفضة في الشرب والأكل والطهارة وسائر وجوه الاستعمال",
+          "babNameEn": "Permissibility of Drinking Water from all Types of Clean Vessels Except Those of Gold and Silver",
+          "hadithStart": 773,
+          "hadithEnd": 777
+        }
+      ]
+    },
+    {
+      "bookNumber": 3,
+      "bookNameAr": "كتــــاب اللباس",
+      "bookNameEn": "The Book of Dress",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/3",
+      "babs": [
+        {
+          "babNumber": 117,
+          "babNameAr": "باب استحباب الثوب الأبيض وجواز الأحمر والأخضر والأصفر والأسود وجوازه من قطن وكتان وشعر وصوف وغيرها إلا الحرير",
+          "babNameEn": "The Excellence of Wearing White Clothes and the Permissibility of Wearing Red, Green, Yellow and Black Clothes Made from Cotton and Linen but not Silk",
+          "hadithStart": 778,
+          "hadithEnd": 787
+        },
+        {
+          "babNumber": 118,
+          "babNameAr": "باب استحباب القميص",
+          "babNameEn": "The Excellence of the Qamees",
+          "hadithStart": 788,
+          "hadithEnd": 788
+        },
+        {
+          "babNumber": 119,
+          "babNameAr": "باب صفة طول القميص والكم والإزار وطرف العمامة وتحريم إسبال شئ من ذلك على سبيل الخيلاء وكراهته من غير خيلاء",
+          "babNameEn": "The Description of the Length of the Qamees' Sleeves, the End of the Turban, and Prohibition of Wearing Long Garments Out of Pride and Undesirability of Wearing Them Without Pride",
+          "hadithStart": 789,
+          "hadithEnd": 800
+        },
+        {
+          "babNumber": 120,
+          "babNameAr": "باب استحباب ترك الترفع في اللباس تواضعاً",
+          "babNameEn": "The Excellence of Giving Up Elegant Clothes Out of Humility",
+          "hadithStart": 801,
+          "hadithEnd": 801
+        },
+        {
+          "babNumber": 121,
+          "babNameAr": "باب استحباب التوسط في اللباس ولا يقتصر على ما يزري به لغير حاجة ولا مقصود شرعي",
+          "babNameEn": "The Excellence of Adopting Moderation in Dress",
+          "hadithStart": 802,
+          "hadithEnd": 802
+        },
+        {
+          "babNumber": 122,
+          "babNameAr": "باب تحريم لباس الحرير على الرجال وتحريم جلوسهم عليه واستنادهم إليه وجواز لبسه للنساء",
+          "babNameEn": "The Prohibition of Wearing Silk for Men and its Permissibility for Women",
+          "hadithStart": 803,
+          "hadithEnd": 808
+        },
+        {
+          "babNumber": 123,
+          "babNameAr": "باب جواز لبس الحرير لمن به حكة",
+          "babNameEn": "The Lawfulness of Wearing Silk if One is Suffering from an Itch",
+          "hadithStart": 809,
+          "hadithEnd": 809
+        },
+        {
+          "babNumber": 124,
+          "babNameAr": "باب النهى عن افتراش جلود النمور والركوب عليها",
+          "babNameEn": "The Prohibition of Using the Skin of the Leopard",
+          "hadithStart": 810,
+          "hadithEnd": 811
+        },
+        {
+          "babNumber": 125,
+          "babNameAr": "باب ما يقول إذا لبس ثوباً جديداً أو نعلاً أو نحوه",
+          "babNameEn": "The Supplication When Wearing a New Outfit or Shoes",
+          "hadithStart": 812,
+          "hadithEnd": 812
+        }
+      ]
+    },
+    {
+      "bookNumber": 4,
+      "bookNameAr": "كتاب آداب النوم",
+      "bookNameEn": "The Book of the Etiquette of Sleeping, Lying and Sitting etc",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/4",
+      "babs": [
+        {
+          "babNumber": 127,
+          "babNameAr": "باب ما يقوله عند النوم",
+          "babNameEn": "What is to be said at the time of Sleeping",
+          "hadithStart": 813,
+          "hadithEnd": 818
+        },
+        {
+          "babNumber": 128,
+          "babNameAr": "باب جواز الاستلقاء على القفا ووضع إحدى الرجلين على الأخرى إذا لم يخف انكشاف العورة وجواز القعود متربعاً ومحتبياً",
+          "babNameEn": "Manners of Lying down on one's back and placing one leg upon the Other",
+          "hadithStart": 819,
+          "hadithEnd": 823
+        },
+        {
+          "babNumber": 129,
+          "babNameAr": "باب في آداب المجلس والجليس",
+          "babNameEn": "Etiquette of Attending company and sitting with Companions",
+          "hadithStart": 824,
+          "hadithEnd": 836
+        },
+        {
+          "babNumber": 130,
+          "babNameAr": "باب الرؤيا وما يتعلق بها",
+          "babNameEn": "Visions in Dream and matters relating to them",
+          "hadithStart": 837,
+          "hadithEnd": 843
+        }
+      ]
+    },
+    {
+      "bookNumber": 5,
+      "bookNameAr": "كتاب السلام",
+      "bookNameEn": "The Book of Greetings",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/5",
+      "babs": [
+        {
+          "babNumber": 131,
+          "babNameAr": "باب فضل السلام والأمر بإفشائه",
+          "babNameEn": "The Excellence of Promoting Greetings",
+          "hadithStart": 844,
+          "hadithEnd": 849
+        },
+        {
+          "babNumber": 132,
+          "babNameAr": "باب كيفية السلام",
+          "babNameEn": "Words to be Used for Offering Greetings",
+          "hadithStart": 850,
+          "hadithEnd": 856
+        },
+        {
+          "babNumber": 133,
+          "babNameAr": "باب آداب السلام",
+          "babNameEn": "The Etiquette of Offering Greetings",
+          "hadithStart": 857,
+          "hadithEnd": 858
+        },
+        {
+          "babNumber": 134,
+          "babNameAr": "باب استحباب إعادة السلام على من تكرر لقاؤه على قرب بأن دخل ثم خرج ثم دخل في الحال، أو حال بينهما شجرة ونحوها",
+          "babNameEn": "The Excellence of Greeting the Acquaintance Repeatedly",
+          "hadithStart": 859,
+          "hadithEnd": 860
+        },
+        {
+          "babNumber": 135,
+          "babNameAr": "باب استحباب السلام إذا دخل بيته",
+          "babNameEn": "The Excellence of Greeting Upon Entering the House",
+          "hadithStart": 861,
+          "hadithEnd": 861
+        },
+        {
+          "babNumber": 136,
+          "babNameAr": "باب السلام على الصبيان",
+          "babNameEn": "Greeting Children",
+          "hadithStart": 862,
+          "hadithEnd": 862
+        },
+        {
+          "babNumber": 137,
+          "babNameAr": "باب سلام الرجل على زوجته والمرأة من محارمه وعلى أجنبية وأجنبيات لا يخاف الفتنة بهن وسلامهن بهذا الشرط",
+          "babNameEn": "A man sayinig salam to his wife or a mahram woman or non-mahrmam woman or women not fearing tribulation by them and giving them salam with this condition",
+          "hadithStart": 863,
+          "hadithEnd": 865
+        },
+        {
+          "babNumber": 138,
+          "babNameAr": "باب تحريم ابتدائنا الكافر بالسلام وكيفية الرد عليهم واستحباب السلام على أهل مجلس فيهم مسلمون وكفار",
+          "babNameEn": "Greeting Non-Muslims and the Prohibition of Taking Initiative in Doing So",
+          "hadithStart": 866,
+          "hadithEnd": 868
+        },
+        {
+          "babNumber": 139,
+          "babNameAr": "باب استحباب السلام إذا قام من المجلس وفارق جلساءه أو جليسه",
+          "babNameEn": "The Excellence of Greeting Upon Arrival and Departure",
+          "hadithStart": 869,
+          "hadithEnd": 869
+        },
+        {
+          "babNumber": 140,
+          "babNameAr": "ب��ب الاستئذان وآدابه",
+          "babNameEn": "Seeking Permission to Enter (Someone's House) and Manners Relating to It",
+          "hadithStart": 870,
+          "hadithEnd": 873
+        },
+        {
+          "babNumber": 141,
+          "babNameAr": "باب بيان أن السُّنة إذا قيل للمستأذن من أنت أن يقول‏:‏ فلان فيسمي نفسه بما يعرف به من اسم أو كنية وكراهة قوله ‏\"‏أنا‏\"‏ ونحوها",
+          "babNameEn": "Seeking Permission to Enter by Stating One's Name",
+          "hadithStart": 874,
+          "hadithEnd": 877
+        },
+        {
+          "babNumber": 142,
+          "babNameAr": "باب استحباب تشميت العاطس إذا حمد الله تعالى وكراهة تشميته إذا لم يحمد الله تعالى و بيان آداب التشميت و العطاس والتثاؤب",
+          "babNameEn": "Saying \"Al-Hamdulillah\" When Sneezing, Its Reply, and Manners Relating to Sneezing and Yawning",
+          "hadithStart": 878,
+          "hadithEnd": 884
+        },
+        {
+          "babNumber": 143,
+          "babNameAr": "باب استحباب المصافحة عند اللقاء وبشاشة الوجه وتقبيل يد الرجل الصالح وتقبيل ولده شفقة ومعانقة القادم من سفر وكراهية الانحناء",
+          "babNameEn": "The Excellence of Shaking Hands When Greeting Someone",
+          "hadithStart": 885,
+          "hadithEnd": 893
+        }
+      ]
+    },
+    {
+      "bookNumber": 6,
+      "bookNameAr": "كتاب عيادة المريض وتشييع الميت والصلاة عليه وحضور دفنه",
+      "bookNameEn": "The Book of Visiting the Sick",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/6",
+      "babs": [
+        {
+          "babNumber": 144,
+          "babNameAr": "باب عيادة المريض",
+          "babNameEn": "Visiting the Sick",
+          "hadithStart": 894,
+          "hadithEnd": 900
+        },
+        {
+          "babNumber": 145,
+          "babNameAr": "باب ما يدعي به للمريض",
+          "babNameEn": "Supplication for the Sick",
+          "hadithStart": 901,
+          "hadithEnd": 909
+        },
+        {
+          "babNumber": 146,
+          "babNameAr": "باب استحباب سؤال أهل المريض عن حاله",
+          "babNameEn": "Recommendation of Inquiring the Family Members of the Patient about his Condition",
+          "hadithStart": 910,
+          "hadithEnd": 910
+        },
+        {
+          "babNumber": 147,
+          "babNameAr": "باب ما يقوله من آيس من حياته",
+          "babNameEn": "Supplication when one is disappointed about his Life",
+          "hadithStart": 911,
+          "hadithEnd": 912
+        },
+        {
+          "babNumber": 148,
+          "babNameAr": "باب استحباب وصية أهل المريض ومن يخدمه بالإحسان إليه والصبر على من يشق من أمره",
+          "babNameEn": "Instructing the Patient's family to be kind to him - Consoling the Patients and showing kindness to one Facing Death SentenceInstructing the Patient's family to be kind to him - Consoling the Patients and showing kindness to one Facing Death Sentence",
+          "hadithStart": 913,
+          "hadithEnd": 913
+        },
+        {
+          "babNumber": 149,
+          "babNameAr": "باب جواز قول المريض‏:‏ أنا وجع أو شديد الوجع أو موعوك، أو وارأساه ونحو ذلك، وبيان أنه لا كراهة في ذلك إذا لم يكن علي التسخط وإظهار الجزع",
+          "babNameEn": "Permissibility of expressing feelings of agony in Serious Illness",
+          "hadithStart": 914,
+          "hadithEnd": 916
+        },
+        {
+          "babNumber": 150,
+          "babNameAr": "باب تلقين المحتضر لا إله إلا الله",
+          "babNameEn": "Helping a dying Person to Pronounce 'La Ilaha Illahllah'",
+          "hadithStart": 917,
+          "hadithEnd": 918
+        },
+        {
+          "babNumber": 151,
+          "babNameAr": "باب ما يقوله بعد تغميض الميت",
+          "babNameEn": "Supplication to be made soon after a Person's Death",
+          "hadithStart": 919,
+          "hadithEnd": 919
+        },
+        {
+          "babNumber": 152,
+          "babNameAr": "باب ما يقال عند الميت وما يقول من مات له ميت",
+          "babNameEn": "Good Words to be Uttered before a dying Person and his Family",
+          "hadithStart": 920,
+          "hadithEnd": 924
+        },
+        {
+          "babNumber": 153,
+          "babNameAr": "باب جواز البكاء علي الميت بغير ندب ولا نياحة",
+          "babNameEn": "The Ruling of crying and wailing over a Dead Person",
+          "hadithStart": 925,
+          "hadithEnd": 927
+        },
+        {
+          "babNumber": 154,
+          "babNameAr": "باب الكف عن ما يري من الميت من مكروه",
+          "babNameEn": "Prohibition of Disclosing the Physical defects of the Deceased",
+          "hadithStart": 928,
+          "hadithEnd": 928
+        },
+        {
+          "babNumber": 155,
+          "babNameAr": "باب الصلاة علي الميت وتشييعه وحضور دفنه وكراهة اتباع النساء الجنائز",
+          "babNameEn": "Participation in Funeral Prayer and Procession and the dislike of Women Participating in the Funeral Procession",
+          "hadithStart": 929,
+          "hadithEnd": 931
+        },
+        {
+          "babNumber": 156,
+          "babNameAr": "باب استحباب تكثير المصلين على الجنازة وجعل صفوفهم ثلاثة فأكثر",
+          "babNameEn": "Excellence of Participation in Funeral Prayers in Large Numbers and Formation of Three Rows or More",
+          "hadithStart": 932,
+          "hadithEnd": 934
+        },
+        {
+          "babNumber": 157,
+          "babNameAr": "باب ما يقرأ في صلاة الجنازة",
+          "babNameEn": "Supplications in Funeral Prayers",
+          "hadithStart": 935,
+          "hadithEnd": 940
+        },
+        {
+          "babNumber": 158,
+          "babNameAr": "باب الإسراع بالجنازة",
+          "babNameEn": "Haste in Burial",
+          "hadithStart": 941,
+          "hadithEnd": 942
+        },
+        {
+          "babNumber": 159,
+          "babNameAr": "باب تعجيل قضاء الدين عن الميت والمبادرة إلى تجهيزه إلا أن يموت فجأة فيترك حتي يتيقن موته",
+          "babNameEn": "About Speedy Repayment of the Debts of a Deceased Person and Preparation of Burial",
+          "hadithStart": 943,
+          "hadithEnd": 944
+        },
+        {
+          "babNumber": 160,
+          "babNameAr": "باب الموعظة عند القبر",
+          "babNameEn": "Admonition beside the Grave",
+          "hadithStart": 945,
+          "hadithEnd": 945
+        },
+        {
+          "babNumber": 161,
+          "babNameAr": "باب الدعاء للميت بعد دفنه والقعود عند قبره ساعة للدعاء له والاستغفار والقراءة",
+          "babNameEn": "Supplication for the Deceased after his Burial",
+          "hadithStart": 946,
+          "hadithEnd": 947
+        },
+        {
+          "babNumber": 162,
+          "babNameAr": "باب الصدقة عن الميت والدعاء له",
+          "babNameEn": "Charity on behalf of the Deceased and Praying for him",
+          "hadithStart": 948,
+          "hadithEnd": 949
+        },
+        {
+          "babNumber": 163,
+          "babNameAr": "باب ثناء الناس علي الميت",
+          "babNameEn": "Praising the Deceased",
+          "hadithStart": 950,
+          "hadithEnd": 951
+        },
+        {
+          "babNumber": 164,
+          "babNameAr": "باب فضل من مات له أولاد صغار",
+          "babNameEn": "Superiority of one who is Bereaved of his Infants",
+          "hadithStart": 952,
+          "hadithEnd": 955
+        }
+      ]
+    },
+    {
+      "bookNumber": 7,
+      "bookNameAr": "كتاب آداب السفر",
+      "bookNameEn": "The Book of Etiquette of Traveling",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/7",
+      "babs": [
+        {
+          "babNumber": 166,
+          "babNameAr": "باب استحباب الخروج يوم الخميس واستحبابه أول النهار",
+          "babNameEn": "The Desirability of setting on a Journey on Thursday in the Early part of the Day",
+          "hadithStart": 956,
+          "hadithEnd": 957
+        },
+        {
+          "babNumber": 167,
+          "babNameAr": "باب استحباب طلب الرفقة‏.‏",
+          "babNameEn": "The Desirability of undertaking a Journey in a Group and appointing a Leader",
+          "hadithStart": 958,
+          "hadithEnd": 961
+        },
+        {
+          "babNumber": 168,
+          "babNameAr": "باب آداب السير والنزول والمبيت والنوم في السفر واستحباب السري والرفق بالدواب ومراعاة مصلحتها وجواز الإرداف علي الدابة إذا كانت تطيق ذلك",
+          "babNameEn": "Etiquette of Staying, Riding, Encamping at night and sleeping during the Journey and other matters relating to the Journey",
+          "hadithStart": 962,
+          "hadithEnd": 968
+        },
+        {
+          "babNumber": 169,
+          "babNameAr": "باب إعانة الرفيق",
+          "babNameEn": "Helping a Companion",
+          "hadithStart": 969,
+          "hadithEnd": 971
+        },
+        {
+          "babNumber": 170,
+          "babNameAr": "باب ما يقول إذا ركب الدابة للسفر",
+          "babNameEn": "Supplication at the time of Riding",
+          "hadithStart": 972,
+          "hadithEnd": 974
+        },
+        {
+          "babNumber": 171,
+          "babNameAr": "باب تكبير المسافر إذا صعد الثنايا وشبهها وتسبيحه إذا هبط الأودية ونحوها والنهي عن المبالغة برفع الصوت بالتكبير ونحوه",
+          "babNameEn": "Glorification of Allah by a Traveler while Ascending and Descending",
+          "hadithStart": 975,
+          "hadithEnd": 979
+        },
+        {
+          "babNumber": 172,
+          "babNameAr": "باب استحباب الدعاء في السفر",
+          "babNameEn": "Desirability of Supplications during the Journey",
+          "hadithStart": 980,
+          "hadithEnd": 980
+        },
+        {
+          "babNumber": 173,
+          "babNameAr": "باب ما يدعو إذا خاف ناساً أو غيرهم",
+          "babNameEn": "Supplication if one Fears (Harm)",
+          "hadithStart": 981,
+          "hadithEnd": 981
+        },
+        {
+          "babNumber": 174,
+          "babNameAr": "باب ما يقول إذا نزل منزلاً",
+          "babNameEn": "Supplication on Alighting at a Halt",
+          "hadithStart": 982,
+          "hadithEnd": 983
+        },
+        {
+          "babNumber": 175,
+          "babNameAr": "باب استحباب تعجيل المسافر الرجوع إلى أهله إذا قضي حاجته",
+          "babNameEn": "Desirability of returning Home soon after the Accomplishment of a Task",
+          "hadithStart": 984,
+          "hadithEnd": 984
+        },
+        {
+          "babNumber": 176,
+          "babNameAr": "باب استحباب القدوم على أهله نهاراً   وكراهته في الليل لغير حاجة",
+          "babNameEn": "Desirability of returning Home by Day",
+          "hadithStart": 985,
+          "hadithEnd": 986
+        },
+        {
+          "babNumber": 177,
+          "babNameAr": "باب ما يقول إذا رجع وإذا رأى بلدته",
+          "babNameEn": "Supplication at the time of returning Home and on seeing one's Hometown",
+          "hadithStart": 987,
+          "hadithEnd": 987
+        },
+        {
+          "babNumber": 178,
+          "babNameAr": "باب استحباب ابتداء القادم بالمسجد الذي في جواره وصلاته فيه ركعتين",
+          "babNameEn": "Desirability of Entering the Mosque near one's Home upon returning from a Journey for offering two Rak'ah Prayer",
+          "hadithStart": 988,
+          "hadithEnd": 988
+        },
+        {
+          "babNumber": 179,
+          "babNameAr": "باب تحريم سفر المرأة وحدها",
+          "babNameEn": "Prohibiting Woman from Traveling Alone",
+          "hadithStart": 989,
+          "hadithEnd": 990
+        }
+      ]
+    },
+    {
+      "bookNumber": 8,
+      "bookNameAr": "كتاب الفضائل",
+      "bookNameEn": "The Book of Virtues",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/8",
+      "babs": [
+        {
+          "babNumber": 180,
+          "babNameAr": "باب فضل قراءة القرآن",
+          "babNameEn": "The Excellence of Reciting the Qur'an",
+          "hadithStart": 991,
+          "hadithEnd": 1001
+        },
+        {
+          "babNumber": 181,
+          "babNameAr": "باب الأمر بتعهد القرآن والتحذير من تعريضه للنسيان‏:‏",
+          "babNameEn": "Warning against forgetting the Qur'an",
+          "hadithStart": 1002,
+          "hadithEnd": 1003
+        },
+        {
+          "babNumber": 182,
+          "babNameAr": "باب استحباب تحسين الصوت بالقرآن وطلب القراءة من حسن الصوت والاستماع لها‏:",
+          "babNameEn": "The Merit of Recitation of the Noble Qur'an in a Pleasant Voice",
+          "hadithStart": 1004,
+          "hadithEnd": 1008
+        },
+        {
+          "babNumber": 183,
+          "babNameAr": "باب في الحث على سور وآيات مخصوصة ‏:‏",
+          "babNameEn": "Inducement towards the Recitation of some Special verses and Surah of the Noble Qur'an",
+          "hadithStart": 1009,
+          "hadithEnd": 1022
+        },
+        {
+          "babNumber": 184,
+          "babNameAr": "باب استحباب الاجتماع على القراءة‏:‏",
+          "babNameEn": "Desirability of Assembling for the Recitation of the Noble Qur'an",
+          "hadithStart": 1023,
+          "hadithEnd": 1023
+        },
+        {
+          "babNumber": 185,
+          "babNameAr": "باب فضل الوضوء‏:‏",
+          "babNameEn": "The Merits of Ablutions (Wudu')",
+          "hadithStart": 1024,
+          "hadithEnd": 1032
+        },
+        {
+          "babNumber": 186,
+          "babNameAr": "باب فضل الآذان",
+          "babNameEn": "The Excellence of Adhan",
+          "hadithStart": 1033,
+          "hadithEnd": 1041
+        },
+        {
+          "babNumber": 187,
+          "babNameAr": "باب فضل الصلوات",
+          "babNameEn": "The Excellence of As-Salat (The Prayer)",
+          "hadithStart": 1042,
+          "hadithEnd": 1046
+        },
+        {
+          "babNumber": 188,
+          "babNameAr": "باب فضل صلاة الصبح والعصر",
+          "babNameEn": "Excellence of the Morning (Fajr) and 'Asr Prayers",
+          "hadithStart": 1047,
+          "hadithEnd": 1052
+        },
+        {
+          "babNumber": 189,
+          "babNameAr": "باب فضل المشي إلى المساجد‏:‏",
+          "babNameEn": "The Excellence of Proceeding towards the Mosque Walking",
+          "hadithStart": 1053,
+          "hadithEnd": 1060
+        },
+        {
+          "babNumber": 190,
+          "babNameAr": "باب فضل انتظار الصلاة‏:‏",
+          "babNameEn": "The Excellence of waiting for As-Salat (The Prayer)",
+          "hadithStart": 1061,
+          "hadithEnd": 1063
+        },
+        {
+          "babNumber": 191,
+          "babNameAr": "باب فضل صلاة الجماعة",
+          "babNameEn": "The Excellence of Performing Salat (Prayers) in Congregation",
+          "hadithStart": 1064,
+          "hadithEnd": 1070
+        },
+        {
+          "babNumber": 192,
+          "babNameAr": "باب الحث على حضور الجماعة في الصبح والعشاء",
+          "babNameEn": "Urging to Observe 'Isha' and Fajr Prayers in Congregation",
+          "hadithStart": 1071,
+          "hadithEnd": 1073
+        },
+        {
+          "babNumber": 193,
+          "babNameAr": "باب الأمر بالمحافظة على الصلوات المكتوبات والنهي الأكيد والوعيد الشديد في تركهن‏:‏",
+          "babNameEn": "Strict Orders for Observance of Obligatory Salat",
+          "hadithStart": 1074,
+          "hadithEnd": 1081
+        },
+        {
+          "babNumber": 194,
+          "babNameAr": "باب فضل الصف الأول والأمر بإتمام الصفوف الأُول، وتسويتها والتراص فيها",
+          "babNameEn": "The Excellence of Standing in the First Row (In Salat)",
+          "hadithStart": 1082,
+          "hadithEnd": 1096
+        },
+        {
+          "babNumber": 195,
+          "babNameAr": "باب فضل السنن الراتبة مع الفرائض وبيان أقلها وأكملها وما بينهما",
+          "babNameEn": "The Excellence of Optional Prayers (Sunnah Mu'akkadah) along with the Obligatory Prayers",
+          "hadithStart": 1097,
+          "hadithEnd": 1099
+        },
+        {
+          "babNumber": 196,
+          "babNameAr": "باب تأكيد ركعتي سنة الصبح‏:‏",
+          "babNameEn": "Emphasis on Performing two Rak'ah Sunnah before Dawn (Fajr) Prayer",
+          "hadithStart": 1100,
+          "hadithEnd": 1103
+        },
+        {
+          "babNumber": 197,
+          "babNameAr": "باب تخفيف ركعتي الفجر وبيان ما يقرأ فيهما، وبيان وقتهما‏.",
+          "babNameEn": "Briefness to be Adopted in Performing the two Rak'ah Sunnah before Fajr Prayer, their time and the Surah to recite in them",
+          "hadithStart": 1104,
+          "hadithEnd": 1109
+        },
+        {
+          "babNumber": 198,
+          "babNameAr": "باب استحباب الاضطجاع بعد ركعتي الفجر على جنبه الأيمن والحث عليه سواء كان تهجد بالليل أم لا‏.",
+          "babNameEn": "Desirability of Lying down on one's right side after the Sunnah of Fajr Prayer",
+          "hadithStart": 1110,
+          "hadithEnd": 1112
+        },
+        {
+          "babNumber": 199,
+          "babNameAr": "باب سنة الظهر‏:",
+          "babNameEn": "Sunnah of Zuhr Prayer",
+          "hadithStart": 1113,
+          "hadithEnd": 1118
+        },
+        {
+          "babNumber": 200,
+          "babNameAr": "باب سنة العصر‏:",
+          "babNameEn": "Sunnah of the 'Asr Prayer",
+          "hadithStart": 1119,
+          "hadithEnd": 1121
+        },
+        {
+          "babNumber": 201,
+          "babNameAr": "باب سنة المغرب بعدها وقبلها‏:‏",
+          "babNameEn": "",
+          "hadithStart": 1122,
+          "hadithEnd": 1125
+        },
+        {
+          "babNumber": 203,
+          "babNameAr": "باب سنة الجمعة‏:‏",
+          "babNameEn": "Sunnah of Friday Prayer",
+          "hadithStart": 1126,
+          "hadithEnd": 1127
+        },
+        {
+          "babNumber": 204,
+          "babNameAr": "باب استحباب جعل النوافل في البيت سواء الراتبة وغيرها، والأمر بالتحول للنافلة من موضع الفريضة أو الفصل بينهما بكلام",
+          "babNameEn": "Desirability of offering Nawfil (Voluntary or Optional) Prayers at Home",
+          "hadithStart": 1128,
+          "hadithEnd": 1131
+        },
+        {
+          "babNumber": 205,
+          "babNameAr": "باب الحث على صلاة الوتر وبيان أنه سنة مؤكدة وبيان وقته‏:",
+          "babNameEn": "Witr Prayer, its Time and Ruling",
+          "hadithStart": 1132,
+          "hadithEnd": 1138
+        },
+        {
+          "babNumber": 206,
+          "babNameAr": "باب فضل صلاة الضحى وبيان أقلها وأكثرها وأوسطها والحث على المحافظة عليها‏:‏",
+          "babNameEn": "Merit of the (Optional) Duha (Forenoon) Prayer",
+          "hadithStart": 1139,
+          "hadithEnd": 1142
+        },
+        {
+          "babNumber": 207,
+          "babNameAr": "باب‏:‏ تجويز صلاة الضحى من ارتفاع الشمس إلى زوالها والأفضل أن تصلى عند اشتداد الحر وارتفاع الضحى‏:‏",
+          "babNameEn": "Time for the Duha (Forenoon Optional) Prayer",
+          "hadithStart": 1143,
+          "hadithEnd": 1143
+        },
+        {
+          "babNumber": 208,
+          "babNameAr": "باب الحث على صلاة تحية المسجد بركعتين وكراهية الجلوس قبل أن يصلي ركعتين في أي وقت دخل سواء صلى ركعتين بنية التحية أو صلاة فريضة أو سنة راتبة أو غيرها‏:‏",
+          "babNameEn": "Inducement to Perform Tahiyyat-ul-Masjid (Upon Entering the Mosque)",
+          "hadithStart": 1144,
+          "hadithEnd": 1145
+        },
+        {
+          "babNumber": 209,
+          "babNameAr": "باب استحباب ركعتين بعد الوضوء‏:",
+          "babNameEn": "The Excellence of Performing two Rak'ah of Voluntary Prayer after Ablution",
+          "hadithStart": 1146,
+          "hadithEnd": 1146
+        },
+        {
+          "babNumber": 210,
+          "babNameAr": "باب فضل يوم الجمعة ووجوبها والاغتسال لها، والطيب والتبكير إليها والدعاء يوم الجمعة، والصلاة على النبي، صلى الله عليه وسلم، وفيه بيان ساعة الإجابة واستحباب إكثار ذكر الله تعالى بعد الجمعة",
+          "babNameEn": "The Excellence of Friday Prayer",
+          "hadithStart": 1147,
+          "hadithEnd": 1158
+        },
+        {
+          "babNumber": 211,
+          "babNameAr": "باب استحباب سجود الشكر عند حصول نعمة ظاهرة أو اندفاع بلية ظاهرة‏:‏",
+          "babNameEn": "The Desirability of Prostrating out of Gratitude",
+          "hadithStart": 1159,
+          "hadithEnd": 1159
+        },
+        {
+          "babNumber": 212,
+          "babNameAr": "باب فضل قيام الليل‏:‏",
+          "babNameEn": "Excellence of Standing in Prayer at Night",
+          "hadithStart": 1160,
+          "hadithEnd": 1186
+        },
+        {
+          "babNumber": 213,
+          "babNameAr": "باب استحباب قيام رمضان وهو التراويح‏:‏",
+          "babNameEn": "The Excellence of Optional (Tawawih) Prayer during Ramadan",
+          "hadithStart": 1187,
+          "hadithEnd": 1188
+        },
+        {
+          "babNumber": 214,
+          "babNameAr": "باب فضل قيام ليلة القدر وبيان أرجى لياليها‏:‏",
+          "babNameEn": "The Superiority of Lailat-ul-Qadr (the Night of Decree)",
+          "hadithStart": 1189,
+          "hadithEnd": 1195
+        },
+        {
+          "babNumber": 215,
+          "babNameAr": "باب فضل السواك وخصال الفطرة‏:‏",
+          "babNameEn": "The Excellence of using Miswak (Tooth-Stick)",
+          "hadithStart": 1196,
+          "hadithEnd": 1205
+        },
+        {
+          "babNumber": 216,
+          "babNameAr": "باب تاكيد وجوب الزكاة وبيان فضلها وما يتعلق بها‏:‏",
+          "babNameEn": "The Excellence and Obligation of the Payment of Zakat",
+          "hadithStart": 1206,
+          "hadithEnd": 1214
+        },
+        {
+          "babNumber": 217,
+          "babNameAr": "باب وجوب صوم رمضان وبيان فضل الصيام وما يتعلق به‏:‏",
+          "babNameEn": "The Excellence of Observing Saum (Fasts) during Ramadan",
+          "hadithStart": 1215,
+          "hadithEnd": 1221
+        },
+        {
+          "babNumber": 218,
+          "babNameAr": "باب الجود وفعل المعروف والإكثار من الخير في شهر رمضان والزيادة من ذلك في العشر الأ��اخر منه‏:‏",
+          "babNameEn": "The Excellence of Spending out Charity during Ramadan",
+          "hadithStart": 1222,
+          "hadithEnd": 1223
+        },
+        {
+          "babNumber": 219,
+          "babNameAr": "باب النهي عن تقدم رمضان بصوم بعد نصف شعبان إلا لمن وصله بما قبله، أو وافق عادة كان عادته صوم الاثنين والخميس فوافقه",
+          "babNameEn": "The Prohibition of Observing Saum (Fasting) after the Middle of Sha'ban",
+          "hadithStart": 1224,
+          "hadithEnd": 1227
+        },
+        {
+          "babNumber": 220,
+          "babNameAr": "باب ما يقال عند رؤية الهلال‏:‏",
+          "babNameEn": "Supplication at the Sight of the Crescent (At the outset of Every Lunar Month)",
+          "hadithStart": 1228,
+          "hadithEnd": 1228
+        },
+        {
+          "babNumber": 221,
+          "babNameAr": "باب فضل السحور وتأخيره ما لم يخشَ طلوع الفجر‏:",
+          "babNameEn": "Merit of Suhur (Predawn meal in Ramadan) and the Excellence of Delaying having it till before Dawn",
+          "hadithStart": 1229,
+          "hadithEnd": 1232
+        },
+        {
+          "babNumber": 222,
+          "babNameAr": "باب فضل تعجيل الفطر وما يفطر عليه وما يقوله بعد إفطاره‏:‏",
+          "babNameEn": "The Superiority of Hastening to Break the Fast, and the supplication to say upon Breaking it",
+          "hadithStart": 1233,
+          "hadithEnd": 1239
+        },
+        {
+          "babNumber": 223,
+          "babNameAr": "باب أمر الصائم بحفظ لسانه وجوارحه عن المخالفات والمشاتمة ونحوها‏:",
+          "babNameEn": "Safeguarding As-Saum (The Fast)",
+          "hadithStart": 1240,
+          "hadithEnd": 1241
+        },
+        {
+          "babNumber": 224,
+          "babNameAr": "باب في مسائل من الصوم‏:‏",
+          "babNameEn": "Matters relating to As-Saum (Fasting)",
+          "hadithStart": 1242,
+          "hadithEnd": 1245
+        },
+        {
+          "babNumber": 225,
+          "babNameAr": "باب بيان فضل صوم المحرم وشعبان والأشهر الحرم‏:‏",
+          "babNameEn": "The Excellence of Observing Saum (Fasting) in the months of Muharram and Sha'ban and the Secred Months",
+          "hadithStart": 1246,
+          "hadithEnd": 1248
+        },
+        {
+          "babNumber": 226,
+          "babNameAr": "باب فضل الصوم وغيره في العشر الأول من ذي الحجة‏:‏",
+          "babNameEn": "The Excellence of As-Saum (The Fast) during the first ten Days of Dhul-Hijjah",
+          "hadithStart": 1249,
+          "hadithEnd": 1249
+        },
+        {
+          "babNumber": 227,
+          "babNameAr": "باب فضل صوم يوم عرفة وعاشوراء وتاسوعاء‏:",
+          "babNameEn": "The Excellence of Observing Saum on the Day of 'Arafah, 'Ashura' and Tasu'a (i.e., 9th of Muharram)",
+          "hadithStart": 1250,
+          "hadithEnd": 1253
+        },
+        {
+          "babNumber": 228,
+          "babNameAr": "باب استحباب صوم ستة أيام من شوال‏:‏",
+          "babNameEn": "The Desirability of Fasting six Days in the Month of Shawwal",
+          "hadithStart": 1254,
+          "hadithEnd": 1254
+        },
+        {
+          "babNumber": 229,
+          "babNameAr": "باب استحباب صوم الاثنين والخميس‏:‏",
+          "babNameEn": "The Desirability of Observing Saum (Fasting) on Monday and Thursday",
+          "hadithStart": 1255,
+          "hadithEnd": 1257
+        },
+        {
+          "babNumber": 230,
+          "babNameAr": "باب استحباب صوم ثلاثة أيام من كل شهر‏:",
+          "babNameEn": "The Desirability of Observing Three Days of Fasting in Every Month",
+          "hadithStart": 1258,
+          "hadithEnd": 1264
+        },
+        {
+          "babNumber": 231,
+          "babNameAr": "باب فضل من فطر صائمًا، وفضل الصائم الذي يؤكل عنده ودعاء الآكل للمأكول عنده‏:",
+          "babNameEn": "The Merit of Providing something to the Person Observing Saum (Fasting) for breaking the Fast",
+          "hadithStart": 1265,
+          "hadithEnd": 1267
+        }
+      ]
+    },
+    {
+      "bookNumber": 9,
+      "bookNameAr": "كتاب الاعتكاف",
+      "bookNameEn": "The Book of I'tikaf",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/9",
+      "babs": [
+        {
+          "babNumber": 232,
+          "babNameAr": "باب الاعتكاف في رمضان",
+          "babNameEn": "I'tikaf (Seclusion in the Mosque) in the Month of Ramadan",
+          "hadithStart": 1268,
+          "hadithEnd": 1270
+        }
+      ]
+    },
+    {
+      "bookNumber": 10,
+      "bookNameAr": "كتاب الحج",
+      "bookNameEn": "The Book of Hajj",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/10",
+      "babs": [
+        {
+          "babNumber": 233,
+          "babNameAr": "باب وجوب الحج وفضله",
+          "babNameEn": "The Obligation of Hajj (Pilgrimage) and its Excellence",
+          "hadithStart": 1271,
+          "hadithEnd": 1284
+        }
+      ]
+    },
+    {
+      "bookNumber": 11,
+      "bookNameAr": "كتاب الجهاد",
+      "bookNameEn": "The Book of Jihad",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/11",
+      "babs": [
+        {
+          "babNumber": 234,
+          "babNameAr": "باب وجوب الجهاد وفضل الغدوة والروحة",
+          "babNameEn": "Obligation of Jihad",
+          "hadithStart": 1285,
+          "hadithEnd": 1352
+        },
+        {
+          "babNumber": 235,
+          "babNameAr": "باب بيان جماعة من الشهداء في ثواب الآخرة يغسلون ويصلى عليهم بخلاف القتيل في حرب الكفار",
+          "babNameEn": "Martyrdom without Fighting",
+          "hadithStart": 1353,
+          "hadithEnd": 1357
+        },
+        {
+          "babNumber": 236,
+          "babNameAr": "باب فضل العتق",
+          "babNameEn": "The Merit of Emancipation of Slaves",
+          "hadithStart": 1358,
+          "hadithEnd": 1359
+        },
+        {
+          "babNumber": 237,
+          "babNameAr": "باب فضل الإحسان إلى المملوك",
+          "babNameEn": "The Excellence of Kind Attitude towards Slaves",
+          "hadithStart": 1360,
+          "hadithEnd": 1361
+        },
+        {
+          "babNumber": 238,
+          "babNameAr": "باب فضل المملوك الذي يؤدي حق الله وحق مواليه",
+          "babNameEn": "The Merit of the Dutiful Slave",
+          "hadithStart": 1362,
+          "hadithEnd": 1365
+        },
+        {
+          "babNumber": 239,
+          "babNameAr": "باب فضل العبادة في الهرج وهو الاختلاط والفتن ونحوها",
+          "babNameEn": "The Excellence of Worship in the time of Tribulations",
+          "hadithStart": 1366,
+          "hadithEnd": 1366
+        },
+        {
+          "babNumber": 240,
+          "babNameAr": "باب فضل السماحة في البيع والشراء والأخذ والعطاء وحسن القضاء وإرجاح المكيال والميزان والنهي عن التطفيف، وفضل إنظار الموسر المعسر، والوضع عنه",
+          "babNameEn": "Excellence of Fair Bargaining and Matters Relation to it",
+          "hadithStart": 1367,
+          "hadithEnd": 1375
+        }
+      ]
+    },
+    {
+      "bookNumber": 12,
+      "bookNameAr": "كتاب العلم",
+      "bookNameEn": "The Book of Knowledge",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/12",
+      "babs": [
+        {
+          "babNumber": 241,
+          "babNameAr": "باب فضل العلم تعلما وتعليما لله",
+          "babNameEn": "Virtues of Knowledge which is Learnt and Taught for the sake of Allah",
+          "hadithStart": 1376,
+          "hadithEnd": 1392
+        }
+      ]
+    },
+    {
+      "bookNumber": 13,
+      "bookNameAr": "كتاب حمد الله تعالى وشكره",
+      "bookNameEn": "The Book of Praise and Gratitude to Allah",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/13",
+      "babs": [
+        {
+          "babNumber": 242,
+          "babNameAr": "باب وجوب الشكر",
+          "babNameEn": "The Obligation of Gratitude",
+          "hadithStart": 1393,
+          "hadithEnd": 1396
+        }
+      ]
+    },
+    {
+      "bookNumber": 14,
+      "bookNameAr": "كتاب الصلاة على رسول الله صلى الله عليه وسلم",
+      "bookNameEn": "The Book of Supplicating Allah to Exalt the Mention of Allah's Messenger",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/14",
+      "babs": [
+        {
+          "babNumber": 243,
+          "babNameAr": "باب الأمر بالصلاة عليه وفضلها وبعض صيغها",
+          "babNameEn": "The Obligation of Supplicating Allah to Exalt His Mention and its Excellence, and its Manner",
+          "hadithStart": 1397,
+          "hadithEnd": 1407
+        }
+      ]
+    },
+    {
+      "bookNumber": 15,
+      "bookNameAr": "كتاب الأذكار",
+      "bookNameEn": "The Book of the Remembrance of Allah",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/15",
+      "babs": [
+        {
+          "babNumber": 244,
+          "babNameAr": "باب فضل الذكر والحث عليه",
+          "babNameEn": "The Excellence of the Remembrance of Allah",
+          "hadithStart": 1408,
+          "hadithEnd": 1443
+        },
+        {
+          "babNumber": 245,
+          "babNameAr": "باب ذكر الله تعالى قائمًا وقاعدًا ومضطجعًا ومحدثًا وجنبا وحائضًا إلا القرآن فلا يحل لجنب ولا حائض‏.‏",
+          "babNameEn": "Remembrance of Allah in all Conditions",
+          "hadithStart": 1444,
+          "hadithEnd": 1445
+        },
+        {
+          "babNumber": 246,
+          "babNameAr": "باب ما يقوله عند نومه واستيقاظه",
+          "babNameEn": "The Book of the Etiquette of Sleeping, Lying, and Sitting etc",
+          "hadithStart": 1446,
+          "hadithEnd": 1446
+        },
+        {
+          "babNumber": 247,
+          "babNameAr": "باب فضل حلق الذكر والندب إلى ملازمتها والنهي عن مفارقتها لغير عذر",
+          "babNameEn": "The Excellence of Gathering in which Allah is Remembered",
+          "hadithStart": 1447,
+          "hadithEnd": 1450
+        },
+        {
+          "babNumber": 248,
+          "babNameAr": "باب الذكر عند الصباح والمساء",
+          "babNameEn": "Remembrance of Allah in the Morning and in the Evening",
+          "hadithStart": 1451,
+          "hadithEnd": 1457
+        },
+        {
+          "babNumber": 249,
+          "babNameAr": "باب ما يقوله عند النوم",
+          "babNameEn": "Supplication before going to Bed",
+          "hadithStart": 1458,
+          "hadithEnd": 1464
+        }
+      ]
+    },
+    {
+      "bookNumber": 16,
+      "bookNameAr": "كتاب الدعوات",
+      "bookNameEn": "The Book of Du'a (Supplications)",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/16",
+      "babs": [
+        {
+          "babNumber": 250,
+          "babNameAr": "باب الأمر بالدعاء وفضله وبيان جمل من أدعيته صلى الله عليه وسلم",
+          "babNameEn": "Issues regarding Supplications, their Virtues and Supplications of the Prophet (pbuh)",
+          "hadithStart": 1465,
+          "hadithEnd": 1493
+        },
+        {
+          "babNumber": 251,
+          "babNameAr": "باب فضل الدعاء بظهر الغيب",
+          "babNameEn": "The Excellence of Supplicating in one's Absence",
+          "hadithStart": 1494,
+          "hadithEnd": 1495
+        },
+        {
+          "babNumber": 252,
+          "babNameAr": "باب في مسائل من الدعاء",
+          "babNameEn": "Some Verdicts Pertaining to Supplications",
+          "hadithStart": 1496,
+          "hadithEnd": 1502
+        },
+        {
+          "babNumber": 253,
+          "babNameAr": "باب كرامات الأولياء وفضلهم",
+          "babNameEn": "Superiority of Auliya' and their Marvels",
+          "hadithStart": 1503,
+          "hadithEnd": 1510
+        }
+      ]
+    },
+    {
+      "bookNumber": 17,
+      "bookNameAr": "كتاب الأمور المنهي عنها",
+      "bookNameEn": "The Book of the Prohibited actions",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/17",
+      "babs": [
+        {
+          "babNumber": 254,
+          "babNameAr": "باب تحريم الغيبة والأمر بحفظ اللسان",
+          "babNameEn": "The Prohibition of Backbiting and the Commandment of Guarding one's Tongue",
+          "hadithStart": 1511,
+          "hadithEnd": 1527
+        },
+        {
+          "babNumber": 255,
+          "babNameAr": "باب تحريم سماع الغيبة وأمر من سمع غيبة محرمة بردها والإنكار على قائلها فإن عجز أو لم يقبل منه فارق ذلك المجلس إن أمكنه",
+          "babNameEn": "Prohibition of Listening to Backbiting",
+          "hadithStart": 1528,
+          "hadithEnd": 1530
+        },
+        {
+          "babNumber": 256,
+          "babNameAr": "باب ما يباح من الغيبة",
+          "babNameEn": "Some cases where it is permissible to Backbite",
+          "hadithStart": 1531,
+          "hadithEnd": 1535
+        },
+        {
+          "babNumber": 257,
+          "babNameAr": "باب تحريم النميمة وهي نقل الكلام بين الناس على جهة الإفساد",
+          "babNameEn": "Prohibition of Calumny",
+          "hadithStart": 1536,
+          "hadithEnd": 1538
+        },
+        {
+          "babNumber": 258,
+          "babNameAr": "باب النهي عن نقل الحديث وكلام الناس إلى ولاة الأمور إذا لم تدعُ  إليه حاجة كخوف مفسدة ونحوها",
+          "babNameEn": "Prohibition of Carrying tales of the Officers",
+          "hadithStart": 1539,
+          "hadithEnd": 1539
+        },
+        {
+          "babNumber": 259,
+          "babNameAr": "باب ذم ذي الوجهين",
+          "babNameEn": "Condemnation of Double-faced People",
+          "hadithStart": 1540,
+          "hadithEnd": 1541
+        },
+        {
+          "babNumber": 260,
+          "babNameAr": "باب تحريم الكذب",
+          "babNameEn": "Condemnation and Prohibition of Falsehood",
+          "hadithStart": 1542,
+          "hadithEnd": 1546
+        },
+        {
+          "babNumber": 262,
+          "babNameAr": "باب الحث على التثبت فيما يقوله ويحكيه",
+          "babNameEn": "Ascertainment of what one Hears and Narrates",
+          "hadithStart": 1547,
+          "hadithEnd": 1549
+        },
+        {
+          "babNumber": 263,
+          "babNameAr": "باب بيان غلظ تحريم شهادة الزور",
+          "babNameEn": "Prohibition of Giving False Testimony",
+          "hadithStart": 1550,
+          "hadithEnd": 1550
+        },
+        {
+          "babNumber": 264,
+          "babNameAr": "باب تحريم لعن إنسان بعينه أو دابة",
+          "babNameEn": "Prohibition of Cursing one Particular Man or Animal",
+          "hadithStart": 1551,
+          "hadithEnd": 1558
+        },
+        {
+          "babNumber": 266,
+          "babNameAr": "باب تحريم سب المسلم بغير حق",
+          "babNameEn": "Prohibition of Reviling a Muslim without any cause",
+          "hadithStart": 1559,
+          "hadithEnd": 1563
+        },
+        {
+          "babNumber": 267,
+          "babNameAr": "باب تحريم سب الأموات بغير حق ومصلحة شرعية",
+          "babNameEn": "Prohibition of Abusing the Deceased without a valid Legal reason approved by Shari'ah",
+          "hadithStart": 1564,
+          "hadithEnd": 1564
+        },
+        {
+          "babNumber": 268,
+          "babNameAr": "باب النهي عن الإيذاء",
+          "babNameEn": "Prohibition of Maligning",
+          "hadithStart": 1565,
+          "hadithEnd": 1566
+        },
+        {
+          "babNumber": 269,
+          "babNameAr": "باب النهي عن التباغض والتقاطع والتدابر",
+          "babNameEn": "Prohibition of Nursing Rancor and Enmity",
+          "hadithStart": 1567,
+          "hadithEnd": 1568
+        },
+        {
+          "babNumber": 270,
+          "babNameAr": "باب تحريم الحسد وهو تمني زوال النعمة عن صاحبها‏:‏ سواء كانت نعمة دين أو دنيا",
+          "babNameEn": "Prohibition of Envy",
+          "hadithStart": 1569,
+          "hadithEnd": 1569
+        },
+        {
+          "babNumber": 271,
+          "babNameAr": "باب النهي عن التجسس والتسمع لكلام من يكره استماعه",
+          "babNameEn": "Prohibition of Spying on Muslims and to be Inquisitive about Others",
+          "hadithStart": 1570,
+          "hadithEnd": 1572
+        },
+        {
+          "babNumber": 272,
+          "babNameAr": "باب النهي عن سوء الظن بالمسلمين من غير ضرورة",
+          "babNameEn": "Prohibition of Suspicion",
+          "hadithStart": 1573,
+          "hadithEnd": 1573
+        },
+        {
+          "babNumber": 273,
+          "babNameAr": "باب تحريم احتقار المسلمين",
+          "babNameEn": "Prohibition of Despising Muslims",
+          "hadithStart": 1574,
+          "hadithEnd": 1576
+        },
+        {
+          "babNumber": 274,
+          "babNameAr": "باب النهي عن إظهار الشماتة بالمسلم",
+          "babNameEn": "Prohibition of Rejoicing over another's Trouble",
+          "hadithStart": 1577,
+          "hadithEnd": 1577
+        },
+        {
+          "babNumber": 275,
+          "babNameAr": "باب تحريم الطعن في الأنساب الثابتة في ظاهر الشرع",
+          "babNameEn": "Prohibition of Deriding one's Lineage",
+          "hadithStart": 1578,
+          "hadithEnd": 1578
+        },
+        {
+          "babNumber": 276,
+          "babNameAr": "باب النهي عن الغش والخداع",
+          "babNameEn": "Prohibition of Deceiving others",
+          "hadithStart": 1579,
+          "hadithEnd": 1583
+        },
+        {
+          "babNumber": 277,
+          "babNameAr": "باب تحريم الغدر",
+          "babNameEn": "Prohibition of the Treachery and Breaking one's Covenant",
+          "hadithStart": 1584,
+          "hadithEnd": 1587
+        },
+        {
+          "babNumber": 278,
+          "babNameAr": "باب النهي عن المن بالعطية ونحوها",
+          "babNameEn": "Prohibition of Recounting of Favors",
+          "hadithStart": 1588,
+          "hadithEnd": 1588
+        },
+        {
+          "babNumber": 279,
+          "babNameAr": "باب النهي عن الافتخار والبغي",
+          "babNameEn": "Prohibition of Arrogance and Oppression",
+          "hadithStart": 1589,
+          "hadithEnd": 1590
+        },
+        {
+          "babNumber": 280,
+          "babNameAr": "باب تحريم الهجران بين المسلمين فوق ثلاثة أيام إلا لبدعة في المهجور أو تظاهر بفسق أو نحو ذلك",
+          "babNameEn": "Prohibition of Breaking ties and Relationships",
+          "hadithStart": 1591,
+          "hadithEnd": 1597
+        },
+        {
+          "babNumber": 281,
+          "babNameAr": "باب النهي عن تناجي اثنين دون الثالث بغير إذنه إلا لحاجة وهو أن يتحدثا سرًا بحيث لا يسمعهما وفي معناه إذا تحدثا بلسان لا يفهمه",
+          "babNameEn": "Prohibition of two Holding Secret Counsel to the Exclusion of Conversing together a Third",
+          "hadithStart": 1598,
+          "hadithEnd": 1599
+        },
+        {
+          "babNumber": 282,
+          "babNameAr": "باب النهي عن تعذيب العبد والدابة والمرأة والولد بغير سبب شرعي أو زائد على قدر الأدب",
+          "babNameEn": "Prohibition of Cruelty",
+          "hadithStart": 1600,
+          "hadithEnd": 1608
+        },
+        {
+          "babNumber": 283,
+          "babNameAr": "باب تحريم التعذيب بالنار في كل حيوان حتى القملة ونحوها",
+          "babNameEn": "Prohibition of Chastisement with Fire",
+          "hadithStart": 1609,
+          "hadithEnd": 1610
+        },
+        {
+          "babNumber": 284,
+          "babNameAr": "باب تحريم مطل الغني بحق طلبه صاحبه",
+          "babNameEn": "Prohibition of Procrastinating by a Rich Person to Fulfill his Obligation",
+          "hadithStart": 1611,
+          "hadithEnd": 1611
+        },
+        {
+          "babNumber": 285,
+          "babNameAr": "باب كراهية عودة الإنسان في هبة لم يسلمها إلى الموهوب له وفي هبة وهبها لولده وسلمها أو لم يسلمها إلى الموهوب له وفي هبة وهبها لولده وسلمها أو لم يسلمها  وكراهة شرائه شيئًا تصدق به من الذي تصدق عليه أو أخرجه عن زكاة أو كفارة ونحوها ولا بأس بشرائه من شخص آخر قد انتقل  إليه",
+          "babNameEn": "Undesirability of giving a Gift and then ask back for it",
+          "hadithStart": 1612,
+          "hadithEnd": 1613
+        },
+        {
+          "babNumber": 286,
+          "babNameAr": "باب تأكيد تحريم مال اليتيم",
+          "babNameEn": "Prohibition of devouring the Property of an Orphan",
+          "hadithStart": 1614,
+          "hadithEnd": 1614
+        },
+        {
+          "babNumber": 287,
+          "babNameAr": "باب تغليظ تحريم الربا",
+          "babNameEn": "Prohibition of taking Ar-Riba (The Usury)",
+          "hadithStart": 1615,
+          "hadithEnd": 1615
+        },
+        {
+          "babNumber": 288,
+          "babNameAr": "باب تحريم الرياء",
+          "babNameEn": "Prohibition of Show-off",
+          "hadithStart": 1616,
+          "hadithEnd": 1620
+        },
+        {
+          "babNumber": 289,
+          "babNameAr": "باب ما يُتوهم أنه رياء وليس هو رياء",
+          "babNameEn": "Things not to be Considered as Showing off",
+          "hadithStart": 1621,
+          "hadithEnd": 1621
+        },
+        {
+          "babNumber": 290,
+          "babNameAr": "باب تحريم النظر إلى المرأة الأجنبية والأمرد الحسن لغير حاجة شرعية",
+          "babNameEn": "Prohibition of gazing at women and Beardless Handsome Boys except in Exigency",
+          "hadithStart": 1622,
+          "hadithEnd": 1627
+        },
+        {
+          "babNumber": 291,
+          "babNameAr": "باب تحريم الخلوة بالأجنبية",
+          "babNameEn": "Prohibition of Meeting a non-Mahram Woman in Seclusion",
+          "hadithStart": 1628,
+          "hadithEnd": 1630
+        },
+        {
+          "babNumber": 292,
+          "babNameAr": "باب تحريم تشبه الرجال بالنساء وتشبه النساء بالرجال في لباس وحركة وغير ذلك",
+          "babNameEn": "Prohibition for Men and Women apeing one another",
+          "hadithStart": 1631,
+          "hadithEnd": 1633
+        },
+        {
+          "babNumber": 293,
+          "babNameAr": "باب النهي عن التشبه بالشيطان والكفار",
+          "babNameEn": "Prohibition of following the Manners of Satan and Disbelievers",
+          "hadithStart": 1634,
+          "hadithEnd": 1636
+        },
+        {
+          "babNumber": 294,
+          "babNameAr": "باب نهي الرجل والمرأة عن خضاب شعرهما بسواد",
+          "babNameEn": "Forbidding to Dye Hair Black",
+          "hadithStart": 1637,
+          "hadithEnd": 1637
+        },
+        {
+          "babNumber": 295,
+          "babNameAr": "باب النهي عن القزع وهو حلق بعض الرأس دون بعض وإباحة حلقه كله للرجل دون المرأة",
+          "babNameEn": "On Prohibition of Shaving a part of Head",
+          "hadithStart": 1638,
+          "hadithEnd": 1641
+        },
+        {
+          "babNumber": 296,
+          "babNameAr": "باب تحريم وصل الشعر والوشم والوشر وهو تحديد الإسنان",
+          "babNameEn": "Prohibition of Wearing False Hair, Tattooing and Filling of Teeth",
+          "hadithStart": 1642,
+          "hadithEnd": 1646
+        },
+        {
+          "babNumber": 297,
+          "babNameAr": "باب النهي عن نتف الشيب من اللحية والرأس وغيرهما  وعن نتف الأمرد شعر لحيته عند أول طلوعه",
+          "babNameEn": "Prohibition of Plucking Grey Hairs",
+          "hadithStart": 1647,
+          "hadithEnd": 1647
+        },
+        {
+          "babNumber": 298,
+          "babNameAr": "باب كراهة الاستنجاء باليمين ومس الفرج باليمين من غير عذر",
+          "babNameEn": "Prohibition of using the right hand for cleaning after toilet without a valid reason",
+          "hadithStart": 1648,
+          "hadithEnd": 1648
+        },
+        {
+          "babNumber": 299,
+          "babNameAr": "باب كراهة المشي في نعل واحدة أو خف واحد لغير عذر وكراهة لبس النعل والخف قائمًا لغير عذر",
+          "babNameEn": "Undesirability of Wearing one Shoe or Sock",
+          "hadithStart": 1649,
+          "hadithEnd": 1651
+        },
+        {
+          "babNumber": 300,
+          "babNameAr": "باب النهي عن ترك النار في البيت عند النوم ونحوه سواء كانت في سراج أو غيره",
+          "babNameEn": "Prohibition of Leaving the Fire Burning",
+          "hadithStart": 1652,
+          "hadithEnd": 1654
+        },
+        {
+          "babNumber": 301,
+          "babNameAr": "باب النهي عن التكلف وهو فعل وقول ما لا مصلحة فيه بمشقة",
+          "babNameEn": "Prohibition of putting oneself to Undue Hardship",
+          "hadithStart": 1655,
+          "hadithEnd": 1656
+        },
+        {
+          "babNumber": 302,
+          "babNameAr": "باب تحريم النياحة على الميت ولطم الخد وشق الجيب ونتف الشعر وحلقه، والدعاء بالويل والثبور",
+          "babNameEn": "Prohibition of Bewailing the Deceased",
+          "hadithStart": 1657,
+          "hadithEnd": 1667
+        },
+        {
+          "babNumber": 303,
+          "babNameAr": "باب النهي عن إتيان الكهان والمنجمين والعراف وأصحاب الرمل والطوارق بالحصى وبالشعير ونحو ذلك",
+          "babNameEn": "Prohibition of Consultation with Soothsayers",
+          "hadithStart": 1668,
+          "hadithEnd": 1673
+        },
+        {
+          "babNumber": 304,
+          "babNameAr": "باب النهي عن التطير",
+          "babNameEn": "Forbiddance of Believing in Ill Omens",
+          "hadithStart": 1674,
+          "hadithEnd": 1677
+        },
+        {
+          "babNumber": 305,
+          "babNameAr": "باب تحريم تصوير الحيوان في بساط أو حجر أو ثوب أو درهم أو مخدة أو دينار أو وسادة وغير ذلك وتحريم اتخاذ الصور في حائط وسقف وستر وعمامة وثوب ونحوها والأمر بإتلاف الصورة",
+          "babNameEn": "Prohibition of Drawing Portraits",
+          "hadithStart": 1678,
+          "hadithEnd": 1687
+        },
+        {
+          "babNumber": 306,
+          "babNameAr": "باب تحريم اتخاذ الكلب إلا لصيد أو ماشية أو زرع",
+          "babNameEn": "Prohibition of Keeping a Dog except as a Watchdog or Hunting",
+          "hadithStart": 1688,
+          "hadithEnd": 1689
+        },
+        {
+          "babNumber": 307,
+          "babNameAr": "باب كراهة تعليق الجرس في البعير وغيره من الدواب وكراهية استصحاب الكلب والجرس في السفر",
+          "babNameEn": "Undesirability of Hanging Bells round the Necks of Animals",
+          "hadithStart": 1690,
+          "hadithEnd": 1691
+        },
+        {
+          "babNumber": 308,
+          "babNameAr": "باب كراهة ركوب الجلالة وهي البعير أو الناقة التي تأكل العذرة فإن أكلت علفًا طاهرًا فطاب لحمها زالت الكراهة",
+          "babNameEn": "Undesirability of Riding a Camel which eats Animals' waste",
+          "hadithStart": 1692,
+          "hadithEnd": 1692
+        },
+        {
+          "babNumber": 309,
+          "babNameAr": "باب النهي عن البصاق في المسجد والأمر بإزالته منه إذا وجد فيه، والأمر بتنزيه المسجد عن الأقذار",
+          "babNameEn": "Prohibition of Spitting in the Mosque",
+          "hadithStart": 1693,
+          "hadithEnd": 1695
+        },
+        {
+          "babNumber": 310,
+          "babNameAr": "باب كراهة الخصومة في المسجد ورفع الصوت فيه ونشد الضالة والبيع والشراء والإجارة ونحوها من المعاملات",
+          "babNameEn": "Undesirability of Quarrelling or Raising voices in the Mosque",
+          "hadithStart": 1696,
+          "hadithEnd": 1700
+        },
+        {
+          "babNumber": 311,
+          "babNameAr": "باب النهي من أكل ثومًا أو بصلا أو كراثًا أو غيره مما له رائحة كريهة عن دخول المسجد قبل زوال رائحته إلا لضرورة",
+          "babNameEn": "Undesirability of Entering the Mosque after Eating raw Onion or Garlic",
+          "hadithStart": 1701,
+          "hadithEnd": 1704
+        },
+        {
+          "babNumber": 312,
+          "babNameAr": "باب كراهة الاحتباء يوم الجمعة والإمام يخطب لأنه يجلب النوم فيفوت استماع الخطبة ويخاف انتقاض الوضوء",
+          "babNameEn": "Undesirability of Sitting with Erected Legs during Friday Sermon",
+          "hadithStart": 1705,
+          "hadithEnd": 1705
+        },
+        {
+          "babNumber": 313,
+          "babNameAr": "باب نهي من دخل عليه عشر ذي الحجة وأراد أن يضحي عن أخذ شيء من شعره أو أظفاره حتى يضحي",
+          "babNameEn": "Prohibition of having a Hair cut or paring one's nail during the first ten days of Dhul-Hijjah for one who intends to Sacrifice an Animal",
+          "hadithStart": 1706,
+          "hadithEnd": 1706
+        },
+        {
+          "babNumber": 314,
+          "babNameAr": "باب النهي عن الحلف بمخلوق كالنبي والكعبة والملائكة والسماء والآباء والحياة والروح والرأس ونعمة السلطان وتربة فلان والأمانة، وهي من أشدها نهيًا",
+          "babNameEn": "Prohibition of Swearing in the name of anything besides Allah",
+          "hadithStart": 1707,
+          "hadithEnd": 1711
+        },
+        {
+          "babNumber": 315,
+          "babNameAr": "باب تغليظ اليمين الكاذبة عمدًا",
+          "babNameEn": "Illegality of Swearing Falsely",
+          "hadithStart": 1712,
+          "hadithEnd": 1714
+        },
+        {
+          "babNumber": 316,
+          "babNameAr": "باب ندب من حلف على يمين فرأى غيرها خيرًا منها أن يفعل ذلك المحلوف عليه ثم يكفر عن يمينه",
+          "babNameEn": "Desirability of Expiating the Oath taken by a Person who afterwards Breaks it for a better Alternative",
+          "hadithStart": 1715,
+          "hadithEnd": 1718
+        },
+        {
+          "babNumber": 317,
+          "babNameAr": "باب العفو عن لغو اليمين وأنَّه لا كفَّارة فِيهِ وَهُوَ مَا يجري عَلَى اللسان بغير قصد اليمين كقوله عَلَى العادة: لا والله، وبلى والله، ونحو ذَلِكَ",
+          "babNameEn": "Expiation of Oaths",
+          "hadithStart": 1719,
+          "hadithEnd": 1719
+        },
+        {
+          "babNumber": 318,
+          "babNameAr": "باب كراهة الحلف في البيع وإن كان صادقًا",
+          "babNameEn": "Abomination of Swearing in Transaction",
+          "hadithStart": 1720,
+          "hadithEnd": 1721
+        },
+        {
+          "babNumber": 319,
+          "babNameAr": "باب كراهة أن يسأل الإنسان بوجه الله عز وجل غير الجنة وكراهة منع من سأل بالله تعالى وتشفع به",
+          "babNameEn": "About Begging in the Name of Allah",
+          "hadithStart": 1722,
+          "hadithEnd": 1723
+        },
+        {
+          "babNumber": 320,
+          "babNameAr": "باب تحريم قول شاهنشاه للسلطان وغيره لأن معناه ملك الملوك، ولا يوصف بذلك غير الله سبحانه وتعالى",
+          "babNameEn": "Prohibition of Addressing somebody as 'The King of Kings'",
+          "hadithStart": 1724,
+          "hadithEnd": 1724
+        },
+        {
+          "babNumber": 321,
+          "babNameAr": "باب النهي عن مخاطبة الفاسق والمبتدع ونحوهما بسيد ونحوه",
+          "babNameEn": "Prohibition of Conferring a Title of Honor upon a Sinner, a Hypocrite, and the Like",
+          "hadithStart": 1725,
+          "hadithEnd": 1725
+        },
+        {
+          "babNumber": 322,
+          "babNameAr": "باب كراهة سب الحمى",
+          "babNameEn": "Undesirability of Reviling Fever",
+          "hadithStart": 1726,
+          "hadithEnd": 1726
+        },
+        {
+          "babNumber": 323,
+          "babNameAr": "باب النهي عن سب الريح وبيان ما يقال عند هبوبها",
+          "babNameEn": "Prohibition of Reviling the Wind",
+          "hadithStart": 1727,
+          "hadithEnd": 1729
+        },
+        {
+          "babNumber": 324,
+          "babNameAr": "باب كراهة سب الديك",
+          "babNameEn": "Undesirability of Reviling the Rooster",
+          "hadithStart": 1730,
+          "hadithEnd": 1730
+        },
+        {
+          "babNumber": 325,
+          "babNameAr": "باب النهي عن قول الإنسان‏:‏ مطرنا بنوء كذا",
+          "babNameEn": "Prohibition of Attributing Rain to the Stars",
+          "hadithStart": 1731,
+          "hadithEnd": 1731
+        },
+        {
+          "babNumber": 326,
+          "babNameAr": "باب تحريم قوله لمسلم‏:‏ يا كافر",
+          "babNameEn": "Prohibition of Calling a Muslim an Infidel",
+          "hadithStart": 1732,
+          "hadithEnd": 1733
+        },
+        {
+          "babNumber": 327,
+          "babNameAr": "باب النهي عن الفحش وبذاء اللسان",
+          "babNameEn": "Prohibition of Obscenity",
+          "hadithStart": 1734,
+          "hadithEnd": 1735
+        },
+        {
+          "babNumber": 328,
+          "babNameAr": "باب كراهة التقعير في الكلام والتشدق فيه وتكلف الفصاحة واستعمال وحشي اللغة ودقائق الإعراب في مخاطبة العوام ونحوهم",
+          "babNameEn": "Undesirability of Pretentiousness and Exaggeration during Conversation",
+          "hadithStart": 1736,
+          "hadithEnd": 1738
+        },
+        {
+          "babNumber": 329,
+          "babNameAr": "باب كراهة قوله‏:‏ خبثت نفسي",
+          "babNameEn": "Abomination of Self-Condemnation",
+          "hadithStart": 1739,
+          "hadithEnd": 1739
+        },
+        {
+          "babNumber": 330,
+          "babNameAr": "باب كراهية تسمية العنب كَرْمًا",
+          "babNameEn": "Undesirability of Calling Grapes 'Al-Karm'",
+          "hadithStart": 1740,
+          "hadithEnd": 1741
+        },
+        {
+          "babNumber": 331,
+          "babNameAr": "باب النهي عن وصف محاسن المرأة لرجل إلا أن يحتاج إلى ذلك لغرض شرعي كنكاحها ونحوه",
+          "babNameEn": "Prohibition of Describing the Charms of a Woman to a man without a valid reason approved by the Shari'ah",
+          "hadithStart": 1742,
+          "hadithEnd": 1742
+        },
+        {
+          "babNumber": 332,
+          "babNameAr": "باب كراهة قول الإنسان: «اللَّهُمَّ اغْفِرْ لِي إنْ شِئْتَ»، بل يجزم بالطلب",
+          "babNameEn": "Abomination of saying: \"Forgive me if you wish, O Allah!\"",
+          "hadithStart": 1743,
+          "hadithEnd": 1744
+        },
+        {
+          "babNumber": 333,
+          "babNameAr": "باب كراهة قول‏:‏ ما شاء الله وشاء فلان",
+          "babNameEn": "Abomination of saying: \"What Allah Wills and so-and-so Wills\"",
+          "hadithStart": 1745,
+          "hadithEnd": 1745
+        },
+        {
+          "babNumber": 334,
+          "babNameAr": "باب كراهة الحديث بعد العشاء الآخرة",
+          "babNameEn": "Abomination of Holding Conversation after 'Isha' (Night) Prayer",
+          "hadithStart": 1746,
+          "hadithEnd": 1748
+        },
+        {
+          "babNumber": 335,
+          "babNameAr": "باب تحريم امتناع المرأة من فراش زوجها إذا دعاها ولم يكن لها عذر شرعي",
+          "babNameEn": "Prohibition of Refusal by a Woman when her Husband calls her to his Bed",
+          "hadithStart": 1749,
+          "hadithEnd": 1749
+        },
+        {
+          "babNumber": 336,
+          "babNameAr": "باب تحريم صوم المرأة وزوجها حاضر إلا بإذنه",
+          "babNameEn": "Prohibition of Observing an Optional Saum (Fast) by a Woman without the Permission of her Husband",
+          "hadithStart": 1750,
+          "hadithEnd": 1750
+        },
+        {
+          "babNumber": 337,
+          "babNameAr": "باب تحريم رفع المأموم رأسه من الركوع أو السجود قبل الإمام",
+          "babNameEn": "Prohibition of raising one's Head before the Imam",
+          "hadithStart": 1751,
+          "hadithEnd": 1751
+        },
+        {
+          "babNumber": 338,
+          "babNameAr": "باب كراهة وضع اليد على الخاصرة في الصلاة",
+          "babNameEn": "Prohibition of Placing the hands on the sides during As-Salat (The Prayer)",
+          "hadithStart": 1752,
+          "hadithEnd": 1752
+        },
+        {
+          "babNumber": 339,
+          "babNameAr": "باب كراهة الصلاة بحضرة الطعام  ونفسه تتوق إليه أو مع مدافعة الأخبثين‏:‏ وهما البول والغائط",
+          "babNameEn": "Abomination of Joining As-Salat (The Prayer) when the Food is ready or when one is in desperate need to answer the call of Nature",
+          "hadithStart": 1753,
+          "hadithEnd": 1753
+        },
+        {
+          "babNumber": 340,
+          "babNameAr": "باب النهي عن رفع البَصَر إِلَى السماء في الصلاة",
+          "babNameEn": "Prohibition of raising one's Eyes towards the sky during As-Salat (The Prayer)",
+          "hadithStart": 1754,
+          "hadithEnd": 1754
+        },
+        {
+          "babNumber": 341,
+          "babNameAr": "باب كراهة الالتفات في الصلاة لغير عذر",
+          "babNameEn": "Undesirability of Glancing in one Direction of the other during Prayer",
+          "hadithStart": 1755,
+          "hadithEnd": 1756
+        },
+        {
+          "babNumber": 342,
+          "babNameAr": "باب النهي عن الصلاة إلى القبور",
+          "babNameEn": "Prohibition of facing the Graves during Salat (Prayer)",
+          "hadithStart": 1757,
+          "hadithEnd": 1757
+        },
+        {
+          "babNumber": 343,
+          "babNameAr": "باب تحريم المرور بين يدي المصلي",
+          "babNameEn": "Prohibition of passing in front of a Worshipper while he is offering Salat (Prayer)",
+          "hadithStart": 1758,
+          "hadithEnd": 1758
+        },
+        {
+          "babNumber": 344,
+          "babNameAr": "باب كراهة شروع المأموم في نافلة بعد شروع المؤذن في إقامة الصلاة سواء كانت النافلة سنة تلك الصلاة أو غيرها",
+          "babNameEn": "Undesirability of offering optional Prayer after the announcement of Iqamah",
+          "hadithStart": 1759,
+          "hadithEnd": 1759
+        },
+        {
+          "babNumber": 345,
+          "babNameAr": "باب كراهة تخصيص يوم الجمعة بصيام أو ليلته بصلاة من بين الليالي",
+          "babNameEn": "Abomination of Selecting Friday for Fasting",
+          "hadithStart": 1760,
+          "hadithEnd": 1763
+        },
+        {
+          "babNumber": 346,
+          "babNameAr": "باب تحريم الوصال في الصوم وهو أن يصوم يومين أو أكثر، ولا يأكل ولا يشرب بينهما",
+          "babNameEn": "Prohibition of Extending Fast beyond one Day",
+          "hadithStart": 1764,
+          "hadithEnd": 1765
+        },
+        {
+          "babNumber": 347,
+          "babNameAr": "باب تحريم الجلوس على قبر",
+          "babNameEn": "Prohibition of Sitting on the Graves",
+          "hadithStart": 1766,
+          "hadithEnd": 1766
+        },
+        {
+          "babNumber": 348,
+          "babNameAr": "باب النهي عن تجصيص القبر والبناء عليه",
+          "babNameEn": "Prohibition of Plastering and Building over the Graves",
+          "hadithStart": 1767,
+          "hadithEnd": 1767
+        },
+        {
+          "babNumber": 349,
+          "babNameAr": "باب تغليظ تحريم إباق العبد من سيده",
+          "babNameEn": "Prohibition for a Slave to run away from his Master",
+          "hadithStart": 1768,
+          "hadithEnd": 1769
+        },
+        {
+          "babNumber": 350,
+          "babNameAr": "باب تحريم الشفاعة في الحدود",
+          "babNameEn": "Undesirability of Intercession in Hudud",
+          "hadithStart": 1770,
+          "hadithEnd": 1770
+        },
+        {
+          "babNumber": 351,
+          "babNameAr": "باب النهي عن التغوط في طريق الناس وظلهم وموارد الماء ونحوها",
+          "babNameEn": "Prohibition of Relieving Nature on the Paths",
+          "hadithStart": 1771,
+          "hadithEnd": 1771
+        },
+        {
+          "babNumber": 352,
+          "babNameAr": "باب النهي عن البول ونحوه في الماء الراكد",
+          "babNameEn": "Prohibition of Urinating into Stagnant Water",
+          "hadithStart": 1772,
+          "hadithEnd": 1772
+        },
+        {
+          "babNumber": 353,
+          "babNameAr": "باب كراهة تفضيل الوالد بعض أولاده على بعض في الهبة",
+          "babNameEn": "Prohibition of giving preference to Children over one another in giving Gifts, etc.",
+          "hadithStart": 1773,
+          "hadithEnd": 1773
+        },
+        {
+          "babNumber": 354,
+          "babNameAr": "باب تحريم إحداد المرأة على ميت فوق ثلاثة أيام إلا على زوج أربعة أشهر وعشرة أيام",
+          "babNameEn": "Prohibition of Mourning beyond Three Days (For Women)",
+          "hadithStart": 1774,
+          "hadithEnd": 1774
+        },
+        {
+          "babNumber": 355,
+          "babNameAr": "باب تحريم بيع الحاضر للبادي وتلقي الركبان والبيع على بيع أخيه والخطبة على خطبته إلا أن يأذن أو يرد",
+          "babNameEn": "Prohibition of Malpractices in Commerce",
+          "hadithStart": 1775,
+          "hadithEnd": 1780
+        },
+        {
+          "babNumber": 356,
+          "babNameAr": "باب النهي عن إضاعة المال في غير وجوهه التي أذن الشرع فيها",
+          "babNameEn": "Prohibition of Squandering Wealth",
+          "hadithStart": 1781,
+          "hadithEnd": 1782
+        },
+        {
+          "babNumber": 357,
+          "babNameAr": "باب النهي عن الإشارة إلى مسلم بسلاح ونحوه سواء كان جادًا أو مازحًا، والنهي عن تعاطي السيف مسلولا",
+          "babNameEn": "Prohibition of Pointing with a Weapon at another Brother in Faith",
+          "hadithStart": 1783,
+          "hadithEnd": 1784
+        },
+        {
+          "babNumber": 358,
+          "babNameAr": "باب كراهة الخروج من المسجد بعد الأذان إلا لعذر حتى يصلي المكتوبة",
+          "babNameEn": "Undesirability of Leaving the Mosque without offering Salat (Prayer) after the Adhan has been Proclaimed",
+          "hadithStart": 1785,
+          "hadithEnd": 1785
+        },
+        {
+          "babNumber": 359,
+          "babNameAr": "باب كراهة رد الريحان لغير عذر",
+          "babNameEn": "Undesirability of Rejecting the Gift of Perfume",
+          "hadithStart": 1786,
+          "hadithEnd": 1787
+        },
+        {
+          "babNumber": 360,
+          "babNameAr": "باب كراهة المدح في الوجه لمن خيف عليه مفسدة من إعجاب ونحوه، وجوازه لمن أمن ذلك في حقه",
+          "babNameEn": "Undesirability of Praising a Person in his Presence",
+          "hadithStart": 1788,
+          "hadithEnd": 1790
+        },
+        {
+          "babNumber": 361,
+          "babNameAr": "باب كراهة الخروج من بلد وقع فيها الوباء فرارًا منه وكراهة القدوم عليه",
+          "babNameEn": "Undesirability of departing from or coming to a Place stricken by a Epidemic",
+          "hadithStart": 1791,
+          "hadithEnd": 1792
+        },
+        {
+          "babNumber": 362,
+          "babNameAr": "باب التغليظ في تحريم السحر",
+          "babNameEn": "Prohibition of Magic",
+          "hadithStart": 1793,
+          "hadithEnd": 1793
+        },
+        {
+          "babNumber": 363,
+          "babNameAr": "باب النهي عن المسافرة بالمصحف إلى بلاد الكفار إذا خيف وقوعه بأيدي العدو",
+          "babNameEn": "Prohibition of Carrying the Qur'an into the Land of Enemy",
+          "hadithStart": 1794,
+          "hadithEnd": 1794
+        },
+        {
+          "babNumber": 364,
+          "babNameAr": "باب تحريم استعمال إناء الذهب وإناء الفضة في الأكل والشرب والطهارة وسائر وجوه الاستعمال",
+          "babNameEn": "Prohibition of using Utensils made of Gold and Silver",
+          "hadithStart": 1795,
+          "hadithEnd": 1797
+        },
+        {
+          "babNumber": 365,
+          "babNameAr": "باب تحريم لبس الرجل ثوباً مزعفراً",
+          "babNameEn": "Prohibition of Wearing Saffron-Colored Dress",
+          "hadithStart": 1798,
+          "hadithEnd": 1799
+        },
+        {
+          "babNumber": 366,
+          "babNameAr": "باب النهي عن صمت يوم إلى الليل",
+          "babNameEn": "Prohibition of observing silence from Dawn till Night",
+          "hadithStart": 1800,
+          "hadithEnd": 1801
+        },
+        {
+          "babNumber": 367,
+          "babNameAr": "باب تحريم انتساب الإنسان إلى غير أبيه وتوليه إلى غير مواليه",
+          "babNameEn": "Prohibition of attributing wrong Fatherhood",
+          "hadithStart": 1802,
+          "hadithEnd": 1805
+        },
+        {
+          "babNumber": 368,
+          "babNameAr": "باب التحذير من ارتكاب ما نهى الله عزوجل أو رسوله صلى الله عليه وسلم  عنه",
+          "babNameEn": "Prohibition of doing that which Allah and His Messenger have Prohibited",
+          "hadithStart": 1806,
+          "hadithEnd": 1806
+        },
+        {
+          "babNumber": 369,
+          "babNameAr": "باب ما يقوله ويفعله من ارتكب منهياً عنه",
+          "babNameEn": "Expiation for the violation of Commandments of Allah",
+          "hadithStart": 1807,
+          "hadithEnd": 1807
+        }
+      ]
+    },
+    {
+      "bookNumber": 18,
+      "bookNameAr": "كتاب المنثورات والملح",
+      "bookNameEn": "The Book of Miscellaneous ahadith of Significant Values",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/18",
+      "babs": [
+        {
+          "babNumber": 370,
+          "babNameAr": "باب أحاديث الدجال وأشراط الساعة وغيرها",
+          "babNameEn": "Ahadith about Dajjal and Portents of the Hour",
+          "hadithStart": 1808,
+          "hadithEnd": 1868
+        }
+      ]
+    },
+    {
+      "bookNumber": 19,
+      "bookNameAr": "كتاب الاستغفار",
+      "bookNameEn": "The Book of Forgiveness",
+      "sunnahComUrl": "https://sunnah.com/riyadussalihin/19",
+      "babs": [
+        {
+          "babNumber": 371,
+          "babNameAr": "باب الأمر بالاستغفار وفضله",
+          "babNameEn": "Seeking Forgiveness",
+          "hadithStart": 1869,
+          "hadithEnd": 1879
+        },
+        {
+          "babNumber": 372,
+          "babNameAr": "باب بيان ما أعد الله للمؤمنين في الجنة",
+          "babNameEn": "Some of the Bounties which Allah has prepared for the Believers in Paradise",
+          "hadithStart": 1880,
+          "hadithEnd": 1896
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "totalBabs": 364,
+    "totalBabsExpected": 372,
+    "missingBabs": [
+      9,
+      70,
+      105,
+      126,
+      165,
+      202,
+      261,
+      265
+    ],
+    "missingBabsNote": "These bab numbers are not rendered on sunnah.com because they contain no hadiths in this edition (likely empty section separators)"
+  }
+}
