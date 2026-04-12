@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
+import { useSession } from 'next-auth/react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
   Select,
@@ -20,6 +22,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import {
   Accordion,
@@ -27,7 +30,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
-import { Library, Search, Plus, BookOpen, Check, List, X } from 'lucide-react'
+import { Library, Search, Plus, BookOpen, Check, List, X, BookPlus } from 'lucide-react'
 
 interface Book {
   id: string
@@ -65,11 +68,21 @@ const DISCIPLINE_COLORS: Record<string, string> = {
   ADAB: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
 }
 
+interface ChapterForm {
+  title: string
+  titleAr: string
+  pageStart: string
+  pageEnd: string
+}
+
+const EMPTY_CHAPTER: ChapterForm = { title: '', titleAr: '', pageStart: '', pageEnd: '' }
+
 export default function BooksPage() {
   const t = useTranslations('books')
   const tCommon = useTranslations('common')
   const locale = useLocale()
   const router = useRouter()
+  const { data: sessionData } = useSession()
 
   const [books, setBooks] = useState<Book[]>([])
   const [myBooks, setMyBooks] = useState<Book[]>([])
@@ -79,6 +92,23 @@ export default function BooksPage() {
   const [view, setView] = useState<'collection' | 'flat' | 'list'>('list')
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [addingBookId, setAddingBookId] = useState<string | null>(null)
+
+  // Admin: create book dialog
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [createForm, setCreateForm] = useState({
+    title: '',
+    titleAr: '',
+    author: '',
+    authorAr: '',
+    discipline: 'GENERAL',
+    type: 'MATN',
+    totalPages: '',
+  })
+  const [createChapters, setCreateChapters] = useState<ChapterForm[]>([])
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+
+  const isAdmin = (sessionData?.user as any)?.role === 'ADMIN'
 
   useEffect(() => {
     fetchBooks()
@@ -131,6 +161,61 @@ export default function BooksPage() {
       console.error('Error adding book:', e)
     } finally {
       setAddingBookId(null)
+    }
+  }
+
+  async function createBook() {
+    setCreateError(null)
+    if (!createForm.title.trim()) {
+      setCreateError('Le titre est requis.')
+      return
+    }
+    const totalPages = parseInt(createForm.totalPages)
+    if (!totalPages || totalPages < 1) {
+      setCreateError('Le nombre de pages doit être un entier positif.')
+      return
+    }
+    setCreating(true)
+    try {
+      const chapters = createChapters
+        .filter((ch) => ch.title.trim())
+        .map((ch) => ({
+          title: ch.title.trim(),
+          titleAr: ch.titleAr.trim() || undefined,
+          pageStart: ch.pageStart ? parseInt(ch.pageStart) : undefined,
+          pageEnd: ch.pageEnd ? parseInt(ch.pageEnd) : undefined,
+        }))
+
+      const res = await fetch('/api/admin/books', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: createForm.title.trim(),
+          titleAr: createForm.titleAr.trim() || undefined,
+          author: createForm.author.trim() || undefined,
+          authorAr: createForm.authorAr.trim() || undefined,
+          discipline: createForm.discipline,
+          type: createForm.type,
+          totalPages,
+          chapters: chapters.length > 0 ? chapters : undefined,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        setCreateError(err.error || 'Erreur lors de la création.')
+        return
+      }
+
+      // Reset and refresh
+      setShowCreateDialog(false)
+      setCreateForm({ title: '', titleAr: '', author: '', authorAr: '', discipline: 'GENERAL', type: 'MATN', totalPages: '' })
+      setCreateChapters([])
+      await fetchBooks()
+    } catch {
+      setCreateError('Erreur réseau.')
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -284,10 +369,25 @@ export default function BooksPage() {
           <Library className="h-6 w-6 text-emerald-600" />
           <h1 className="text-2xl font-bold">{t('title')}</h1>
         </div>
-        <Button onClick={() => setShowAddDialog(true)} size="sm">
-          <Plus className="h-4 w-4 mr-1" />
-          {t('addToMyList')}
-        </Button>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Button
+              onClick={() => {
+                setCreateError(null)
+                setShowCreateDialog(true)
+              }}
+              size="sm"
+              variant="outline"
+            >
+              <BookPlus className="h-4 w-4 mr-1" />
+              Ajouter un livre
+            </Button>
+          )}
+          <Button onClick={() => setShowAddDialog(true)} size="sm">
+            <Plus className="h-4 w-4 mr-1" />
+            {t('addToMyList')}
+          </Button>
+        </div>
       </div>
 
       {/* My Books Section */}
@@ -594,6 +694,233 @@ export default function BooksPage() {
               </p>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin: Create Book Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookPlus className="h-5 w-5" />
+              Ajouter un livre
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Title row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="create-title">Titre (français) <span className="text-destructive">*</span></Label>
+                <Input
+                  id="create-title"
+                  value={createForm.title}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
+                  placeholder="Titre du livre"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="create-titleAr">Titre (arabe)</Label>
+                <Input
+                  id="create-titleAr"
+                  dir="rtl"
+                  value={createForm.titleAr}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, titleAr: e.target.value }))}
+                  placeholder="العنوان بالعربية"
+                />
+              </div>
+            </div>
+
+            {/* Author row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="create-author">Auteur</Label>
+                <Input
+                  id="create-author"
+                  value={createForm.author}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, author: e.target.value }))}
+                  placeholder="Nom de l'auteur"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="create-authorAr">Auteur (arabe)</Label>
+                <Input
+                  id="create-authorAr"
+                  dir="rtl"
+                  value={createForm.authorAr}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, authorAr: e.target.value }))}
+                  placeholder="اسم المؤلف"
+                />
+              </div>
+            </div>
+
+            {/* Discipline + Type + Pages */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label>Discipline</Label>
+                <Select
+                  value={createForm.discipline}
+                  onValueChange={(v) => setCreateForm((f) => ({ ...f, discipline: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AQEEDAH">Croyance (Aqeedah)</SelectItem>
+                    <SelectItem value="HADITH">Hadiths</SelectItem>
+                    <SelectItem value="FIQH">Fiqh</SelectItem>
+                    <SelectItem value="TAJWEED">Tajweed</SelectItem>
+                    <SelectItem value="GRAMMAR">Grammaire</SelectItem>
+                    <SelectItem value="USUL_FIQH">Usul al-Fiqh</SelectItem>
+                    <SelectItem value="POETRY">Poésie</SelectItem>
+                    <SelectItem value="ADAB">Adab</SelectItem>
+                    <SelectItem value="GENERAL">Général</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Type</Label>
+                <Select
+                  value={createForm.type}
+                  onValueChange={(v) => setCreateForm((f) => ({ ...f, type: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MATN">Matn</SelectItem>
+                    <SelectItem value="HADITH_COLLECTION">Collection de hadiths</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="create-pages">Nombre de pages <span className="text-destructive">*</span></Label>
+                <Input
+                  id="create-pages"
+                  type="number"
+                  min="1"
+                  value={createForm.totalPages}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, totalPages: e.target.value }))}
+                  placeholder="ex: 120"
+                />
+              </div>
+            </div>
+
+            {/* Chapters section */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Chapitres</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCreateChapters((cs) => [...cs, { ...EMPTY_CHAPTER }])}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Ajouter un chapitre
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Sans chapitres, un seul chapitre par défaut sera créé avec toutes les pages.
+              </p>
+
+              {createChapters.length > 0 && (
+                <div className="space-y-2 border rounded-lg p-3">
+                  {createChapters.map((ch, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_1fr_80px_80px_32px] gap-2 items-start">
+                      <div>
+                        {idx === 0 && <Label className="text-xs mb-1 block">Titre</Label>}
+                        <Input
+                          value={ch.title}
+                          onChange={(e) =>
+                            setCreateChapters((cs) =>
+                              cs.map((c, i) => (i === idx ? { ...c, title: e.target.value } : c))
+                            )
+                          }
+                          placeholder={`Chapitre ${idx + 1}`}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div>
+                        {idx === 0 && <Label className="text-xs mb-1 block">Titre arabe</Label>}
+                        <Input
+                          dir="rtl"
+                          value={ch.titleAr}
+                          onChange={(e) =>
+                            setCreateChapters((cs) =>
+                              cs.map((c, i) => (i === idx ? { ...c, titleAr: e.target.value } : c))
+                            )
+                          }
+                          placeholder="عنوان الفصل"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div>
+                        {idx === 0 && <Label className="text-xs mb-1 block">Page début</Label>}
+                        <Input
+                          type="number"
+                          min="1"
+                          value={ch.pageStart}
+                          onChange={(e) =>
+                            setCreateChapters((cs) =>
+                              cs.map((c, i) => (i === idx ? { ...c, pageStart: e.target.value } : c))
+                            )
+                          }
+                          placeholder="1"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div>
+                        {idx === 0 && <Label className="text-xs mb-1 block">Page fin</Label>}
+                        <Input
+                          type="number"
+                          min="1"
+                          value={ch.pageEnd}
+                          onChange={(e) =>
+                            setCreateChapters((cs) =>
+                              cs.map((c, i) => (i === idx ? { ...c, pageEnd: e.target.value } : c))
+                            )
+                          }
+                          placeholder="50"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className={idx === 0 ? 'mt-5' : ''}>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                          onClick={() =>
+                            setCreateChapters((cs) => cs.filter((_, i) => i !== idx))
+                          }
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {createError && (
+              <p className="text-sm text-destructive">{createError}</p>
+            )}
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateDialog(false)}
+              disabled={creating}
+            >
+              Annuler
+            </Button>
+            <Button onClick={createBook} disabled={creating}>
+              {creating ? 'Création...' : 'Créer le livre'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
