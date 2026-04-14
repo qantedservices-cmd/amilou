@@ -51,19 +51,45 @@ export async function POST(
     const { id } = await params
     const body = await request.json()
 
+    const pageStart = body.pageStart ? parseInt(body.pageStart) : null
+    const pageEnd = body.pageEnd ? parseInt(body.pageEnd) : null
+    const pageCount = (pageStart && pageEnd && pageEnd >= pageStart) ? (pageEnd - pageStart + 1) : 0
+
     const chapter = await prisma.bookChapter.create({
       data: {
         bookId: id,
         parentId: body.parentId || null,
         title: body.title,
-        titleAr: body.titleAr,
-        titleEn: body.titleEn,
+        titleAr: body.titleAr || null,
+        titleEn: body.titleEn || null,
         chapterNumber: body.chapterNumber || 0,
-        depth: body.depth || 0,
-        totalItems: 0,
+        depth: body.depth !== undefined ? body.depth : (body.parentId ? 1 : 0),
+        totalItems: pageCount,
         sortOrder: body.sortOrder || 0,
       },
     })
+
+    // Auto-create page items if page range specified
+    if (pageStart && pageEnd && pageEnd >= pageStart) {
+      const items = []
+      for (let p = pageStart; p <= pageEnd; p++) {
+        items.push({
+          chapterId: chapter.id,
+          itemNumber: p,
+          title: `Page ${p}`,
+        })
+      }
+      await prisma.bookItem.createMany({ data: items })
+
+      // Update book totalItems
+      const totalItems = await prisma.bookItem.count({
+        where: { chapter: { bookId: id } }
+      })
+      await prisma.book.update({
+        where: { id },
+        data: { totalItems }
+      })
+    }
 
     return NextResponse.json(chapter, { status: 201 })
   } catch (error) {
