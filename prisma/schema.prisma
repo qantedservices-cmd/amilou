@@ -332,6 +332,7 @@ model GroupSession {
   attendance     SessionAttendance[]
   recitations    SurahRecitation[]
   researchTopics ResearchTopic[]
+  bookProgress   SessionBookProgress[]
 }
 
 model SessionAttendance {
@@ -641,6 +642,28 @@ model ResearchTopic {
   @@index([sessionId])
 }
 
+model SessionBookProgress {
+  id         String       @id @default(cuid())
+  sessionId  String
+  bookId     String
+  chapterId  String?
+  pageStart  Int?
+  pageEnd    Int?
+  isRead     Boolean      @default(false)
+  isQaDone   Boolean      @default(false)
+  comment    String?
+  createdBy  String
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  session GroupSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  book    Book          @relation(fields: [bookId], references: [id])
+  chapter BookChapter?  @relation(fields: [chapterId], references: [id])
+
+  @@index([sessionId])
+  @@index([bookId])
+}
+
 // ============================================
 // Books (Mutun & Hadith Collections)
 // ============================================
@@ -664,9 +687,10 @@ model Book {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  chapters   BookChapter[]
-  groupBooks GroupBook[]
-  userBooks  UserBook[]
+  chapters         BookChapter[]
+  groupBooks       GroupBook[]
+  userBooks        UserBook[]
+  sessionProgress  SessionBookProgress[]
 
   @@index([collectionId])
   @@index([type])
@@ -687,10 +711,11 @@ model BookChapter {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  book     Book          @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  parent   BookChapter?  @relation("ChapterHierarchy", fields: [parentId], references: [id])
-  children BookChapter[] @relation("ChapterHierarchy")
-  items    BookItem[]
+  book            Book          @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  parent          BookChapter?  @relation("ChapterHierarchy", fields: [parentId], references: [id])
+  children        BookChapter[] @relation("ChapterHierarchy")
+  items           BookItem[]
+  sessionProgress SessionBookProgress[]
 
   @@index([bookId])
   @@index([parentId])
