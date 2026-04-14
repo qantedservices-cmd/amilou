@@ -29,7 +29,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { ArrowLeft, BookOpen, Check, ChevronDown, List, FolderTree, Hash } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { ArrowLeft, BookOpen, Check, ChevronDown, List, FolderTree, Hash, Plus } from 'lucide-react'
 import { SegmentedProgressBar, SegmentData } from '@/components/segmented-progress-bar'
 
 interface BookItem {
@@ -104,6 +111,16 @@ export default function BookDetailPage() {
   const [openChapters, setOpenChapters] = useState<string[]>([])
   const [viewMode, setViewMode] = useState<'accordion' | 'list'>('accordion')
 
+  // Add chapter dialog
+  const [addChapterOpen, setAddChapterOpen] = useState(false)
+  const [newChapterTitle, setNewChapterTitle] = useState('')
+  const [newChapterTitleAr, setNewChapterTitleAr] = useState('')
+  const [newChapterParentId, setNewChapterParentId] = useState('')
+  const [newChapterPageStart, setNewChapterPageStart] = useState('')
+  const [newChapterPageEnd, setNewChapterPageEnd] = useState('')
+  const [addingChapter, setAddingChapter] = useState(false)
+  const [canManageBook, setCanManageBook] = useState(false)
+
   // Range marking dialog
   const [rangeDialogOpen, setRangeDialogOpen] = useState(false)
   const [rangeChapterId, setRangeChapterId] = useState('')
@@ -141,6 +158,12 @@ export default function BookDetailPage() {
     fetchBook()
     fetchProgress()
   }, [fetchBook, fetchProgress])
+
+  useEffect(() => {
+    fetch('/api/me').then(r => r.json()).then(d => {
+      if (d.role === 'ADMIN' || d.role === 'REFERENT') setCanManageBook(true)
+    }).catch(() => {})
+  }, [])
 
   async function loadChapterItems(chapterId: string) {
     if (chapterItems[chapterId]) return
@@ -343,6 +366,35 @@ export default function BookDetailPage() {
     } finally {
       setRangeMarking(false)
     }
+  }
+
+  async function handleAddChapter() {
+    if (!newChapterTitle) return
+    setAddingChapter(true)
+    try {
+      const res = await fetch(`/api/books/${bookId}/chapters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newChapterTitle,
+          titleAr: newChapterTitleAr || null,
+          parentId: newChapterParentId || null,
+          pageStart: newChapterPageStart || null,
+          pageEnd: newChapterPageEnd || null,
+        }),
+      })
+      if (res.ok) {
+        setAddChapterOpen(false)
+        setNewChapterTitle('')
+        setNewChapterTitleAr('')
+        setNewChapterParentId('')
+        setNewChapterPageStart('')
+        setNewChapterPageEnd('')
+        await fetchBook()
+        await fetchProgress()
+      }
+    } catch (e) { console.error(e) }
+    setAddingChapter(false)
   }
 
   // Helper: flatten all chapters (including children) for counting
@@ -681,7 +733,7 @@ export default function BookDetailPage() {
       </Card>
 
       {/* View toggle */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Button
           size="sm"
           variant={viewMode === 'accordion' ? 'default' : 'outline'}
@@ -703,6 +755,11 @@ export default function BookDetailPage() {
           <List className="h-3.5 w-3.5 mr-1" />
           Liste
         </Button>
+        {canManageBook && (
+          <Button variant="outline" size="sm" onClick={() => setAddChapterOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />Ajouter chapitre
+          </Button>
+        )}
       </div>
 
       {/* Accordion view */}
@@ -766,6 +823,54 @@ export default function BookDetailPage() {
           </CardContent>
         </Card>
       )}
+      {/* Add chapter dialog */}
+      <Dialog open={addChapterOpen} onOpenChange={setAddChapterOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Ajouter un chapitre</DialogTitle>
+            <DialogDescription>Ajouter un chapitre ou sous-chapitre au livre</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Titre</Label>
+              <Input value={newChapterTitle} onChange={e => setNewChapterTitle(e.target.value)} placeholder="Titre du chapitre" />
+            </div>
+            <div className="space-y-2">
+              <Label>Titre arabe (optionnel)</Label>
+              <Input value={newChapterTitleAr} onChange={e => setNewChapterTitleAr(e.target.value)} placeholder="العنوان" className="font-arabic text-right" />
+            </div>
+            <div className="space-y-2">
+              <Label>Chapitre parent (optionnel)</Label>
+              <Select value={newChapterParentId || 'none'} onValueChange={v => setNewChapterParentId(v === 'none' ? '' : v)}>
+                <SelectTrigger><SelectValue placeholder="Racine" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Racine (chapitre principal)</SelectItem>
+                  {book?.chapters.map(ch => (
+                    <SelectItem key={ch.id} value={ch.id}>{ch.chapterNumber ? `Ch.${ch.chapterNumber} ` : ''}{ch.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Page début (optionnel)</Label>
+                <Input type="number" min="1" value={newChapterPageStart} onChange={e => setNewChapterPageStart(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Page fin (optionnel)</Label>
+                <Input type="number" min="1" value={newChapterPageEnd} onChange={e => setNewChapterPageEnd(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddChapterOpen(false)}>Annuler</Button>
+            <Button onClick={handleAddChapter} disabled={addingChapter || !newChapterTitle}>
+              {addingChapter ? 'Création...' : 'Créer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Range marking dialog */}
       <Dialog open={rangeDialogOpen} onOpenChange={setRangeDialogOpen}>
         <DialogContent className="sm:max-w-[350px]">
