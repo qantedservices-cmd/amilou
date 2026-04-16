@@ -93,7 +93,7 @@ export default function BooksPage() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [addingBookId, setAddingBookId] = useState<string | null>(null)
 
-  // Admin: create book dialog
+  // Create book dialog
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [createForm, setCreateForm] = useState({
     title: '',
@@ -107,13 +107,29 @@ export default function BooksPage() {
   const [createChapters, setCreateChapters] = useState<ChapterForm[]>([])
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [createGroupId, setCreateGroupId] = useState('')
+  const [userGroups, setUserGroups] = useState<Array<{id: string, name: string}>>([])
 
   const isAdmin = (sessionData?.user as any)?.role === 'ADMIN'
+  const userRole = (sessionData?.user as any)?.role
 
   useEffect(() => {
     fetchBooks()
     fetchMyBooks()
+    fetchUserGroups()
   }, [])
+
+  async function fetchUserGroups() {
+    try {
+      const groupsRes = await fetch('/api/groups')
+      if (groupsRes.ok) {
+        const groupsData = await groupsRes.json()
+        setUserGroups(Array.isArray(groupsData) ? groupsData.map((g: any) => ({ id: g.id, name: g.name })) : [])
+      }
+    } catch (e) {
+      console.error('Error fetching groups:', e)
+    }
+  }
 
   async function fetchBooks() {
     try {
@@ -189,16 +205,7 @@ export default function BooksPage() {
       const res = await fetch('/api/admin/books', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: createForm.title.trim(),
-          titleAr: createForm.titleAr.trim() || undefined,
-          author: createForm.author.trim() || undefined,
-          authorAr: createForm.authorAr.trim() || undefined,
-          discipline: createForm.discipline,
-          type: createForm.type,
-          totalPages,
-          chapters: chapters.length > 0 ? chapters : undefined,
-        }),
+        body: JSON.stringify({ ...createForm, totalPages, chapters: chapters.length > 0 ? chapters : undefined, groupId: createGroupId || undefined }),
       })
 
       if (!res.ok) {
@@ -211,6 +218,7 @@ export default function BooksPage() {
       setShowCreateDialog(false)
       setCreateForm({ title: '', titleAr: '', author: '', authorAr: '', discipline: 'GENERAL', type: 'MATN', totalPages: '' })
       setCreateChapters([])
+      setCreateGroupId('')
       await fetchBooks()
     } catch {
       setCreateError('Erreur réseau.')
@@ -370,19 +378,18 @@ export default function BooksPage() {
           <h1 className="text-2xl font-bold">{t('title')}</h1>
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin && (
-            <Button
-              onClick={() => {
-                setCreateError(null)
-                setShowCreateDialog(true)
-              }}
-              size="sm"
-              variant="outline"
-            >
-              <BookPlus className="h-4 w-4 mr-1" />
-              Ajouter un livre
-            </Button>
-          )}
+          <Button
+            onClick={() => {
+              setCreateError(null)
+              setCreateGroupId('')
+              setShowCreateDialog(true)
+            }}
+            size="sm"
+            variant="outline"
+          >
+            <BookPlus className="h-4 w-4 mr-1" />
+            Ajouter un livre
+          </Button>
           <Button onClick={() => setShowAddDialog(true)} size="sm">
             <Plus className="h-4 w-4 mr-1" />
             {t('addToMyList')}
@@ -697,8 +704,8 @@ export default function BooksPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Admin: Create Book Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+      {/* Create Book Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={(open) => { setShowCreateDialog(open); if (!open) { setCreateGroupId('') } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -903,6 +910,22 @@ export default function BooksPage() {
                 </div>
               )}
             </div>
+
+            {/* Group assignment (for ADMIN and REFERENT) */}
+            {(userRole === 'ADMIN' || userRole === 'REFERENT') && userGroups.length > 0 && (
+              <div className="space-y-2">
+                <Label>Assigner au groupe (optionnel)</Label>
+                <Select value={createGroupId || 'none'} onValueChange={v => setCreateGroupId(v === 'none' ? '' : v)}>
+                  <SelectTrigger><SelectValue placeholder="Personnel" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Personnel</SelectItem>
+                    {userGroups.map(g => (
+                      <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {createError && (
               <p className="text-sm text-destructive">{createError}</p>

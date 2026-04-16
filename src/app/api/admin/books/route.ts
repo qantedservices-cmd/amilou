@@ -21,11 +21,9 @@ export async function POST(request: Request) {
       select: { role: true },
     })
 
-    if (user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
-    }
+    // Any authenticated user can create books
 
-    const { title, titleAr, author, authorAr, discipline, type, totalPages, chapters } =
+    const { title, titleAr, author, authorAr, discipline, type, totalPages, chapters, groupId } =
       await request.json()
 
     if (!title || !totalPages || totalPages < 1) {
@@ -46,7 +44,7 @@ export async function POST(request: Request) {
           type: type || 'MATN',
           source: 'MANUAL',
           totalItems: totalPages,
-          isSystem: true,
+          isSystem: user?.role === 'ADMIN',
           sortOrder: 0,
         },
       })
@@ -90,6 +88,28 @@ export async function POST(request: Request) {
 
       return newBook
     })
+
+    // If groupId provided, assign book to group
+    if (groupId) {
+      await prisma.groupBook.create({
+        data: {
+          groupId,
+          bookId: book.id,
+          assignedBy: session.user.id,
+        },
+      })
+    }
+
+    // If no groupId and user is not ADMIN, add to personal books
+    if (!groupId && user?.role !== 'ADMIN') {
+      await prisma.userBook.create({
+        data: {
+          userId: session.user.id,
+          bookId: book.id,
+          isPersonal: true,
+        },
+      })
+    }
 
     return NextResponse.json(book, { status: 201 })
   } catch (error) {

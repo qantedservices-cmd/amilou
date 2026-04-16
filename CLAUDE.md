@@ -258,6 +258,7 @@ Base PostgreSQL hébergée sur Supabase. Schéma Prisma dans `prisma/schema.pris
 - `GroupBook` : Livres assignés à un groupe par le référent
 - `UserBook` : Livres personnels d'un utilisateur
 - `UserItemProgress` : Progression par item (checkbox completed)
+- `SessionBookProgress` : Avancement livre en séance (pages couvertes, lu, Q/R, commentaire)
 - `LoginLog` : Historique des connexions (succès/échecs, IP, user-agent)
 - `InvitationLog` : Historique des invitations par email (statut, expiration)
 
@@ -272,6 +273,8 @@ Base PostgreSQL hébergée sur Supabase. Schéma Prisma dans `prisma/schema.pris
 ### Collection pré-chargée : Mutun Talib Al-'Ilm
 - 7 niveaux, ~18 textes (Al-Usul al-Thalatha, Nawaqid, Kitab at-Tawhid, Nawawi40, etc.)
 - Seed : `npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/seed-books.ts`
+- Riyad As-Salihin : 20 kitabs, 364 babs (sous-chapitres), 1896 hadiths (arabe + anglais)
+- Saisie par plage de hadiths (bouton "Plage" dans les actions batch)
 
 ### APIs
 - `/api/books` : catalogue (filtrable par discipline/type/search)
@@ -286,6 +289,64 @@ Base PostgreSQL hébergée sur Supabase. Schéma Prisma dans `prisma/schema.pris
 - `/books` : catalogue avec vue collection (par niveau) et vue plate
 - `/books/[id]` : détail livre avec chapitres dépliables, checkboxes, progression %
 - `/groups/[id]/books` : livres du groupe, assigner, matrice membres
+
+## Suivi de Livres en Séance
+
+Suivi de l'avancement d'un livre lors des séances de groupe (lecture en classe, questions/réponses).
+
+### Structure
+- **SessionBookProgress** : lie une séance à un livre avec chapitre/cours couvert, pages, statuts
+- Un groupe peut avoir plusieurs livres assignés
+- Chaque séance peut avoir plusieurs entrées de progression (une par livre/chapitre couvert)
+
+### Saisie
+- Page Séance (`/groups/[id]/sessions/[num]`) → section "Avancement Livres"
+- Le référent sélectionne : livre, chapitre/cours, pages début/fin
+- Coche : Lu en classe / Questions-Réponses faites
+- Ajoute un commentaire optionnel
+
+### Ajout de chapitres post-création
+- Page livre (`/books/[id]`) → bouton "Ajouter chapitre" (référent/admin)
+- Permet d'enrichir la structure du livre au fur et à mesure
+- Auto-création des items (pages) si plage de pages spécifiée
+
+### Création de livres
+- ADMIN : peut créer des livres système
+- REFERENT : peut créer des livres et les assigner à son groupe
+- USER : peut créer des livres personnels
+- Formulaire : titre (fr/ar), auteur, discipline, type, nombre de pages, chapitres optionnels
+
+### Rapport PDF (Annexe 3)
+- L'annexe 3 du rapport PDF se génère dynamiquement depuis les données `SessionBookProgress`
+- Un tableau par livre : Ch., Titre Chapitre, N°, Titre Cours, Pages, Lecture, Q/R
+- Colonnes Lecture/Q/R montrent le numéro de séance (S1, S2...)
+- Commentaires affichés en dessous du tableau
+- Remplace l'ancien contenu hardcodé "Arc en Ciel"
+
+### APIs
+- `POST /api/admin/books` : créer un livre avec chapitres et pages (tout utilisateur authentifié)
+- `POST /api/books/[id]/chapters` : ajouter un chapitre avec auto-création pages
+- `GET/POST/PUT/DELETE /api/sessions/[id]/book-progress` : CRUD avancement livre en séance
+
+## Suivi Tafsir
+
+Page `/tafsir` — Suivi détaillé de la lecture de tafsir par sourate et par livre.
+
+### Structure
+- Entrées `Progress` avec `programId=TAFSIR` + `tafsirBookIds` (livres utilisés)
+- 11 livres de tafsir disponibles (Ibn Kathir, Sa'di, Tabari, Jalalayn, Qurtubi, Baghawi, Shanqiti, Ibn Al-Jawzi, Mouyassar, Aysar At-Tafasir, Tahrir wa Tanwir)
+
+### Fonctionnalités
+- Filtre par livre de tafsir (recalcul dynamique du % par livre)
+- Sourates sans données collapsées (même pattern que la grille mastery)
+- Ajout/édition d'entrées avec livres + commentaire
+- Badges arabes des livres sur chaque entrée
+- Menu latéral : sous-menu "Suivi Tafsir" sous "Avancement"
+
+### Saisie depuis la page Avancement
+- Quand programme = Tafsir → sélecteur de livres de tafsir (checkboxes compactes)
+- Pré-rempli avec les livres par défaut de l'utilisateur
+- Commentaire optionnel
 
 ## Grille de suivi (Mastery)
 

@@ -930,6 +930,32 @@ export default function PresentationPage() {
                 Les livres de groupe apparaissent automatiquement dans "Mes Livres" pour chaque membre.
               </p>
             </div>
+
+            <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30">
+              <h4 className="font-semibold text-sm mb-1">Suivi de la lecture en séance</h4>
+              <p className="text-xs text-muted-foreground">
+                Lors d'une séance de groupe, le référent peut enregistrer l'avancement d'un livre :
+                chapitre étudié, pages couvertes, si le passage a été lu en classe et si les questions/réponses ont été faites.
+                Ces données alimentent l'annexe 3 du rapport PDF de la séance.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30">
+              <h4 className="font-semibold text-sm mb-1">Saisie par plage</h4>
+              <p className="text-xs text-muted-foreground">
+                Pour les collections de hadiths (ex : Riyad As-Salihin), utilisez le bouton "Plage" pour cocher rapidement
+                une série d'items (hadiths) en une seule action, plutôt que item par item.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30">
+              <h4 className="font-semibold text-sm mb-1">Suivi Tafsir</h4>
+              <p className="text-xs text-muted-foreground">
+                La page Tafsir (accessible depuis le menu Avancement) permet de suivre votre avancement dans l'étude du tafsir
+                sourate par sourate. Vous pouvez filtrer par livre de tafsir (Ibn Kathir, Sa'di, Tabari, etc.) pour voir
+                votre progression spécifique à chaque ouvrage.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -987,6 +1013,7 @@ export default function PresentationPage() {
                 <li>Historique complet des connexions (succès et échecs) et des invitations</li>
                 <li>Indicateurs d'activité : pastilles vert/orange/rouge selon la dernière connexion</li>
                 <li>Fonction "Voir en tant que" (impersonation) pour dépanner un utilisateur</li>
+                <li>Création et gestion de livres (avec chapitres et suivi par pages)</li>
                 <li>Voit tous les groupes et peut tout modifier</li>
               </ul>
             </div>
