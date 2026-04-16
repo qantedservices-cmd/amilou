@@ -438,6 +438,7 @@ export async function GET(
       nextSessionNumber,
       totalSessions,
       sessions: groupSessions.map((s, idx) => ({
+        id: s.id,
         number: idx + 1,
         date: s.date.toISOString(),
         weekNumber: s.weekNumber

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import React, { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -77,9 +77,38 @@ interface SurahOption {
 }
 
 interface SessionInfo {
+  id: string
   number: number
   date: string
   weekNumber: number
+}
+
+interface BookProgressEntry {
+  id: string
+  bookId: string
+  chapterId: string | null
+  pageStart: number | null
+  pageEnd: number | null
+  isRead: boolean
+  isQaDone: boolean
+  comment: string | null
+  book: { id: string; title: string; titleAr: string | null }
+  chapter: {
+    id: string; title: string; titleAr: string | null; chapterNumber: number; depth: number
+    parent: { id: string; title: string; titleAr: string | null; chapterNumber: number } | null
+  } | null
+}
+
+interface GroupBookEntry {
+  id: string
+  bookId: string
+  book: {
+    id: string; title: string; titleAr: string | null
+    chapters: Array<{
+      id: string; title: string; titleAr: string | null; chapterNumber: number; depth: number
+      children?: Array<{ id: string; title: string; titleAr: string | null; chapterNumber: number; depth: number }>
+    }>
+  }
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -138,6 +167,20 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
   const [newCommentSurah, setNewCommentSurah] = useState('')
   const [newCommentText, setNewCommentText] = useState('')
 
+  // Book progress
+  const [currentSessionId, setCurrentSessionId] = useState('')
+  const [bookProgressEntries, setBookProgressEntries] = useState<BookProgressEntry[]>([])
+  const [groupBooks, setGroupBooks] = useState<GroupBookEntry[]>([])
+  const [bpBookId, setBpBookId] = useState('')
+  const [bpChapterId, setBpChapterId] = useState('')
+  const [bpPageStart, setBpPageStart] = useState('')
+  const [bpPageEnd, setBpPageEnd] = useState('')
+  const [bpIsRead, setBpIsRead] = useState(false)
+  const [bpIsQaDone, setBpIsQaDone] = useState(false)
+  const [bpComment, setBpComment] = useState('')
+  const [bpSaving, setBpSaving] = useState(false)
+  const [bpEditingId, setBpEditingId] = useState<string | null>(null)
+
   useEffect(() => {
     fetchData()
   }, [groupId, sessionNum])
@@ -167,10 +210,19 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       setTotalSessions(masteryData.totalSessions)
       setSessions(masteryData.sessions || [])
 
+      // Fetch group books in parallel
+      fetchGroupBooks()
+
       if (reportRes.ok) {
         const reportData = await reportRes.json()
         setSessionDate(reportData.sessionDate || '')
         setSessionWeekNumber(reportData.weekNumber)
+
+        // Fetch book progress if we have a session ID
+        if (reportData.sessionId) {
+          setCurrentSessionId(reportData.sessionId)
+          fetchBookProgress(reportData.sessionId)
+        }
         setReportNextSurah(reportData.nextSurahNumber?.toString() || '')
         setReportHomework(reportData.homework || '')
         setReportSurahs(reportData.surahs || [])
@@ -212,6 +264,14 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
         } else {
           setReportTopics(defaultTopics)
         }
+      } else {
+        // Fallback: resolve session ID from sessions array
+        const sessionsArr: SessionInfo[] = masteryData.sessions || []
+        const matchSession = sessionsArr.find(s => s.number === sessionNum)
+        if (matchSession?.id) {
+          setCurrentSessionId(matchSession.id)
+          fetchBookProgress(matchSession.id)
+        }
       }
     } catch {
       setError('Erreur de connexion')
@@ -235,6 +295,79 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
     if (!newTopicLabel.trim()) return
     setReportTopics(prev => [...prev, { label: newTopicLabel.trim(), checked: true }])
     setNewTopicLabel('')
+  }
+
+  async function fetchBookProgress(sessId: string) {
+    try {
+      const res = await fetch(`/api/sessions/${sessId}/book-progress`)
+      if (res.ok) setBookProgressEntries(await res.json())
+    } catch (e) { console.error(e) }
+  }
+
+  async function fetchGroupBooks() {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/books`)
+      if (!res.ok) return
+      const data = await res.json()
+      const enriched = await Promise.all(data.map(async (gb: any) => {
+        const chapRes = await fetch(`/api/books/${gb.book.id}/chapters`)
+        const chapters = chapRes.ok ? await chapRes.json() : []
+        return { ...gb, book: { ...gb.book, chapters } }
+      }))
+      setGroupBooks(enriched)
+    } catch (e) { console.error(e) }
+  }
+
+  async function handleAddBookProgress() {
+    if (!bpBookId || !currentSessionId || bpSaving) return
+    setBpSaving(true)
+    try {
+      const method = bpEditingId ? 'PUT' : 'POST'
+      const body = bpEditingId
+        ? { entryId: bpEditingId, chapterId: bpChapterId || null, pageStart: bpPageStart ? parseInt(bpPageStart) : null, pageEnd: bpPageEnd ? parseInt(bpPageEnd) : null, isRead: bpIsRead, isQaDone: bpIsQaDone, comment: bpComment || null }
+        : { bookId: bpBookId, chapterId: bpChapterId || null, pageStart: bpPageStart ? parseInt(bpPageStart) : null, pageEnd: bpPageEnd ? parseInt(bpPageEnd) : null, isRead: bpIsRead, isQaDone: bpIsQaDone, comment: bpComment || null }
+
+      const res = await fetch(`/api/sessions/${currentSessionId}/book-progress`, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        resetBpForm()
+        fetchBookProgress(currentSessionId)
+      }
+    } catch (e) { console.error(e) }
+    setBpSaving(false)
+  }
+
+  async function handleDeleteBookProgress(entryId: string) {
+    if (!confirm('Supprimer cette entrée ?')) return
+    try {
+      await fetch(`/api/sessions/${currentSessionId}/book-progress?entryId=${entryId}`, { method: 'DELETE' })
+      fetchBookProgress(currentSessionId)
+    } catch (e) { console.error(e) }
+  }
+
+  function startEditBp(entry: BookProgressEntry) {
+    setBpEditingId(entry.id)
+    setBpBookId(entry.bookId)
+    setBpChapterId(entry.chapterId || '')
+    setBpPageStart(entry.pageStart?.toString() || '')
+    setBpPageEnd(entry.pageEnd?.toString() || '')
+    setBpIsRead(entry.isRead)
+    setBpIsQaDone(entry.isQaDone)
+    setBpComment(entry.comment || '')
+  }
+
+  function resetBpForm() {
+    setBpEditingId(null)
+    setBpBookId('')
+    setBpChapterId('')
+    setBpPageStart('')
+    setBpPageEnd('')
+    setBpIsRead(false)
+    setBpIsQaDone(false)
+    setBpComment('')
   }
 
   function removeCustomTopic(index: number) {
@@ -834,6 +967,119 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
               )}
             </CardContent>
           </Card>
+
+          {/* Avancement Livres */}
+          {groupBooks.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                  Avancement Livres
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Existing entries */}
+                {bookProgressEntries.map(entry => (
+                  <div key={entry.id} className="flex items-start justify-between p-3 rounded-lg border bg-muted/30">
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{entry.book.title}</div>
+                      {entry.chapter && (
+                        <div className="text-xs text-muted-foreground">
+                          {entry.chapter.parent && `Ch.${entry.chapter.parent.chapterNumber} ${entry.chapter.parent.title} — `}
+                          {entry.chapter.depth === 0 ? `Ch.${entry.chapter.chapterNumber}` : `Cours ${entry.chapter.chapterNumber}`} {entry.chapter.title}
+                        </div>
+                      )}
+                      {(entry.pageStart || entry.pageEnd) && (
+                        <div className="text-xs text-muted-foreground">Pages {entry.pageStart}–{entry.pageEnd}</div>
+                      )}
+                      <div className="flex gap-2 mt-1">
+                        {entry.isRead && <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Lu</Badge>}
+                        {entry.isQaDone && <Badge className="bg-blue-100 text-blue-700 text-[10px]">Q/R</Badge>}
+                      </div>
+                      {entry.comment && <p className="text-xs text-muted-foreground mt-1 italic">{entry.comment}</p>}
+                    </div>
+                    {isReferent && (
+                      <div className="flex gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => startEditBp(entry)}><Pencil className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDeleteBookProgress(entry.id)}><Trash2 className="h-3 w-3" /></Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Add/Edit form (referent only) */}
+                {isReferent && (
+                  <div className="space-y-3 p-3 rounded-lg border border-dashed">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Livre</Label>
+                        <Select value={bpBookId || 'none'} onValueChange={v => { setBpBookId(v === 'none' ? '' : v); setBpChapterId('') }}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Sélectionner un livre</SelectItem>
+                            {groupBooks.map(gb => (
+                              <SelectItem key={gb.book.id} value={gb.book.id}>{gb.book.title}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Chapitre / Cours</Label>
+                        <Select value={bpChapterId || 'none'} onValueChange={v => setBpChapterId(v === 'none' ? '' : v)}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Optionnel" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">—</SelectItem>
+                            {groupBooks.find(gb => gb.book.id === bpBookId)?.book.chapters?.map(ch => (
+                              <React.Fragment key={ch.id}>
+                                <SelectItem value={ch.id}>Ch.{ch.chapterNumber} {ch.title}</SelectItem>
+                                {ch.children?.map(sub => (
+                                  <SelectItem key={sub.id} value={sub.id}>&nbsp;&nbsp;↳ {sub.title}</SelectItem>
+                                ))}
+                              </React.Fragment>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Page début</Label>
+                        <Input type="number" min="1" className="h-8 text-xs" value={bpPageStart} onChange={e => setBpPageStart(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Page fin</Label>
+                        <Input type="number" min="1" className="h-8 text-xs" value={bpPageEnd} onChange={e => setBpPageEnd(e.target.value)} />
+                      </div>
+                      <label className="flex items-center gap-2 pt-5 cursor-pointer">
+                        <input type="checkbox" checked={bpIsRead} onChange={e => setBpIsRead(e.target.checked)} className="rounded" />
+                        <span className="text-xs">Lu</span>
+                      </label>
+                      <label className="flex items-center gap-2 pt-5 cursor-pointer">
+                        <input type="checkbox" checked={bpIsQaDone} onChange={e => setBpIsQaDone(e.target.checked)} className="rounded" />
+                        <span className="text-xs">Q/R</span>
+                      </label>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Commentaire</Label>
+                      <Input className="h-8 text-xs" value={bpComment} onChange={e => setBpComment(e.target.value)} placeholder="Optionnel" />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={handleAddBookProgress} disabled={bpSaving || !bpBookId}>
+                        {bpSaving ? 'Enregistrement...' : bpEditingId ? 'Modifier' : 'Ajouter'}
+                      </Button>
+                      {bpEditingId && (
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={resetBpForm}>Annuler</Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {bookProgressEntries.length === 0 && !isReferent && (
+                  <p className="text-sm text-muted-foreground text-center py-2">Aucun avancement livre pour cette séance</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Classement */}
           <Card>
