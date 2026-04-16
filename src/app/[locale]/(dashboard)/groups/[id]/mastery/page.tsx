@@ -203,7 +203,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     { key: 'grille', label: 'Grille de suivi', enabled: true },
     { key: 'annexeCommentaires', label: 'Annexe 1 - Commentaires sur récitations', enabled: true },
     { key: 'annexeRecherche', label: 'Annexe 2 - Sujets de recherche suite échanges', enabled: true },
-    { key: 'annexeArcEnCiel', label: 'Annexe 3 - Lecture Livre Arc en Ciel', enabled: true },
+    { key: 'annexeArcEnCiel', label: 'Annexe 3 - Avancement Livres', enabled: true },
   ])
   const pdfSections = Object.fromEntries(pdfSectionOrder.map(s => [s.key, s.enabled])) as Record<string, boolean>
 
@@ -954,6 +954,60 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         console.error('Error fetching research topics for PDF:', err)
       }
 
+      // Fetch book progress for Annexe 3
+      let allBookProgress: Array<{
+        bookId: string
+        bookTitle: string
+        chapterNumber: number | null
+        chapterTitle: string | null
+        courseNumber: number | null
+        courseTitle: string | null
+        pageStart: number | null
+        pageEnd: number | null
+        isRead: boolean
+        isQaDone: boolean
+        comment: string | null
+        sessionNumber: number
+      }> = []
+
+      try {
+        // Get all sessions for this group
+        const sessRes = await fetch(`/api/sessions?groupId=${groupId}`)
+        if (sessRes.ok) {
+          const allSessions = await sessRes.json()
+          // Filter sessions in the annexe range
+          const filteredSessions = allSessions.filter((s: any) => {
+            const sNum = s.weekNumber || 0
+            return sNum >= annexeArcEnCielFrom && sNum <= annexeArcEnCielTo
+          })
+
+          for (const sess of filteredSessions) {
+            const bpRes = await fetch(`/api/sessions/${sess.id}/book-progress`)
+            if (bpRes.ok) {
+              const entries = await bpRes.json()
+              for (const entry of entries) {
+                allBookProgress.push({
+                  bookId: entry.bookId,
+                  bookTitle: entry.book?.title || '',
+                  chapterNumber: entry.chapter?.parent?.chapterNumber ?? entry.chapter?.chapterNumber ?? null,
+                  chapterTitle: entry.chapter?.parent?.title ?? entry.chapter?.title ?? null,
+                  courseNumber: entry.chapter?.parent ? entry.chapter.chapterNumber : null,
+                  courseTitle: entry.chapter?.parent ? entry.chapter.title : null,
+                  pageStart: entry.pageStart,
+                  pageEnd: entry.pageEnd,
+                  isRead: entry.isRead,
+                  isQaDone: entry.isQaDone,
+                  comment: entry.comment,
+                  sessionNumber: sess.weekNumber || 0,
+                })
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching book progress for PDF:', err)
+      }
+
       // Map section keys to TOC labels and availability conditions
       // Tafsir entries for PDF
       const pdfSensEntries = reportTafsirEntries.filter(e => e.type === 'SENS')
@@ -970,7 +1024,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         grille: 'Grille de suivi',
         annexeCommentaires: 'Annexe 1 - Commentaires sur récitations',
         annexeRecherche: 'Annexe 2 - Sujets de recherche suite échanges',
-        annexeArcEnCiel: 'Annexe 3 - Lecture Livre Arc en Ciel',
+        annexeArcEnCiel: 'Annexe 3 - Avancement Livres',
       }
       const sectionHasContent: Record<string, boolean> = {
         pointsAbordes: true,
@@ -983,7 +1037,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         grille: true,
         annexeCommentaires: membersWithComments.length > 0,
         annexeRecherche: allResearchTopics.length > 0,
-        annexeArcEnCiel: true,
+        annexeArcEnCiel: allBookProgress.length > 0,
       }
 
       // Build ordered TOC entries following user-defined order
@@ -1451,69 +1505,98 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
             margin: { left: 10, right: 10 }
           })
         } else if (sec.key === 'annexeArcEnCiel') {
-          doc.addPage()
-          sectionPages['Annexe 3 - Lecture Livre Arc en Ciel'] = doc.getNumberOfPages()
-          drawSectionHeader('Annexe 3 - Lecture Livre Arc en Ciel')
+          // Group book progress by book
+          const byBook = new Map<string, { title: string; entries: typeof allBookProgress }>()
+          for (const entry of allBookProgress) {
+            if (!byBook.has(entry.bookId)) {
+              byBook.set(entry.bookId, { title: entry.bookTitle, entries: [] })
+            }
+            byBook.get(entry.bookId)!.entries.push(entry)
+          }
 
-          const arcEnCielDataAll = [
-            ['1', 'La croyance musulmane', '1', 'Noms et Attributs d\'Allah', 'S2', 'S2'],
-            ['1', 'La croyance musulmane', '2', 'Les Anges', 'S4', 'S4'],
-            ['1', 'La croyance musulmane', '3', 'Les Djinns', 'S6', 'S6'],
-            ['1', 'La croyance musulmane', '4', 'La naissance de Isa (Jésus) Qu\'Allah Le Très le Salue', 'S8', 'S8'],
-            ['1', 'La croyance musulmane', '5', 'Les Prophètes et Messagers', 'S10', 'S10'],
-          ]
+          let bookIndex = 0
+          for (const [, bookData] of byBook) {
+            doc.addPage()
+            const pageTitle = bookIndex === 0 ? `Annexe 3 - ${bookData.title}` : `Annexe 3 (suite) - ${bookData.title}`
+            sectionPages[bookIndex === 0 ? 'Annexe 3 - Avancement Livres' : pageTitle] = doc.getNumberOfPages()
+            drawSectionHeader(pageTitle)
 
-          const arcEnCielData = arcEnCielDataAll.filter(row => {
-            const sMatch = row[4].match(/^S(\d+)$/)
-            if (!sMatch) return true
-            const sNum = parseInt(sMatch[1])
-            return sNum >= annexeArcEnCielFrom && sNum <= annexeArcEnCielTo
-          })
+            // Build table rows
+            const rows = bookData.entries.map(entry => {
+              const chNum = entry.chapterNumber?.toString() || ''
+              const chTitle = entry.chapterTitle || ''
+              const courseNum = entry.courseNumber?.toString() || ''
+              const courseTitle = entry.courseTitle || ''
+              const pages = entry.pageStart && entry.pageEnd ? `p.${entry.pageStart}-${entry.pageEnd}` : ''
+              const lecture = entry.isRead ? `S${entry.sessionNumber}` : '\u2014'
+              const qr = entry.isQaDone ? `S${entry.sessionNumber}` : '\u2014'
+              return [chNum, chTitle, courseNum, courseTitle, pages, lecture, qr]
+            })
 
-          // Highlight rows where session number matches current session
-          const currentSessionLabel = `S${reportSessionNumber}`
+            const currentSessionLabel = `S${reportSessionNumber}`
 
-          autoTable(doc, {
-            head: [['Ch.', 'Titre Chapitre', 'N°', 'Titre Cours', 'Lecture', 'Q/R']],
-            body: arcEnCielData,
-            startY: 25,
-            styles: {
-              font: pdfFont,
-              fontSize: 11,
-              cellPadding: 2,
-              lineColor: [200, 200, 200],
-              lineWidth: 0.1
-            },
-            headStyles: {
-              fillColor: [71, 85, 105],
-              textColor: [255, 255, 255],
-              fontStyle: 'bold',
-              fontSize: 11
-            },
-            columnStyles: {
-              0: { cellWidth: 14, halign: 'center' },
-              1: { cellWidth: 55 },
-              2: { cellWidth: 14, halign: 'center' },
-              3: { cellWidth: 120 },
-              4: { cellWidth: 30, halign: 'center' },
-              5: { cellWidth: 30, halign: 'center' }
-            },
-            alternateRowStyles: {
-              fillColor: [248, 250, 252]
-            },
-            didParseCell: (hookData: any) => {
-              if (hookData.section === 'body') {
-                const cellText = hookData.cell.text.join('')
-                // Highlight cells matching current session
-                if (cellText === currentSessionLabel && (hookData.column.index === 4 || hookData.column.index === 5)) {
-                  hookData.cell.styles.fillColor = [34, 197, 94]
-                  hookData.cell.styles.textColor = [255, 255, 255]
-                  hookData.cell.styles.fontStyle = 'bold'
+            autoTable(doc, {
+              head: [['Ch.', 'Titre Chapitre', 'N\u00b0', 'Titre Cours', 'Pages', 'Lecture', 'Q/R']],
+              body: rows,
+              startY: 25,
+              styles: {
+                font: pdfFont,
+                fontSize: 11,
+                cellPadding: 2,
+                lineColor: [200, 200, 200],
+                lineWidth: 0.1
+              },
+              headStyles: {
+                fillColor: [71, 85, 105],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 11
+              },
+              columnStyles: {
+                0: { cellWidth: 14, halign: 'center' },
+                1: { cellWidth: 45 },
+                2: { cellWidth: 14, halign: 'center' },
+                3: { cellWidth: 90 },
+                4: { cellWidth: 30, halign: 'center' },
+                5: { cellWidth: 30, halign: 'center' },
+                6: { cellWidth: 30, halign: 'center' }
+              },
+              alternateRowStyles: {
+                fillColor: [248, 250, 252]
+              },
+              didParseCell: (hookData: any) => {
+                if (hookData.section === 'body') {
+                  const cellText = hookData.cell.text.join('')
+                  if (cellText === currentSessionLabel && (hookData.column.index === 5 || hookData.column.index === 6)) {
+                    hookData.cell.styles.fillColor = [34, 197, 94]
+                    hookData.cell.styles.textColor = [255, 255, 255]
+                    hookData.cell.styles.fontStyle = 'bold'
+                  }
                 }
+              },
+              margin: { left: 10, right: 10 }
+            })
+
+            // Add comments if any
+            const entriesWithComments = bookData.entries.filter(e => e.comment)
+            if (entriesWithComments.length > 0) {
+              const finalY = (doc as any).lastAutoTable?.finalY || 200
+              let commentY = finalY + 8
+              doc.setFontSize(10)
+              doc.setFont(pdfFont, 'bold')
+              doc.text('Commentaires :', 10, commentY)
+              doc.setFont(pdfFont, 'normal')
+              commentY += 6
+              for (const entry of entriesWithComments) {
+                const label = entry.courseTitle || entry.chapterTitle || `p.${entry.pageStart}-${entry.pageEnd}`
+                doc.text(`S${entry.sessionNumber} \u2014 ${label} : ${entry.comment}`, 12, commentY)
+                commentY += 5
+                if (commentY > 280) { doc.addPage(); commentY = 20 }
               }
-            },
-            margin: { left: 10, right: 10 }
-          })
+            }
+
+            bookIndex++
+          }
         }
       }
 
