@@ -273,6 +273,24 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
     select: { date: true }
   }) : []
 
+  // Fetch manual position adjustments to apply during simulation
+  const adjustments = await prisma.positionAdjustment.findMany({
+    where: {
+      userId,
+      date: {
+        gt: new Date(Math.min(
+          lectureCycleDate?.getTime() || 0,
+          revisionCycleDate?.getTime() || 0
+        ) || 0)
+      }
+    },
+    orderBy: { date: 'asc' },
+  })
+  const adjustmentsByDate = new Map<string, typeof adjustments[0]>()
+  for (const adj of adjustments) {
+    adjustmentsByDate.set(adj.date.toISOString().split('T')[0], adj)
+  }
+
   // Simulate day by day with combined phase
   let readingHizb = 0
   let revisionHizb = 0
@@ -284,12 +302,26 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
     return hizb >= zone.startHizb && hizb <= zone.endHizb
   }
 
-  // Merge into date-based timeline
+  // Merge into date-based timeline (include adjustment dates too)
   const readingDateSet = new Set(readingDays.map(d => d.date.toISOString().split('T')[0]))
   const revisionDateSet = new Set(revisionDays.map(d => d.date.toISOString().split('T')[0]))
-  const allDates = [...new Set([...readingDateSet, ...revisionDateSet])].sort()
+  const adjustmentDateSet = new Set(adjustmentsByDate.keys())
+  const allDates = [...new Set([...readingDateSet, ...revisionDateSet, ...adjustmentDateSet])].sort()
 
   for (const dateStr of allDates) {
+    // Apply manual adjustment FIRST (overrides calculated position)
+    const adj = adjustmentsByDate.get(dateStr)
+    if (adj) {
+      if (adj.readingHizb !== null) readingHizb = adj.readingHizb
+      if (adj.revisionHizb !== null) {
+        revisionHizb = adj.revisionHizb
+        // If revision was suspended and manually adjusted, unsuspend
+        if (revisionSuspended !== null) {
+          revisionSuspended = null
+        }
+      }
+    }
+
     const hasReading = readingDateSet.has(dateStr)
     const hasRevision = revisionDateSet.has(dateStr)
 
