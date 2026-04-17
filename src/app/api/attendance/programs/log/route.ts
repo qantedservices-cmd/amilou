@@ -3,6 +3,23 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
 
+async function hizbToSurahInfo(hizb: number) {
+  if (hizb <= 0) return null
+  const verse = await prisma.verse.findFirst({
+    where: { hizb: { gte: hizb - 0.25, lte: hizb + 0.25 } },
+    include: { surah: { select: { nameFr: true, nameAr: true } } },
+    orderBy: [{ surahNumber: 'asc' }, { verseNumber: 'asc' }],
+  })
+  if (!verse) return null
+  return {
+    surahNumber: verse.surahNumber,
+    surahNameFr: verse.surah.nameFr,
+    surahNameAr: verse.surah.nameAr,
+    verseNumber: verse.verseNumber,
+    juz: verse.juz,
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const session = await auth()
@@ -46,11 +63,18 @@ export async function GET(request: Request) {
 
       if ((code === 'REVISION' || code === 'READING') && (c.readingHizb != null || c.revisionHizb != null)) {
         const hizb = code === 'READING' ? c.readingHizb : c.revisionHizb
+        let surahInfo = null
+        if (hizb != null && hizb > 0 && !c.surahNumber) {
+          surahInfo = await hizbToSurahInfo(hizb)
+        }
         entry[code] = {
           completed: c.completed,
           hizb: hizb != null ? Math.round(hizb * 10) / 10 : null,
-          surah: c.surahNumber,
-          verse: c.verseNumber,
+          surah: c.surahNumber || surahInfo?.surahNumber || null,
+          surahNameFr: surahInfo?.surahNameFr || null,
+          surahNameAr: surahInfo?.surahNameAr || null,
+          verse: c.verseNumber || surahInfo?.verseNumber || null,
+          juz: surahInfo?.juz || null,
           page: hizb != null ? hizbToPage(hizb) : null,
         }
       } else {

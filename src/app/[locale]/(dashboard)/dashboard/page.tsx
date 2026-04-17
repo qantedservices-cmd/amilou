@@ -3819,8 +3819,8 @@ export default function DashboardPage() {
                       <th className="text-center py-2 px-1 font-medium">Rév</th>
                       <th className="text-center py-2 px-1 font-medium">Lect</th>
                       <th className="text-center py-2 px-1 font-medium">Tafsir</th>
-                      <th className="text-left py-2 px-2 font-medium">Position Rév</th>
-                      <th className="text-left py-2 px-2 font-medium">Position Lect</th>
+                      <th className="text-left py-2 px-2 font-medium">Rév. (sourate)</th>
+                      <th className="text-left py-2 px-2 font-medium">Lect. (sourate)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3836,11 +3836,13 @@ export default function DashboardPage() {
 
                       const formatPos = (prog: unknown) => {
                         if (!prog || typeof prog !== 'object') return null
-                        const p = prog as { hizb: number | null; surah: number | null; verse: number | null; page: number | null }
+                        const p = prog as { hizb: number | null; surah: number | null; surahNameAr: string | null; verse: number | null; juz: number | null; page: number | null }
                         if (p.hizb == null) return null
+                        if (p.surahNameAr) {
+                          return `${p.surahNameAr} v.${p.verse || '?'} (H${p.hizb})`
+                        }
                         const parts = [`H${p.hizb}`]
                         if (p.surah != null) parts.push(`S${p.surah}${p.verse != null ? ':' + p.verse : ''}`)
-                        if (p.page != null) parts.push(`p.${p.page}`)
                         return parts.join(' ')
                       }
 
@@ -3849,8 +3851,7 @@ export default function DashboardPage() {
                         const hizb = type === 'revision' ? adj.revisionHizb : adj.readingHizb
                         if (hizb == null) return null
                         const parts = [`H${Math.round(hizb * 10) / 10}`]
-                        if (adj.surah != null) parts.push(`S${adj.surah}${adj.verse != null ? ':' + adj.verse : ''}`)
-                        if (adj.page != null) parts.push(`p.${adj.page}`)
+                        if (adj.surah != null) parts.push(`S${adj.surah}${adj.verse != null ? ':v' + adj.verse : ''}`)
                         return parts.join(' ')
                       }
 
