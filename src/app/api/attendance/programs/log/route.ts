@@ -115,19 +115,35 @@ export async function GET(request: Request) {
       orderBy: { date: 'desc' },
     })
 
-    // Add adjustments to grouped data
+    // Add adjustments to grouped data (with surah name resolution)
     for (const adj of adjustments) {
       const dateStr = adj.date.toISOString().split('T')[0]
       if (!grouped.has(dateStr)) {
         grouped.set(dateStr, {})
       }
       const entry = grouped.get(dateStr)!
+
+      // Resolve reading adjustment
+      let readingSurahInfo = null
+      if (adj.readingHizb != null && adj.readingHizb > 0) {
+        readingSurahInfo = await hizbToSurahInfo(adj.readingHizb)
+      }
+      // Resolve revision adjustment
+      let revisionSurahInfo = null
+      if (adj.revisionHizb != null && adj.revisionHizb > 0) {
+        revisionSurahInfo = await hizbToSurahInfo(adj.revisionHizb)
+      }
+
       entry._adjustment = {
         readingHizb: adj.readingHizb,
         revisionHizb: adj.revisionHizb,
         surah: adj.surahNumber,
         verse: adj.verseNumber,
         page: adj.page,
+        readingSurahNameAr: readingSurahInfo?.surahNameAr || null,
+        readingVerse: readingSurahInfo?.verseNumber || null,
+        revisionSurahNameAr: revisionSurahInfo?.surahNameAr || null,
+        revisionVerse: revisionSurahInfo?.verseNumber || null,
       }
     }
 

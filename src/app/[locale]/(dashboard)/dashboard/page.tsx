@@ -3827,7 +3827,7 @@ export default function DashboardPage() {
                     {completionLog.map((entry) => {
                       const rev = entry.programs.REVISION
                       const read = entry.programs.READING
-                      const adj = (entry.programs as Record<string, unknown>)._adjustment as { readingHizb: number | null; revisionHizb: number | null; surah: number | null; verse: number | null; page: number | null } | undefined
+                      const adj = (entry.programs as Record<string, unknown>)._adjustment as { readingHizb: number | null; revisionHizb: number | null; surah: number | null; verse: number | null; page: number | null; readingSurahNameAr: string | null; readingVerse: number | null; revisionSurahNameAr: string | null; revisionVerse: number | null } | undefined
                       const cycles = (entry.programs as Record<string, unknown>)._cycles as Array<{ type: string; notes: string | null; hizbCount: number | null }> | undefined
                       const isRevObj = typeof rev === 'object' && rev !== null
                       const isReadObj = typeof read === 'object' && read !== null
@@ -3838,6 +3838,7 @@ export default function DashboardPage() {
                         if (!prog || typeof prog !== 'object') return null
                         const p = prog as { hizb: number | null; surah: number | null; surahNameAr: string | null; verse: number | null; juz: number | null; page: number | null }
                         if (p.hizb == null) return null
+                        if (p.hizb === 0) return 'Début (H0)'
                         if (p.surahNameAr) {
                           return `${p.surahNameAr} v.${p.verse || '?'} (H${p.hizb})`
                         }
@@ -3850,9 +3851,13 @@ export default function DashboardPage() {
                         if (!adj) return null
                         const hizb = type === 'revision' ? adj.revisionHizb : adj.readingHizb
                         if (hizb == null) return null
-                        const parts = [`H${Math.round(hizb * 10) / 10}`]
-                        if (adj.surah != null) parts.push(`S${adj.surah}${adj.verse != null ? ':v' + adj.verse : ''}`)
-                        return parts.join(' ')
+                        const surahNameAr = type === 'revision' ? adj.revisionSurahNameAr : adj.readingSurahNameAr
+                        const verse = type === 'revision' ? adj.revisionVerse : adj.readingVerse
+                        if (surahNameAr) {
+                          return `${surahNameAr} v.${verse || '?'} (H${Math.round(hizb * 10) / 10})`
+                        }
+                        if (hizb === 0) return 'Début (H0)'
+                        return `H${Math.round(hizb * 10) / 10}`
                       }
 
                       return (
