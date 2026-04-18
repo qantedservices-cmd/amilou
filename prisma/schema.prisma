@@ -51,6 +51,7 @@ model User {
 
   // Dashboard layout (section order, empty = default order)
   dashboardLayout         String[] @default([])
+  hasSeenOnboarding   Boolean @default(false)
 
   accounts                Account[]
   sessions                Session[]
@@ -172,6 +173,7 @@ model Group {
   description      String?
   sessionFrequency String   @default("WEEKLY")
   defaultHomework  String?  // Devoirs par défaut pré-remplis pour les rapports de séance
+  inviteCode       String?   @unique
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
