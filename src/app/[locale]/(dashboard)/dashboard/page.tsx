@@ -3838,7 +3838,6 @@ export default function DashboardPage() {
                         if (!prog || typeof prog !== 'object') return null
                         const p = prog as { hizb: number | null; surah: number | null; surahNameAr: string | null; verse: number | null; juz: number | null; page: number | null }
                         if (p.hizb == null) return null
-                        if (p.hizb === 0) return 'Début (H0)'
                         if (p.surahNameAr) {
                           return `${p.surahNameAr} v.${p.verse || '?'} (H${p.hizb})`
                         }
@@ -3856,7 +3855,6 @@ export default function DashboardPage() {
                         if (surahNameAr) {
                           return `${surahNameAr} v.${verse || '?'} (H${Math.round(hizb * 10) / 10})`
                         }
-                        if (hizb === 0) return 'Début (H0)'
                         return `H${Math.round(hizb * 10) / 10}`
                       }
 
