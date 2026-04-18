@@ -903,13 +903,11 @@ export default function DashboardPage() {
     fetchInactiveAlerts()
   }, [])
 
-  // Check onboarding status — redirect new users to presentation page
+  // Check onboarding status — show welcome banner for new users
+  const [showOnboardingBanner, setShowOnboardingBanner] = useState(false)
   useEffect(() => {
     fetch('/api/me').then(r => r.json()).then(d => {
-      if (d.hasSeenOnboarding === false) {
-        window.location.href = `/${locale}/presentation`
-        return
-      }
+      if (d.hasSeenOnboarding === false) setShowOnboardingBanner(true)
       setOnboardingChecked(true)
     }).catch(() => setOnboardingChecked(true))
   }, [])
@@ -3252,6 +3250,29 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">{t('dashboard.overview')}</p>
         </div>
       </div>
+
+      {/* Onboarding banner for new users */}
+      {showOnboardingBanner && (
+        <div className="rounded-lg border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 p-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="shrink-0 w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center">
+              <span className="text-lg">📖</span>
+            </div>
+            <div>
+              <h3 className="font-semibold">Bienvenue sur Aamilou !</h3>
+              <p className="text-sm text-muted-foreground">Configurez vos objectifs et votre zone de mémorisation pour activer le suivi de votre apprentissage.</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => window.location.href = `/${locale}/presentation`}>
+              Découvrir l&apos;app
+            </Button>
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => window.location.href = `/${locale}/settings`}>
+              Configurer mon compte
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Sticky Period Selector */}
       <div className="sticky top-0 z-40 -mx-4 px-4 py-3 mb-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">

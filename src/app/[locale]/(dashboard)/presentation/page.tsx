@@ -73,6 +73,20 @@ export default function PresentationPage() {
         <p className="text-muted-foreground">Au nom d'Allah, le Tout Miséricordieux, le Très Miséricordieux</p>
       </div>
 
+      {/* Onboarding sticky banner */}
+      {showOnboarding && (
+        <div className="sticky top-0 z-40 rounded-lg border-2 border-emerald-400 bg-emerald-50/95 dark:bg-emerald-950/95 backdrop-blur p-3 flex items-center justify-between gap-3 shadow-sm">
+          <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">Prêt à commencer ? Configurez votre compte pour activer le suivi.</p>
+          <Button
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700 shrink-0"
+            onClick={() => window.location.href = `/${locale}/settings`}
+          >
+            Configurer mon compte
+          </Button>
+        </div>
+      )}
+
       {/* Table des matières */}
       <Card className="border-2 border-blue-200 dark:border-blue-800">
         <CardHeader
