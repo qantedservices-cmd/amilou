@@ -264,6 +264,7 @@ interface Stats {
       surahNumber: number
       surahNameAr: string
       verseNumber: number
+      verseTextAr: string
       page: number
       juz: number
       percentage: number
@@ -274,6 +275,7 @@ interface Stats {
       surahNumber: number
       surahNameAr: string
       verseNumber: number
+      verseTextAr: string
       page: number
       juz: number
       percentage: number
@@ -2229,6 +2231,11 @@ export default function DashboardPage() {
                   {' '}
                   <span className="text-muted-foreground">v.{stats.progressTracker.reading.verseNumber}</span>
                 </div>
+                {stats.progressTracker.reading.verseTextAr && (
+                  <p className="text-sm font-arabic text-right leading-relaxed text-purple-800 dark:text-purple-200 bg-purple-100/50 dark:bg-purple-900/30 rounded px-3 py-1.5 mb-2" dir="rtl">
+                    {stats.progressTracker.reading.verseTextAr.substring(0, 80)}{stats.progressTracker.reading.verseTextAr.length > 80 ? '...' : ''}
+                  </p>
+                )}
                 <div className="text-xs text-muted-foreground mb-2">
                   Hizb {stats.progressTracker.reading.currentHizb.toFixed(1)}/60
                   {' · '}
@@ -2267,6 +2274,11 @@ export default function DashboardPage() {
                   {' '}
                   <span className="text-muted-foreground">v.{stats.progressTracker.revision.verseNumber}</span>
                 </div>
+                {stats.progressTracker.revision.verseTextAr && (
+                  <p className="text-sm font-arabic text-right leading-relaxed text-blue-800 dark:text-blue-200 bg-blue-100/50 dark:bg-blue-900/30 rounded px-3 py-1.5 mb-2" dir="rtl">
+                    {stats.progressTracker.revision.verseTextAr.substring(0, 80)}{stats.progressTracker.revision.verseTextAr.length > 80 ? '...' : ''}
+                  </p>
+                )}
                 <div className="text-xs text-muted-foreground mb-2">
                   Hizb {stats.progressTracker.revision.currentHizb.toFixed(1)}/{stats.progressTracker.revision.totalHizbs}
                   {' · '}

@@ -735,8 +735,8 @@ export async function GET(request: Request) {
     // Progress Tracker (position Révision & Lecture)
     // =============================================
     let progressTracker: {
-      reading: { currentHizb: number; totalHizbs: number; surahNumber: number; surahNameAr: string; verseNumber: number; page: number; juz: number; percentage: number } | null
-      revision: { currentHizb: number; totalHizbs: number; surahNumber: number; surahNameAr: string; verseNumber: number; page: number; juz: number; percentage: number; isSuspended: boolean } | null
+      reading: { currentHizb: number; totalHizbs: number; surahNumber: number; surahNameAr: string; verseNumber: number; verseTextAr: string; page: number; juz: number; percentage: number } | null
+      revision: { currentHizb: number; totalHizbs: number; surahNumber: number; surahNameAr: string; verseNumber: number; verseTextAr: string; page: number; juz: number; percentage: number; isSuspended: boolean } | null
       memorizedZone: { startHizb: number; endHizb: number; totalHizbs: number } | null
       readingObjective: string | null
       revisionObjective: string | null
@@ -764,6 +764,18 @@ export async function GET(request: Request) {
         const readingPos = readingHizb > 0 ? await hizbToPosition(readingHizb + 1) : await hizbToPosition(1)
         const revisionPos = revisionHizb > 0 ? await hizbToPosition(zone.startHizb + revisionHizb) : await hizbToPosition(zone.startHizb)
 
+        // Fetch verse text for the starting position
+        const [readingVerse, revisionVerse] = await Promise.all([
+          readingPos ? prisma.verse.findUnique({
+            where: { surahNumber_verseNumber: { surahNumber: readingPos.surahNumber, verseNumber: readingPos.verseNumber } },
+            select: { textAr: true }
+          }) : null,
+          revisionPos ? prisma.verse.findUnique({
+            where: { surahNumber_verseNumber: { surahNumber: revisionPos.surahNumber, verseNumber: revisionPos.verseNumber } },
+            select: { textAr: true }
+          }) : null,
+        ])
+
         progressTracker = {
           reading: readingSettings ? {
             currentHizb: readingHizb,
@@ -771,6 +783,7 @@ export async function GET(request: Request) {
             surahNumber: readingPos?.surahNumber || 1,
             surahNameAr: readingPos?.surahNameAr || '',
             verseNumber: readingPos?.verseNumber || 1,
+            verseTextAr: readingVerse?.textAr || '',
             page: readingPos?.page || 1,
             juz: readingPos?.juz || 1,
             percentage: Math.round((readingHizb / 60) * 100)
@@ -781,6 +794,7 @@ export async function GET(request: Request) {
             surahNumber: revisionPos?.surahNumber || 1,
             surahNameAr: revisionPos?.surahNameAr || '',
             verseNumber: revisionPos?.verseNumber || 1,
+            verseTextAr: revisionVerse?.textAr || '',
             page: revisionPos?.page || 1,
             juz: revisionPos?.juz || 1,
             percentage: zone.totalHizbs > 0 ? Math.round((revisionHizb / zone.totalHizbs) * 100) : 0,
