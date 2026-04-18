@@ -720,6 +720,10 @@ export default function AdminPage() {
                   <Button onClick={() => setAddUserOpen(true)}><Plus className="h-4 w-4 mr-1" />Ajouter</Button>
                   <Button variant="outline" onClick={() => { setInviteOpen(true); setInviteResult(null); setInviteName(''); setInviteEmail(''); setInviteRole('USER'); setInviteGroupId('') }}><Mail className="h-4 w-4 mr-1" />Inviter</Button>
                   <Button variant="outline" onClick={() => { setMergeOpen(true); setMergeResult(null); setMergeSource(''); setMergeTarget(''); setMergeEmail('') }}>Fusionner</Button>
+                  <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={async () => {
+                    await fetch('/api/user/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hasSeenOnboarding: false }) })
+                    window.location.href = `/${locale}/dashboard`
+                  }}>Tester onboarding</Button>
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap mt-3">
