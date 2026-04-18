@@ -194,6 +194,14 @@ export default function AdminPage() {
   const [inviting, setInviting] = useState(false)
   const [inviteResult, setInviteResult] = useState<{ emailSent: boolean; inviteUrl: string } | null>(null)
 
+  // Merge dialog
+  const [mergeOpen, setMergeOpen] = useState(false)
+  const [mergeSource, setMergeSource] = useState('')
+  const [mergeTarget, setMergeTarget] = useState('')
+  const [mergeEmail, setMergeEmail] = useState('')
+  const [merging, setMerging] = useState(false)
+  const [mergeResult, setMergeResult] = useState<Record<string, number> | null>(null)
+
   // History tab
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [logsLoading, setLogsLoading] = useState(false)
@@ -382,6 +390,25 @@ export default function AdminPage() {
       } else { alert(data.error || 'Erreur') }
     } catch { alert('Erreur réseau') }
     setInviting(false)
+  }
+
+  async function handleMerge() {
+    if (!mergeSource || !mergeTarget || mergeSource === mergeTarget) return
+    if (!confirm('Cette action est irréversible. Le compte source sera supprimé et toutes ses données transférées. Continuer ?')) return
+    setMerging(true)
+    try {
+      const res = await fetch('/api/admin/merge-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceUserId: mergeSource, targetUserId: mergeTarget, replaceEmail: mergeEmail || undefined }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setMergeResult(data.summary)
+        await checkAdminAndFetch()
+      } else { alert(data.error || 'Erreur') }
+    } catch { alert('Erreur réseau') }
+    setMerging(false)
   }
 
   // Group member actions
@@ -609,7 +636,15 @@ export default function AdminPage() {
         <TableBody>
           {userList.map(user => (
             <TableRow key={user.id}>
-              <TableCell className="font-medium">{user.name || '-'}</TableCell>
+              <TableCell className="font-medium">
+                <span>{user.name || '-'}</span>
+                {user.lastLogin && Date.now() - new Date(user.lastLogin).getTime() < 5 * 60000 && (
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-500 ml-1" title="En ligne" />
+                )}
+                {user.loginCount === 0 && (
+                  <Badge className="bg-blue-100 text-blue-700 text-[10px] ml-1">Nouveau</Badge>
+                )}
+              </TableCell>
               <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
               <TableCell><Badge className={getRoleBadgeColor(user.role)}>{user.role}</Badge></TableCell>
               <TableCell>
@@ -684,6 +719,7 @@ export default function AdminPage() {
                 <div className="flex gap-2">
                   <Button onClick={() => setAddUserOpen(true)}><Plus className="h-4 w-4 mr-1" />Ajouter</Button>
                   <Button variant="outline" onClick={() => { setInviteOpen(true); setInviteResult(null); setInviteName(''); setInviteEmail(''); setInviteRole('USER'); setInviteGroupId('') }}><Mail className="h-4 w-4 mr-1" />Inviter</Button>
+                  <Button variant="outline" onClick={() => { setMergeOpen(true); setMergeResult(null); setMergeSource(''); setMergeTarget(''); setMergeEmail('') }}>Fusionner</Button>
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap mt-3">
@@ -1165,6 +1201,65 @@ export default function AdminPage() {
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>Annuler</Button>
             <Button onClick={handleAddProgress}>Ajouter</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Merge dialog */}
+      <Dialog open={mergeOpen} onOpenChange={setMergeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Fusionner deux comptes</DialogTitle>
+            <DialogDescription>Transférer toutes les données du compte source vers le cible, puis supprimer le source.</DialogDescription>
+          </DialogHeader>
+          {mergeResult ? (
+            <div className="space-y-2 py-4">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-50 text-emerald-700">
+                <CheckCircle className="h-5 w-5" />
+                <span className="font-medium">Fusion réussie</span>
+              </div>
+              <div className="text-sm space-y-1">
+                {Object.entries(mergeResult).map(([key, count]) => (
+                  <div key={key} className="flex justify-between"><span className="text-muted-foreground">{key}</span><span className="font-medium">{count}</span></div>
+                ))}
+              </div>
+              <DialogFooter><Button onClick={() => setMergeOpen(false)}>Fermer</Button></DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4 py-4">
+              <div>
+                <Label>Compte source (sera supprimé)</Label>
+                <Select value={mergeSource} onValueChange={setMergeSource}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                  <SelectContent>
+                    {users.filter(u => u.id !== mergeTarget).map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.name || u.email} ({u.email})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Compte cible (qui reste)</Label>
+                <Select value={mergeTarget} onValueChange={setMergeTarget}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                  <SelectContent>
+                    {users.filter(u => u.id !== mergeSource).map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.name || u.email} ({u.email})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Nouvel email pour le compte cible (optionnel)</Label>
+                <Input value={mergeEmail} onChange={e => setMergeEmail(e.target.value)} placeholder="Laisser vide pour garder l'email actuel" />
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setMergeOpen(false)}>Annuler</Button>
+                <Button onClick={handleMerge} disabled={merging || !mergeSource || !mergeTarget || mergeSource === mergeTarget} className="bg-red-600 hover:bg-red-700">
+                  {merging ? 'Fusion...' : 'Fusionner'}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
