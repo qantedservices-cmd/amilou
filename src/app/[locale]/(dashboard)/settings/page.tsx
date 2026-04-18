@@ -122,6 +122,8 @@ export default function SettingsPage() {
   const [memStartSurah, setMemStartSurah] = useState<string>('')
   const [memStartVerse, setMemStartVerse] = useState<string>('1')
   const [memDirection, setMemDirection] = useState<string>('FORWARD')
+  const [memStartDate, setMemStartDate] = useState('')
+  const [memStats, setMemStats] = useState<{ totalHizbs: number } | null>(null)
   const [savingMem, setSavingMem] = useState(false)
   const [memMessage, setMemMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -153,6 +155,9 @@ export default function SettingsPage() {
     fetchProgramSettings()
     fetchSurahs()
     fetchTafsirBooks()
+    fetch('/api/progress-tracker').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.memorizedZone) setMemStats({ totalHizbs: d.memorizedZone.totalHizbs })
+    }).catch(() => {})
   }, [])
 
   async function fetchProfile() {
@@ -171,6 +176,7 @@ export default function SettingsPage() {
         setMemStartSurah(data.memorizationStartSurah?.toString() || '')
         setMemStartVerse(data.memorizationStartVerse?.toString() || '1')
         setMemDirection(data.memorizationDirection || 'FORWARD')
+        if (data.memorizationStartDate) setMemStartDate(new Date(data.memorizationStartDate).toISOString().substring(0, 7))
         // Set enabled programs
         setEnabledPrograms(data.enabledPrograms || [])
         // Set default tafsirs
@@ -494,6 +500,7 @@ export default function SettingsPage() {
           memorizationStartSurah: memStartSurah ? parseInt(memStartSurah) : null,
           memorizationStartVerse: memStartVerse ? parseInt(memStartVerse) : null,
           memorizationDirection: memDirection,
+          memorizationStartDate: memStartDate ? new Date(memStartDate + '-01').toISOString() : undefined,
         }),
       })
 
@@ -902,7 +909,7 @@ export default function SettingsPage() {
             Zone de mémorisation
           </CardTitle>
           <CardDescription>
-            Configurez la sourate à partir de laquelle vous avez commencé à mémoriser et le sens de progression. Cela permet de calculer votre zone mémorisée pour le suivi de révision.
+            Indiquez la première sourate mémorisée et le sens de progression. Cela définit votre zone de révision.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -917,7 +924,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <Label>Première sourate mémorisée</Label>
               <Select value={memStartSurah} onValueChange={setMemStartSurah}>
@@ -957,6 +964,16 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label>Date approximative de début</Label>
+              <Input
+                type="month"
+                value={memStartDate}
+                onChange={e => setMemStartDate(e.target.value)}
+                className="w-48"
+              />
+            </div>
           </div>
 
           <Button
@@ -966,6 +983,40 @@ export default function SettingsPage() {
           >
             {savingMem ? t('common.loading') : 'Enregistrer'}
           </Button>
+
+          {memStats && memStats.totalHizbs > 0 && (
+            <div className="mt-4 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+              <h4 className="font-medium text-sm mb-2">Votre progression</h4>
+              <div className="flex gap-6 text-center">
+                <div>
+                  <p className="text-lg font-bold text-emerald-600">{memStats.totalHizbs}</p>
+                  <p className="text-xs text-muted-foreground">hizbs</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-emerald-600">{Math.round(memStats.totalHizbs / 2 * 10) / 10}</p>
+                  <p className="text-xs text-muted-foreground">juz</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-emerald-600">~{Math.round(memStats.totalHizbs * 604 / 60)}</p>
+                  <p className="text-xs text-muted-foreground">pages</p>
+                </div>
+              </div>
+              {memStartDate && (() => {
+                const startMs = new Date(memStartDate + '-01').getTime()
+                const months = Math.max(1, Math.round((Date.now() - startMs) / (30 * 86400000)))
+                const hizbPerMonth = Math.round(memStats.totalHizbs / months * 10) / 10
+                const remaining = 60 - memStats.totalHizbs
+                const estMonths = hizbPerMonth > 0 ? Math.round(remaining / hizbPerMonth) : 0
+                const estYears = Math.round(estMonths / 12 * 10) / 10
+                return (
+                  <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
+                    <p>Durée : {months} mois — Rythme : ~{hizbPerMonth} hizb/mois</p>
+                    {remaining > 0 && estYears > 0 && <p>Estimation : ~{estYears > 1 ? estYears + ' ans' : estMonths + ' mois'} pour compléter</p>}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -2310,9 +2310,10 @@ export default function DashboardPage() {
             )}
 
             {stats.progressTracker.memorizedZone && stats.progressTracker.reading && stats.progressTracker.revision && (
-              <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                Phase combinée : quand la lecture traverse la zone mémorisée (Hizb {stats.progressTracker.memorizedZone.startHizb}-{stats.progressTracker.memorizedZone.endHizb}), l&apos;avancement double et la révision se suspend.
-              </p>
+              <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded space-y-1">
+                <p>Zone mémorisée : Hizb {stats.progressTracker.memorizedZone.startHizb}–{stats.progressTracker.memorizedZone.endHizb} ({stats.progressTracker.memorizedZone.totalHizbs} hizbs, {Math.round(stats.progressTracker.memorizedZone.totalHizbs / 2 * 10) / 10} juz)</p>
+                <p>Phase combinée : quand la lecture traverse cette zone, l&apos;avancement double et la révision se suspend.</p>
+              </div>
             )}
 
             {isViewingSelf && (
