@@ -37,6 +37,7 @@ model User {
   memorizationStartSurah  Int?    // Starting surah (default: 1 for Fatiha)
   memorizationStartVerse  Int?    // Starting verse (default: 1)
   memorizationDirection   String? // "FORWARD" (towards Nas) or "BACKWARD" (towards Fatiha)
+  memorizationStartDate   DateTime?
 
   // Progress tracker positions (in hizbs)
   readingCurrentHizb      Float?   // Position actuelle lecture (0-60 hizbs), null = pas commencé
