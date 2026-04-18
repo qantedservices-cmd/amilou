@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useLocale } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import {
   BookOpen,
@@ -52,8 +54,16 @@ const tocSections = [
 const guideSections = tocSections.find(s => s.id === 'guide')?.children || []
 
 export default function PresentationPage() {
+  const locale = useLocale()
   const [guideExpanded, setGuideExpanded] = useState(true)
   const [tocOpen, setTocOpen] = useState(true)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/me').then(r => r.json()).then(d => {
+      if (d.hasSeenOnboarding === false) setShowOnboarding(true)
+    }).catch(() => {})
+  }, [])
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
@@ -1027,6 +1037,23 @@ export default function PresentationPage() {
           </div>
         </CardContent>
       </Card>
+
+      {showOnboarding && (
+        <Card className="border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-3">
+              <h3 className="font-semibold text-lg">Prêt à commencer ?</h3>
+              <p className="text-sm text-muted-foreground">Configurez vos objectifs et votre zone de mémorisation pour activer le suivi.</p>
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700"
+                onClick={() => window.location.href = `/${locale}/settings`}
+              >
+                Configurer mon compte
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Retour en haut */}
       <div className="text-center pb-4">

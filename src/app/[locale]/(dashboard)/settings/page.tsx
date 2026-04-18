@@ -130,6 +130,9 @@ export default function SettingsPage() {
   const [savingPrograms, setSavingPrograms] = useState(false)
   const [programsMessage, setProgramsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // Onboarding guide
+  const [showOnboardingGuide, setShowOnboardingGuide] = useState(false)
+
   // Default tafsir books
   const [tafsirBooks, setTafsirBooks] = useState<Array<{ id: string; nameAr: string; nameFr: string; author: string | null }>>([])
   const [defaultTafsirIds, setDefaultTafsirIds] = useState<string[]>([])
@@ -172,6 +175,8 @@ export default function SettingsPage() {
         setEnabledPrograms(data.enabledPrograms || [])
         // Set default tafsirs
         setDefaultTafsirIds(data.defaultTafsirIds || [])
+        // Onboarding
+        if (data.hasSeenOnboarding === false) setShowOnboardingGuide(true)
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
@@ -307,6 +312,13 @@ export default function SettingsPage() {
         await fetchProgramSettings()
         setSettingsMessage({ type: 'success', text: 'Objectifs enregistrés' })
         setTimeout(() => setSettingsMessage(null), 3000)
+        if (showOnboardingGuide) {
+          fetch('/api/user/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hasSeenOnboarding: true }),
+          }).then(() => setShowOnboardingGuide(false)).catch(() => {})
+        }
       } else {
         const data = await res.json()
         setSettingsMessage({ type: 'error', text: data.error || 'Erreur' })
@@ -488,6 +500,13 @@ export default function SettingsPage() {
       if (res.ok) {
         setMemMessage({ type: 'success', text: 'Avancement mémorisation enregistré' })
         setTimeout(() => setMemMessage(null), 3000)
+        if (showOnboardingGuide) {
+          fetch('/api/user/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hasSeenOnboarding: true }),
+          }).then(() => setShowOnboardingGuide(false)).catch(() => {})
+        }
       } else {
         const data = await res.json()
         setMemMessage({ type: 'error', text: data.error || 'Erreur' })
@@ -549,6 +568,22 @@ export default function SettingsPage() {
         <h1 className="text-3xl font-bold tracking-tight">{t('nav.settings')}</h1>
         <p className="text-muted-foreground">Gérez votre profil et vos préférences</p>
       </div>
+
+      {showOnboardingGuide && (
+        <Card className="border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="shrink-0 w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                <Target className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Bienvenue sur Aamilou !</h3>
+                <p className="text-sm text-muted-foreground">Configurez vos objectifs par programme et votre zone de mémorisation ci-dessous pour commencer le suivi.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Profile Info Card */}

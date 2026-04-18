@@ -21,6 +21,7 @@ export async function GET() {
         email: true,
         role: true,
         image: true,
+        hasSeenOnboarding: true,
       }
     })
 

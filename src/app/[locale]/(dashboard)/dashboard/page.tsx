@@ -385,6 +385,7 @@ export default function DashboardPage() {
   const locale = useLocale()
   const searchParams = useSearchParams()
   const urlUserId = searchParams.get('userId')
+  const [onboardingChecked, setOnboardingChecked] = useState(false)
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
@@ -900,6 +901,17 @@ export default function DashboardPage() {
     fetchGroupRanking()
     fetchUserBooks()
     fetchInactiveAlerts()
+  }, [])
+
+  // Check onboarding status — redirect new users to presentation page
+  useEffect(() => {
+    fetch('/api/me').then(r => r.json()).then(d => {
+      if (d.hasSeenOnboarding === false) {
+        window.location.href = `/${locale}/presentation`
+        return
+      }
+      setOnboardingChecked(true)
+    }).catch(() => setOnboardingChecked(true))
   }, [])
 
   // Fetch manageable users for global selector

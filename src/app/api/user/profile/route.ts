@@ -32,6 +32,7 @@ export async function GET() {
         enabledPrograms: true,
         defaultTafsirIds: true,
         dashboardLayout: true,
+        hasSeenOnboarding: true,
       },
     })
 
@@ -63,7 +64,7 @@ export async function PUT(request: Request) {
     const {
       name, privateAttendance, privateProgress, privateStats, privateEvaluations,
       memorizationStartSurah, memorizationStartVerse, memorizationDirection,
-      enabledPrograms, defaultTafsirIds, dashboardLayout,
+      enabledPrograms, defaultTafsirIds, dashboardLayout, hasSeenOnboarding,
     } = body
 
     // Build update data
@@ -126,6 +127,9 @@ export async function PUT(request: Request) {
       }
       updateData.dashboardLayout = dashboardLayout
     }
+
+    // Onboarding
+    if (hasSeenOnboarding !== undefined) updateData.hasSeenOnboarding = hasSeenOnboarding
 
     const user = await prisma.user.update({
       where: { id: effectiveUserId! },
