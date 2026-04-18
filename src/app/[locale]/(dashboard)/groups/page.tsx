@@ -59,6 +59,8 @@ export default function GroupsPage() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false)
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
+  const [inviteLinks, setInviteLinks] = useState<Record<string, string>>({})
+  const [generatingLink, setGeneratingLink] = useState('')
 
   // Create form
   const [newName, setNewName] = useState('')
@@ -209,6 +211,18 @@ export default function GroupsPage() {
     } catch (error) {
       console.error('Error deleting group:', error)
     }
+  }
+
+  async function generateInviteLink(groupId: string) {
+    setGeneratingLink(groupId)
+    try {
+      const res = await fetch(`/api/groups/${groupId}/invite-link`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setInviteLinks(prev => ({ ...prev, [groupId]: data.inviteUrl }))
+      }
+    } catch (e) { console.error(e) }
+    setGeneratingLink('')
   }
 
   function openGroupDetails(group: Group) {
@@ -383,6 +397,23 @@ export default function GroupsPage() {
                     <Badge variant="outline">{getFrequencyLabel(group.sessionFrequency)}</Badge>
                   </div>
                 </div>
+                {(group.myRole === 'REFERENT' || group.myRole === 'ADMIN') && (
+                  <div className="mt-3 pt-3 border-t" onClick={(e) => e.stopPropagation()}>
+                    {inviteLinks[group.id] ? (
+                      <div className="flex gap-2 items-center">
+                        <Input value={inviteLinks[group.id]} readOnly className="text-xs flex-1" />
+                        <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(inviteLinks[group.id])}>
+                          Copier
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={() => generateInviteLink(group.id)} disabled={generatingLink === group.id}>
+                        <UserPlus className="h-4 w-4 mr-1" />
+                        {generatingLink === group.id ? 'Génération...' : "Lien d'invitation"}
+                      </Button>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
