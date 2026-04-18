@@ -22,6 +22,7 @@ export async function GET() {
         role: true,
         image: true,
         hasSeenOnboarding: true,
+        memorizationStartDate: true,
       }
     })
 

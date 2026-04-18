@@ -29,6 +29,7 @@ export async function GET() {
         memorizationStartSurah: true,
         memorizationStartVerse: true,
         memorizationDirection: true,
+        memorizationStartDate: true,
         enabledPrograms: true,
         defaultTafsirIds: true,
         dashboardLayout: true,
@@ -63,7 +64,7 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const {
       name, privateAttendance, privateProgress, privateStats, privateEvaluations,
-      memorizationStartSurah, memorizationStartVerse, memorizationDirection,
+      memorizationStartSurah, memorizationStartVerse, memorizationDirection, memorizationStartDate,
       enabledPrograms, defaultTafsirIds, dashboardLayout, hasSeenOnboarding,
     } = body
 
@@ -101,6 +102,9 @@ export async function PUT(request: Request) {
         return NextResponse.json({ error: 'Direction invalide (FORWARD ou BACKWARD)' }, { status: 400 })
       }
       updateData.memorizationDirection = memorizationDirection
+    }
+    if (memorizationStartDate !== undefined) {
+      updateData.memorizationStartDate = memorizationStartDate ? new Date(memorizationStartDate) : null
     }
 
     // Enabled programs
@@ -147,6 +151,7 @@ export async function PUT(request: Request) {
         memorizationStartSurah: true,
         memorizationStartVerse: true,
         memorizationDirection: true,
+        memorizationStartDate: true,
         enabledPrograms: true,
         defaultTafsirIds: true,
         dashboardLayout: true,
