@@ -17,6 +17,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import {
   ArrowLeft,
+  BookOpen,
   Calendar,
   Check,
   ChevronLeft,
@@ -181,6 +182,29 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
   const [bpSaving, setBpSaving] = useState(false)
   const [bpEditingId, setBpEditingId] = useState<string | null>(null)
 
+  // Session notes
+  const [sessionNotes, setSessionNotes] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+
+  // Research topics
+  const [researchTopics, setResearchTopics] = useState<Array<{
+    id: string; sessionNumber: number | null; assignedTo: string; question: string; answer: string | null; isValidated: boolean
+  }>>([])
+  const [rtNewAssignedTo, setRtNewAssignedTo] = useState('')
+  const [rtNewQuestion, setRtNewQuestion] = useState('')
+  const [rtEditingId, setRtEditingId] = useState<string | null>(null)
+  const [rtEditAnswer, setRtEditAnswer] = useState('')
+
+  // Tafsir entries for this session
+  const [sessionTafsirEntries, setSessionTafsirEntries] = useState<Array<{
+    type: 'SENS' | 'TAFSIR'; surahNumber: number; verseStart: number; verseEnd: number
+  }>>([])
+  const [tfType, setTfType] = useState<'SENS' | 'TAFSIR'>('TAFSIR')
+  const [tfSurah, setTfSurah] = useState('')
+  const [tfVerseStart, setTfVerseStart] = useState('')
+  const [tfVerseEnd, setTfVerseEnd] = useState('')
+  const [savingTafsir, setSavingTafsir] = useState(false)
+
   useEffect(() => {
     fetchData()
   }, [groupId, sessionNum])
@@ -210,8 +234,9 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       setTotalSessions(masteryData.totalSessions)
       setSessions(masteryData.sessions || [])
 
-      // Fetch group books in parallel
+      // Fetch group books and research topics in parallel
       fetchGroupBooks()
+      fetchResearchTopics()
 
       if (reportRes.ok) {
         const reportData = await reportRes.json()
@@ -226,6 +251,8 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
         setReportNextSurah(reportData.nextSurahNumber?.toString() || '')
         setReportHomework(reportData.homework || '')
         setReportSurahs(reportData.surahs || [])
+        if (reportData.notes) setSessionNotes(reportData.notes)
+        if (reportData.tafsirEntries) setSessionTafsirEntries(reportData.tafsirEntries)
 
         // Merge topics
         const defaultTopics: TopicItem[] = [
@@ -316,6 +343,98 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       }))
       setGroupBooks(enriched)
     } catch (e) { console.error(e) }
+  }
+
+  async function fetchResearchTopics() {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/research-topics`)
+      if (res.ok) {
+        const data = await res.json()
+        setResearchTopics(data.topics || [])
+      }
+    } catch (e) { console.error(e) }
+  }
+
+  async function handleSaveNotes() {
+    if (!currentSessionId) return
+    setSavingNotes(true)
+    try {
+      await fetch(`/api/sessions/${currentSessionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: sessionNotes }),
+      })
+    } catch (e) { console.error(e) }
+    setSavingNotes(false)
+  }
+
+  async function handleAddResearchTopic() {
+    if (!rtNewAssignedTo.trim() || !rtNewQuestion.trim()) return
+    try {
+      await fetch(`/api/groups/${groupId}/research-topics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionNumber: sessionNum, assignedTo: rtNewAssignedTo.trim(), question: rtNewQuestion.trim() }),
+      })
+      setRtNewAssignedTo('')
+      setRtNewQuestion('')
+      fetchResearchTopics()
+    } catch (e) { console.error(e) }
+  }
+
+  async function handleAnswerResearchTopic(topicId: string, answer: string, validate: boolean) {
+    try {
+      await fetch(`/api/groups/${groupId}/research-topics`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topicId, answer, isValidated: validate }),
+      })
+      setRtEditingId(null)
+      setRtEditAnswer('')
+      fetchResearchTopics()
+    } catch (e) { console.error(e) }
+  }
+
+  async function handleValidateResearchTopic(topicId: string) {
+    try {
+      await fetch(`/api/groups/${groupId}/research-topics`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topicId, isValidated: true }),
+      })
+      fetchResearchTopics()
+    } catch (e) { console.error(e) }
+  }
+
+  async function handleAddTafsirEntry() {
+    if (!tfSurah || !tfVerseStart || !tfVerseEnd || !currentSessionId) return
+    setSavingTafsir(true)
+    const newEntry = { type: tfType, surahNumber: parseInt(tfSurah), verseStart: parseInt(tfVerseStart), verseEnd: parseInt(tfVerseEnd) }
+    const updated = [...sessionTafsirEntries, newEntry]
+    try {
+      await fetch(`/api/sessions/${currentSessionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tafsirEntries: updated }),
+      })
+      setSessionTafsirEntries(updated)
+      setTfSurah('')
+      setTfVerseStart('')
+      setTfVerseEnd('')
+    } catch (e) { console.error(e) }
+    setSavingTafsir(false)
+  }
+
+  function removeTafsirEntry(index: number) {
+    const updated = sessionTafsirEntries.filter((_, i) => i !== index)
+    setSessionTafsirEntries(updated)
+    if (currentSessionId) {
+      fetch(`/api/sessions/${currentSessionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tafsirEntries: updated }),
+      }).catch(console.error)
+    }
   }
 
   async function handleAddBookProgress() {
@@ -1080,6 +1199,221 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
               </CardContent>
             </Card>
           )}
+
+          {/* Tafsir / Traduction */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BookOpen className="h-5 w-5 text-rose-600" />
+                Tafsir & Traduction
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Existing entries */}
+              {sessionTafsirEntries.map((entry, i) => {
+                const surah = reportSurahs.find(s => s.number === entry.surahNumber)
+                return (
+                  <div key={i} className="flex items-center justify-between p-2 rounded border bg-muted/30">
+                    <div className="text-sm">
+                      <Badge className={entry.type === 'TAFSIR' ? 'bg-rose-100 text-rose-700 text-[10px] mr-2' : 'bg-purple-100 text-purple-700 text-[10px] mr-2'}>
+                        {entry.type === 'TAFSIR' ? 'Tafsir' : 'Traduction'}
+                      </Badge>
+                      {surah ? `${surah.nameAr} ${surah.nameFr}` : `Sourate ${entry.surahNumber}`} — v.{entry.verseStart}–{entry.verseEnd}
+                    </div>
+                    {isReferent && (
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => removeTafsirEntry(i)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                )
+              })}
+
+              {sessionTafsirEntries.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-1">Aucune entrée tafsir/traduction</p>
+              )}
+
+              {/* Add form (referent only) */}
+              {isReferent && (
+                <div className="space-y-2 p-3 rounded-lg border border-dashed">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Type</Label>
+                      <Select value={tfType} onValueChange={v => setTfType(v as 'SENS' | 'TAFSIR')}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TAFSIR">Tafsir</SelectItem>
+                          <SelectItem value="SENS">Traduction / Sens</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Sourate</Label>
+                      <Select value={tfSurah || 'none'} onValueChange={v => {
+                        setTfSurah(v === 'none' ? '' : v)
+                        setTfVerseStart('1')
+                        const s = reportSurahs.find(s => s.number === parseInt(v))
+                        if (s) setTfVerseEnd(s.totalVerses.toString())
+                      }}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sélectionner</SelectItem>
+                          {reportSurahs.map(s => <SelectItem key={s.number} value={s.number.toString()}>{s.number}. {s.nameAr} {s.nameFr}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Verset début</Label>
+                      <Input type="number" min="1" className="h-8 text-xs" value={tfVerseStart} onChange={e => setTfVerseStart(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Verset fin</Label>
+                      <Input type="number" min="1" className="h-8 text-xs" value={tfVerseEnd} onChange={e => setTfVerseEnd(e.target.value)} />
+                    </div>
+                    <div className="pt-5">
+                      <Button size="sm" className="h-8 text-xs w-full" onClick={handleAddTafsirEntry} disabled={savingTafsir || !tfSurah || !tfVerseStart || !tfVerseEnd}>
+                        Ajouter
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Commentaire de séance */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-5 w-5 text-slate-600" />
+                Commentaire de la séance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isReferent ? (
+                <div className="space-y-2">
+                  <Textarea
+                    value={sessionNotes}
+                    onChange={e => setSessionNotes(e.target.value)}
+                    placeholder="Notes et observations de la séance..."
+                    rows={3}
+                    className="text-sm"
+                  />
+                  <Button size="sm" className="h-7 text-xs" onClick={handleSaveNotes} disabled={savingNotes}>
+                    {savingNotes ? 'Enregistrement...' : 'Enregistrer'}
+                  </Button>
+                </div>
+              ) : sessionNotes ? (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{sessionNotes}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-2">Aucun commentaire</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Sujets de recherche */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-5 w-5 text-amber-600" />
+                Sujets de recherche
+                {researchTopics.filter(t => !t.isValidated).length > 0 && (
+                  <Badge className="bg-amber-100 text-amber-700 text-xs">{researchTopics.filter(t => !t.isValidated).length} en attente</Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Pending topics */}
+              {researchTopics.filter(t => !t.isValidated).map(topic => (
+                <div key={topic.id} className="p-3 rounded-lg border border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="text-xs text-muted-foreground mb-1">
+                        {topic.sessionNumber ? `S${topic.sessionNumber}` : ''} — {topic.assignedTo}
+                      </div>
+                      <p className="text-sm font-medium">{topic.question}</p>
+                      {topic.answer && <p className="text-sm text-muted-foreground mt-1 italic">{topic.answer}</p>}
+                    </div>
+                    {isReferent && (
+                      <div className="flex gap-1 shrink-0">
+                        {rtEditingId === topic.id ? null : (
+                          <>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setRtEditingId(topic.id); setRtEditAnswer(topic.answer || '') }}>
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-600" onClick={() => handleValidateResearchTopic(topic.id)}>
+                              <Check className="h-3 w-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {rtEditingId === topic.id && (
+                    <div className="mt-2 space-y-2">
+                      <Input className="h-8 text-xs" value={rtEditAnswer} onChange={e => setRtEditAnswer(e.target.value)} placeholder="Réponse..." />
+                      <div className="flex gap-2">
+                        <Button size="sm" className="h-7 text-xs" onClick={() => handleAnswerResearchTopic(topic.id, rtEditAnswer, false)}>Enregistrer</Button>
+                        <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => handleAnswerResearchTopic(topic.id, rtEditAnswer, true)}>Valider</Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setRtEditingId(null)}>Annuler</Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Validated topics (collapsed) */}
+              {researchTopics.filter(t => t.isValidated).length > 0 && (
+                <details className="text-sm">
+                  <summary className="cursor-pointer text-muted-foreground text-xs py-1">
+                    {researchTopics.filter(t => t.isValidated).length} sujet(s) validé(s)
+                  </summary>
+                  <div className="space-y-2 mt-2">
+                    {researchTopics.filter(t => t.isValidated).map(topic => (
+                      <div key={topic.id} className="p-2 rounded border bg-muted/30 text-xs">
+                        <div className="text-muted-foreground">{topic.sessionNumber ? `S${topic.sessionNumber}` : ''} — {topic.assignedTo}</div>
+                        <p className="font-medium">{topic.question}</p>
+                        {topic.answer && <p className="text-muted-foreground italic mt-0.5">{topic.answer}</p>}
+                        <Badge className="bg-emerald-100 text-emerald-700 text-[10px] mt-1">Validé</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              {/* Add new topic (referent only) */}
+              {isReferent && (
+                <div className="space-y-2 p-3 rounded-lg border border-dashed">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Assigné à</Label>
+                      <Select value={rtNewAssignedTo || 'none'} onValueChange={v => setRtNewAssignedTo(v === 'none' ? '' : v)}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sélectionner</SelectItem>
+                          <SelectItem value="Tous">Tous</SelectItem>
+                          {members.map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Question / Sujet</Label>
+                      <Input className="h-8 text-xs" value={rtNewQuestion} onChange={e => setRtNewQuestion(e.target.value)} placeholder="Sujet de recherche..." />
+                    </div>
+                  </div>
+                  <Button size="sm" className="h-7 text-xs" onClick={handleAddResearchTopic} disabled={!rtNewAssignedTo || !rtNewQuestion.trim()}>
+                    Ajouter le sujet
+                  </Button>
+                </div>
+              )}
+
+              {researchTopics.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-2">Aucun sujet de recherche</p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Classement */}
           <Card>

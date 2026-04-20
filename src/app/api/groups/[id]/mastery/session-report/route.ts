@@ -112,7 +112,8 @@ export async function GET(
         nextSurahNumber: true,
         homework: true,
         sessionTopics: true,
-        tafsirEntries: true
+        tafsirEntries: true,
+        notes: true
       }
     })
 
@@ -165,6 +166,7 @@ export async function GET(
       homework: targetSession?.homework || defaultHomework,
       sessionTopics: (targetSession?.sessionTopics as any[]) || defaultTopics,
       tafsirEntries: (targetSession?.tafsirEntries as any[]) || [],
+      notes: targetSession?.notes || '',
       defaultHomework,
       surahs,
       totalSessions: allSessions.length
