@@ -90,7 +90,7 @@ export default function GroupTafsirGridPage({ params }: { params: Promise<{ id: 
               <Progress value={tafsirPct} className="h-2 flex-1" />
               <span className="text-sm font-bold text-rose-600">{tafsirPct}%</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{totalTafsirVerses}/6236 versets · {grid.filter(s => s.tafsirComplete).length} sourates compl\u00e8tes</p>
+            <p className="text-xs text-muted-foreground mt-1">{totalTafsirVerses}/6236 versets · {grid.filter(s => s.tafsirComplete).length} sourates complètes</p>
           </CardContent>
         </Card>
         <Card className="bg-purple-50 dark:bg-purple-950/30 border-purple-200">
@@ -102,7 +102,7 @@ export default function GroupTafsirGridPage({ params }: { params: Promise<{ id: 
               <Progress value={sensPct} className="h-2 flex-1" />
               <span className="text-sm font-bold text-purple-600">{sensPct}%</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{totalSensVerses}/6236 versets · {grid.filter(s => s.sensComplete).length} sourates compl\u00e8tes</p>
+            <p className="text-xs text-muted-foreground mt-1">{totalSensVerses}/6236 versets · {grid.filter(s => s.sensComplete).length} sourates complètes</p>
           </CardContent>
         </Card>
       </div>
@@ -110,7 +110,7 @@ export default function GroupTafsirGridPage({ params }: { params: Promise<{ id: 
       {/* Grid */}
       <Card>
         <CardHeader>
-          <CardTitle>D\u00e9tail par sourate</CardTitle>
+          <CardTitle>Détail par sourate</CardTitle>
         </CardHeader>
         <CardContent>
           <table className="w-full text-sm">
@@ -139,15 +139,15 @@ export default function GroupTafsirGridPage({ params }: { params: Promise<{ id: 
                       }}>
                         <td colSpan={4} className="text-center py-2 text-xs text-muted-foreground">
                           {isExp ? <ChevronUp className="inline h-3 w-3 mr-1" /> : <ChevronDown className="inline h-3 w-3 mr-1" />}
-                          Sourates {group.start}\u2013{group.end} ({count}, aucune donn\u00e9e)
+                          Sourates {group.start}–{group.end} ({count}, aucune donnée)
                         </td>
                       </tr>
                       {isExp && grid.filter(s => s.surahNumber >= group.start && s.surahNumber <= group.end).map(s => (
                         <tr key={s.surahNumber} className="border-b text-muted-foreground/60">
                           <td className="py-1 px-2 text-xs">{s.surahNumber}</td>
                           <td className="py-1 px-2 text-xs">{s.nameFr} <span className="font-arabic">{s.nameAr}</span></td>
-                          <td className="text-center py-1 px-2 text-xs">\u2014</td>
-                          <td className="text-center py-1 px-2 text-xs">\u2014</td>
+                          <td className="text-center py-1 px-2 text-xs">—</td>
+                          <td className="text-center py-1 px-2 text-xs">—</td>
                         </tr>
                       ))}
                     </React.Fragment>
@@ -168,7 +168,7 @@ export default function GroupTafsirGridPage({ params }: { params: Promise<{ id: 
                       ) : s.tafsirCovered > 0 ? (
                         <Badge variant="outline" className="text-xs text-rose-600 border-rose-200">{s.tafsirRange}</Badge>
                       ) : (
-                        <span className="text-muted-foreground/40">\u2014</span>
+                        <span className="text-muted-foreground/40">—</span>
                       )}
                     </td>
                     <td className="text-center py-2 px-2">
@@ -177,7 +177,7 @@ export default function GroupTafsirGridPage({ params }: { params: Promise<{ id: 
                       ) : s.sensCovered > 0 ? (
                         <Badge variant="outline" className="text-xs text-purple-600 border-purple-200">{s.sensRange}</Badge>
                       ) : (
-                        <span className="text-muted-foreground/40">\u2014</span>
+                        <span className="text-muted-foreground/40">—</span>
                       )}
                     </td>
                   </tr>
