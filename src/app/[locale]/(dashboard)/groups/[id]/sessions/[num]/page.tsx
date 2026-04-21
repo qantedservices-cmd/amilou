@@ -728,6 +728,13 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
             </Button>
           </Link>
 
+          <Link href={`/${locale}/groups/${groupId}/tafsir`}>
+            <Button variant="outline" size="sm">
+              <BookOpen className="h-4 w-4 mr-1" />
+              Tafsir
+            </Button>
+          </Link>
+
           <Link href={`/${locale}/groups/${groupId}/mastery?report=${sessionNum}`}>
             <Button variant="outline" size="sm">
               <Download className="h-4 w-4 mr-1" />

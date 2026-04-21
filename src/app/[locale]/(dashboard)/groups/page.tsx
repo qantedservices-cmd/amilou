@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Users, Plus, Settings, UserPlus, LogOut, Trash2, Crown, Grid3X3, UserCheck, UserX } from 'lucide-react'
+import { Users, Plus, Settings, UserPlus, LogOut, Trash2, Crown, Grid3X3, UserCheck, UserX, BookOpen } from 'lucide-react'
 import { useParams } from 'next/navigation'
 
 interface GroupMember {
@@ -393,6 +393,18 @@ export default function GroupsPage() {
                     >
                       <Grid3X3 className="h-3.5 w-3.5 mr-1" />
                       Grille
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        window.location.href = `/${locale}/groups/${group.id}/tafsir`
+                      }}
+                    >
+                      <BookOpen className="h-3.5 w-3.5 mr-1" />
+                      Tafsir
                     </Button>
                     <Badge variant="outline">{getFrequencyLabel(group.sessionFrequency)}</Badge>
                   </div>
