@@ -188,6 +188,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [reportTopics, setReportTopics] = useState<TopicItem[]>([])
   const [reportNextSurah, setReportNextSurah] = useState<string>('')
   const [reportHomework, setReportHomework] = useState('')
+  const [reportNotes, setReportNotes] = useState('')
   const [reportSurahs, setReportSurahs] = useState<SurahOption[]>([])
   const [newTopicLabel, setNewTopicLabel] = useState('')
   const [reportTafsirEntries, setReportTafsirEntries] = useState<Array<{ type: string; surahNumber: number; verseStart: number; verseEnd: number }>>([])
@@ -196,6 +197,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     { key: 'pointsAbordes', label: 'Points abordés', enabled: true },
     { key: 'prochaineSourate', label: 'Sourate pour la prochaine séance', enabled: true },
     { key: 'devoirs', label: 'Devoirs Quotidiens', enabled: true },
+    { key: 'notesSeance', label: 'Notes de la séance', enabled: true },
     { key: 'sensDesVersets', label: 'Lecture sens des versets', enabled: true },
     { key: 'tafsir', label: 'Tafsir', enabled: true },
     { key: 'classement', label: 'Classement élèves', enabled: true },
@@ -601,6 +603,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         setReportTopics(mergedTopics)
         setReportNextSurah(json.nextSurahNumber?.toString() || '')
         setReportHomework(json.homework || '')
+        setReportNotes(json.notes || '')
         setReportSurahs(json.surahs || [])
         setReportTafsirEntries(json.tafsirEntries || [])
 
@@ -1017,6 +1020,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         pointsAbordes: 'Points abordés de la séance',
         prochaineSourate: 'Sourate pour la prochaine séance',
         devoirs: 'Devoirs Quotidiens',
+        notesSeance: 'Notes de la séance',
         sensDesVersets: 'Lecture sens des versets',
         tafsir: 'Tafsir',
         classement: 'Classement des élèves',
@@ -1030,6 +1034,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         pointsAbordes: true,
         prochaineSourate: !!(reportNextSurah && reportNextSurah !== 'none'),
         devoirs: !!reportHomework.trim(),
+        notesSeance: !!reportNotes.trim(),
         sensDesVersets: pdfSensEntries.length > 0,
         tafsir: pdfTafsirEntries.length > 0,
         classement: true,
@@ -1306,6 +1311,22 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           doc.setFontSize(12)
           const homeworkLines = reportHomework.split('\n')
           for (const line of homeworkLines) {
+            if (yPos > 195) {
+              doc.addPage()
+              yPos = 15
+            }
+            doc.text(line, 14, yPos)
+            yPos += 5
+          }
+        } else if (sec.key === 'notesSeance') {
+          doc.addPage()
+          sectionPages['Notes de la séance'] = doc.getNumberOfPages()
+          drawSectionHeader('Notes de la séance')
+          yPos = 28
+          doc.setFont(pdfFont, 'normal')
+          doc.setFontSize(12)
+          const notesLines = reportNotes.split('\n')
+          for (const line of notesLines) {
             if (yPos > 195) {
               doc.addPage()
               yPos = 15
