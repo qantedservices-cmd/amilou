@@ -16,6 +16,12 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   ArrowLeft,
   BookOpen,
   Calendar,
@@ -194,6 +200,8 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
   const [rtNewQuestion, setRtNewQuestion] = useState('')
   const [rtEditingId, setRtEditingId] = useState<string | null>(null)
   const [rtEditAnswer, setRtEditAnswer] = useState('')
+  const [rtHistoryOpen, setRtHistoryOpen] = useState(false)
+  const [rtHistoryFilter, setRtHistoryFilter] = useState<'all' | 'pending' | 'validated'>('all')
 
   // Tafsir entries for this session
   const [sessionTafsirEntries, setSessionTafsirEntries] = useState<Array<{
@@ -1328,6 +1336,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
           {/* Sujets de recherche */}
           <Card>
             <CardHeader>
+              <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base">
                 <FileText className="h-5 w-5 text-amber-600" />
                 Sujets de recherche
@@ -1335,6 +1344,12 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                   <Badge className="bg-amber-100 text-amber-700 text-xs">{researchTopics.filter(t => !t.isValidated).length} en attente</Badge>
                 )}
               </CardTitle>
+              {researchTopics.length > 0 && (
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => setRtHistoryOpen(true)}>
+                  Tout l&apos;historique ({researchTopics.length})
+                </Button>
+              )}
+            </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {/* Pending topics */}
@@ -1472,6 +1487,60 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
           </Card>
         </div>
       </div>
+      {/* Research topics history dialog */}
+      <Dialog open={rtHistoryOpen} onOpenChange={setRtHistoryOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-amber-600" />
+              Historique des sujets de recherche
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex gap-2 mb-4">
+            {(['all', 'pending', 'validated'] as const).map(f => (
+              <Button key={f} size="sm" variant={rtHistoryFilter === f ? 'default' : 'outline'} className="text-xs h-7" onClick={() => setRtHistoryFilter(f)}>
+                {f === 'all' ? `Tous (${researchTopics.length})` : f === 'pending' ? `En attente (${researchTopics.filter(t => !t.isValidated).length})` : `Validés (${researchTopics.filter(t => t.isValidated).length})`}
+              </Button>
+            ))}
+          </div>
+          <div className="space-y-3">
+            {researchTopics
+              .filter(t => rtHistoryFilter === 'all' ? true : rtHistoryFilter === 'pending' ? !t.isValidated : t.isValidated)
+              .sort((a, b) => (b.sessionNumber || 0) - (a.sessionNumber || 0))
+              .map(topic => (
+                <div key={topic.id} className={`p-3 rounded-lg border ${topic.isValidated ? 'bg-muted/30' : 'border-amber-200 bg-amber-50/50 dark:bg-amber-950/20'}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                        {topic.sessionNumber && <Badge variant="outline" className="text-[10px]">S{topic.sessionNumber}</Badge>}
+                        <span>{topic.assignedTo}</span>
+                        {topic.isValidated && <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Validé</Badge>}
+                      </div>
+                      <p className="text-sm font-medium">{topic.question}</p>
+                      {topic.answer && <p className="text-sm text-muted-foreground mt-1 italic">{topic.answer}</p>}
+                      {!topic.answer && !topic.isValidated && (
+                        <p className="text-xs text-amber-600 mt-1">En attente de réponse</p>
+                      )}
+                    </div>
+                    {isReferent && !topic.isValidated && (
+                      <div className="flex gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setRtEditingId(topic.id); setRtEditAnswer(topic.answer || ''); setRtHistoryOpen(false) }}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-600" onClick={() => handleValidateResearchTopic(topic.id)}>
+                          <Check className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            {researchTopics.filter(t => rtHistoryFilter === 'all' ? true : rtHistoryFilter === 'pending' ? !t.isValidated : t.isValidated).length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Aucun sujet</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
