@@ -82,7 +82,7 @@ export async function PUT(
     }
 
     const { id } = await params
-    const { attendance, notes, tafsirEntries } = await request.json()
+    const { attendance, notes, tafsirEntries, includeReferent } = await request.json()
 
     const groupSession = await prisma.groupSession.findUnique({
       where: { id },
@@ -145,7 +145,9 @@ export async function PUT(
           })
           const userIds = new Set(presentAttendance.map(a => a.userId))
           // Add the referent (current user) who might not be in the attendance list
-          userIds.add(session.user.id)
+          if (includeReferent !== false) {
+            userIds.add(session.user.id)
+          }
 
           const sessionDate = groupSession.date
 

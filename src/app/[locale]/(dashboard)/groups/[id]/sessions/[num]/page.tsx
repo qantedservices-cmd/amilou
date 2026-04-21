@@ -204,6 +204,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
   const [tfVerseStart, setTfVerseStart] = useState('')
   const [tfVerseEnd, setTfVerseEnd] = useState('')
   const [savingTafsir, setSavingTafsir] = useState(false)
+  const [tfIncludeReferent, setTfIncludeReferent] = useState(true)
 
   useEffect(() => {
     fetchData()
@@ -415,7 +416,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       await fetch(`/api/sessions/${currentSessionId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tafsirEntries: updated }),
+        body: JSON.stringify({ tafsirEntries: updated, includeReferent: tfIncludeReferent }),
       })
       setSessionTafsirEntries(updated)
       setTfSurah('')
@@ -1278,6 +1279,10 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                       </Button>
                     </div>
                   </div>
+                  <label className="flex items-center gap-2 cursor-pointer mt-2">
+                    <input type="checkbox" checked={tfIncludeReferent} onChange={e => setTfIncludeReferent(e.target.checked)} className="rounded" />
+                    <span className="text-xs text-muted-foreground">Inclure dans mon profil</span>
+                  </label>
                 </div>
               )}
             </CardContent>
