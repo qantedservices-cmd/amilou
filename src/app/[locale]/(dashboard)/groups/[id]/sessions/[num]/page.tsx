@@ -1379,14 +1379,14 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
               {/* Table */}
               {researchTopics.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm border-collapse">
+                  <table className="w-full text-sm border-collapse table-fixed">
                     <thead>
                       <tr className="border-b-2 border-muted">
-                        <th className="text-left py-2 px-3 font-semibold text-xs uppercase tracking-wider w-32">Assigné à</th>
-                        <th className="text-left py-2 px-3 font-semibold text-xs uppercase tracking-wider">Questions</th>
-                        <th className="text-left py-2 px-3 font-semibold text-xs uppercase tracking-wider">Réponses</th>
-                        <th className="text-center py-2 px-3 font-semibold text-xs uppercase tracking-wider w-20">Statut</th>
-                        {isReferent && <th className="w-20"></th>}
+                        <th className="text-left py-2 px-2 font-semibold text-xs uppercase tracking-wider w-24">Assigné à</th>
+                        <th className="text-left py-2 px-2 font-semibold text-xs uppercase tracking-wider" style={{ width: '30%' }}>Questions</th>
+                        <th className="text-left py-2 px-2 font-semibold text-xs uppercase tracking-wider" style={{ width: '40%' }}>Réponses</th>
+                        <th className="text-center py-2 px-2 font-semibold text-xs uppercase tracking-wider w-16">Statut</th>
+                        {isReferent && <th className="w-14"></th>}
                       </tr>
                     </thead>
                     <tbody>
