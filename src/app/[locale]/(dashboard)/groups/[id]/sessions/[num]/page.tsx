@@ -26,6 +26,7 @@ import {
   BookOpen,
   Calendar,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
@@ -213,6 +214,23 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
   const [tfVerseEnd, setTfVerseEnd] = useState('')
   const [savingTafsir, setSavingTafsir] = useState(false)
   const [tfIncludeReferent, setTfIncludeReferent] = useState(true)
+
+  // PDF export options
+  const [pdfOptionsOpen, setPdfOptionsOpen] = useState(false)
+  const [pdfSections, setPdfSections] = useState([
+    { key: 'pointsAbordes', label: 'Points abordés', enabled: true },
+    { key: 'prochaineSourate', label: 'Prochaine sourate', enabled: true },
+    { key: 'devoirs', label: 'Devoirs Quotidiens', enabled: true },
+    { key: 'notesSeance', label: 'Notes de la séance', enabled: true },
+    { key: 'sensDesVersets', label: 'Sens des versets', enabled: true },
+    { key: 'tafsir', label: 'Tafsir', enabled: true },
+    { key: 'classement', label: 'Classement élèves', enabled: true },
+    { key: 'suiviIndividuel', label: 'Suivi individuel', enabled: true },
+    { key: 'grille', label: 'Grille de suivi', enabled: true },
+    { key: 'annexeCommentaires', label: 'Annexe 1 - Commentaires', enabled: true },
+    { key: 'annexeRecherche', label: 'Annexe 2 - Recherches', enabled: true },
+    { key: 'annexeArcEnCiel', label: 'Annexe 3 - Livres', enabled: true },
+  ])
 
   useEffect(() => {
     fetchData()
@@ -1351,68 +1369,100 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
               )}
             </div>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {/* Pending topics */}
-              {researchTopics.filter(t => !t.isValidated).map(topic => (
-                <div key={topic.id} className="p-3 rounded-lg border border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <div className="text-xs text-muted-foreground mb-1">
-                        {topic.sessionNumber ? `S${topic.sessionNumber}` : ''} — {topic.assignedTo}
-                      </div>
-                      <p className="text-sm font-medium">{topic.question}</p>
-                      {topic.answer && <p className="text-sm text-muted-foreground mt-1 italic">{topic.answer}</p>}
-                    </div>
-                    {isReferent && (
-                      <div className="flex gap-1 shrink-0">
-                        {rtEditingId === topic.id ? null : (
-                          <>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setRtEditingId(topic.id); setRtEditAnswer(topic.answer || '') }}>
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-600" onClick={() => handleValidateResearchTopic(topic.id)}>
-                              <Check className="h-3 w-3" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  {rtEditingId === topic.id && (
-                    <div className="mt-2 space-y-2">
-                      <Input className="h-8 text-xs" value={rtEditAnswer} onChange={e => setRtEditAnswer(e.target.value)} placeholder="Réponse..." />
-                      <div className="flex gap-2">
-                        <Button size="sm" className="h-7 text-xs" onClick={() => handleAnswerResearchTopic(topic.id, rtEditAnswer, false)}>Enregistrer</Button>
-                        <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => handleAnswerResearchTopic(topic.id, rtEditAnswer, true)}>Valider</Button>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setRtEditingId(null)}>Annuler</Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+            <CardContent className="space-y-4">
+              {/* Intro headers */}
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold">Recherche à faire par</h3>
+                <p className="text-xs text-muted-foreground italic">Questions abordées par les élèves</p>
+              </div>
 
-              {/* Validated topics (collapsed) */}
-              {researchTopics.filter(t => t.isValidated).length > 0 && (
-                <details className="text-sm">
-                  <summary className="cursor-pointer text-muted-foreground text-xs py-1">
-                    {researchTopics.filter(t => t.isValidated).length} sujet(s) validé(s)
-                  </summary>
+              {/* Table */}
+              {researchTopics.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-muted">
+                        <th className="text-left py-2 px-3 font-semibold text-xs uppercase tracking-wider w-32">Assigné à</th>
+                        <th className="text-left py-2 px-3 font-semibold text-xs uppercase tracking-wider">Questions</th>
+                        <th className="text-left py-2 px-3 font-semibold text-xs uppercase tracking-wider">Réponses</th>
+                        <th className="text-center py-2 px-3 font-semibold text-xs uppercase tracking-wider w-20">Statut</th>
+                        {isReferent && <th className="w-20"></th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {researchTopics
+                        .sort((a, b) => (a.isValidated ? 1 : 0) - (b.isValidated ? 1 : 0) || (b.sessionNumber || 0) - (a.sessionNumber || 0))
+                        .map(topic => (
+                        <tr key={topic.id} className={`border-b hover:bg-muted/30 ${!topic.isValidated ? 'bg-amber-50/50 dark:bg-amber-950/10' : ''}`}>
+                          <td className="py-2 px-3 text-xs">
+                            <div>{topic.assignedTo}</div>
+                            {topic.sessionNumber && <span className="text-[10px] text-muted-foreground">S{topic.sessionNumber}</span>}
+                          </td>
+                          <td className="py-2 px-3 text-sm">{topic.question}</td>
+                          <td className="py-2 px-3 text-sm">
+                            {rtEditingId === topic.id ? (
+                              <div className="flex gap-2">
+                                <Input className="h-8 text-xs flex-1" value={rtEditAnswer} onChange={e => setRtEditAnswer(e.target.value)} placeholder="Réponse..." />
+                                <Button size="sm" className="h-8 text-xs" onClick={() => handleAnswerResearchTopic(topic.id, rtEditAnswer, false)}>OK</Button>
+                                <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => handleAnswerResearchTopic(topic.id, rtEditAnswer, true)}>Valider</Button>
+                                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setRtEditingId(null)}>X</Button>
+                              </div>
+                            ) : (
+                              <span className={topic.answer ? 'italic text-muted-foreground' : 'text-muted-foreground/40'}>
+                                {topic.answer || '—'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            {topic.isValidated ? (
+                              <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Validé</Badge>
+                            ) : (
+                              <Badge className="bg-amber-100 text-amber-700 text-[10px]">En attente</Badge>
+                            )}
+                          </td>
+                          {isReferent && (
+                            <td className="py-2 px-3">
+                              <div className="flex gap-1">
+                                {rtEditingId !== topic.id && !topic.isValidated && (
+                                  <>
+                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setRtEditingId(topic.id); setRtEditAnswer(topic.answer || '') }}>
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-600" onClick={() => handleValidateResearchTopic(topic.id)}>
+                                      <Check className="h-3 w-3" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">Aucun sujet de recherche</p>
+              )}
+
+              {/* Section: Réponses commentées */}
+              {researchTopics.some(t => t.answer && t.isValidated) && (
+                <div className="space-y-1 pt-4 border-t">
+                  <h3 className="text-sm font-semibold">Éléments de réponses par les élèves ; commentées et corrigées</h3>
                   <div className="space-y-2 mt-2">
-                    {researchTopics.filter(t => t.isValidated).map(topic => (
-                      <div key={topic.id} className="p-2 rounded border bg-muted/30 text-xs">
-                        <div className="text-muted-foreground">{topic.sessionNumber ? `S${topic.sessionNumber}` : ''} — {topic.assignedTo}</div>
-                        <p className="font-medium">{topic.question}</p>
-                        {topic.answer && <p className="text-muted-foreground italic mt-0.5">{topic.answer}</p>}
-                        <Badge className="bg-emerald-100 text-emerald-700 text-[10px] mt-1">Validé</Badge>
+                    {researchTopics.filter(t => t.answer && t.isValidated).map(topic => (
+                      <div key={topic.id} className="text-sm pl-3 border-l-2 border-emerald-300">
+                        <p className="font-medium text-xs text-muted-foreground">{topic.assignedTo} — {topic.question}</p>
+                        <p className="italic">{topic.answer}</p>
                       </div>
                     ))}
                   </div>
-                </details>
+                </div>
               )}
 
               {/* Add new topic (referent only) */}
               {isReferent && (
-                <div className="space-y-2 p-3 rounded-lg border border-dashed">
+                <div className="space-y-2 p-3 rounded-lg border border-dashed mt-4">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <Label className="text-xs">Assigné à</Label>
@@ -1434,10 +1484,6 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                     Ajouter le sujet
                   </Button>
                 </div>
-              )}
-
-              {researchTopics.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-2">Aucun sujet de recherche</p>
               )}
             </CardContent>
           </Card>
@@ -1487,6 +1533,85 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
           </Card>
         </div>
       </div>
+      {/* Export PDF */}
+      <Card className="mt-6">
+        <CardHeader className="cursor-pointer" onClick={() => setPdfOptionsOpen(!pdfOptionsOpen)}>
+          <CardTitle className="flex items-center justify-between text-base">
+            <div className="flex items-center gap-2">
+              <Download className="h-5 w-5 text-blue-600" />
+              Export PDF — Seance {sessionNum}
+            </div>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${pdfOptionsOpen ? 'rotate-180' : ''}`} />
+          </CardTitle>
+        </CardHeader>
+        {pdfOptionsOpen && (
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">Selectionnez les sections a inclure dans le rapport PDF</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {pdfSections.map((section, i) => (
+                <label key={section.key} className={`flex items-center gap-2 p-2 rounded border cursor-pointer text-xs transition-colors ${section.enabled ? 'bg-blue-50 border-blue-200 dark:bg-blue-950/20' : 'hover:bg-muted/50'}`}>
+                  <input
+                    type="checkbox"
+                    checked={section.enabled}
+                    onChange={e => {
+                      setPdfSections(prev => prev.map((s, j) => j === i ? { ...s, enabled: e.target.checked } : s))
+                    }}
+                    className="rounded"
+                  />
+                  {section.label}
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => {
+                  const enabledKeys = pdfSections.filter(s => s.enabled).map(s => s.key).join(',')
+                  window.location.href = `/${locale}/groups/${groupId}/mastery?report=${sessionNum}&sections=${enabledKeys}`
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Generer le PDF
+              </Button>
+              <Button variant="outline" onClick={() => setPdfSections(prev => prev.map(s => ({ ...s, enabled: true })))}>
+                Tout selectionner
+              </Button>
+              <Button variant="outline" onClick={() => setPdfSections(prev => prev.map(s => ({ ...s, enabled: false })))}>
+                Tout deselectionner
+              </Button>
+            </div>
+
+            {/* Preview: summary of what will be in the PDF */}
+            <div className="mt-4 pt-4 border-t">
+              <h4 className="text-sm font-medium mb-2">Apercu du contenu</h4>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                {reportTopics.length > 0 && pdfSections.find(s => s.key === 'pointsAbordes')?.enabled && (
+                  <p>Points abordes : {reportTopics.filter(t => t.checked).length}/{reportTopics.length} coches</p>
+                )}
+                {reportNextSurah && reportNextSurah !== 'none' && pdfSections.find(s => s.key === 'prochaineSourate')?.enabled && (
+                  <p>Prochaine sourate : {reportSurahs.find(s => s.number.toString() === reportNextSurah)?.nameAr || reportNextSurah}</p>
+                )}
+                {reportHomework && pdfSections.find(s => s.key === 'devoirs')?.enabled && (
+                  <p>Devoirs : {reportHomework.substring(0, 50)}{reportHomework.length > 50 ? '...' : ''}</p>
+                )}
+                {sessionNotes && pdfSections.find(s => s.key === 'notesSeance')?.enabled && (
+                  <p>Notes : {sessionNotes.substring(0, 50)}{sessionNotes.length > 50 ? '...' : ''}</p>
+                )}
+                {sessionTafsirEntries.length > 0 && (pdfSections.find(s => s.key === 'tafsir')?.enabled || pdfSections.find(s => s.key === 'sensDesVersets')?.enabled) && (
+                  <p>Tafsir/Traduction : {sessionTafsirEntries.length} entree(s)</p>
+                )}
+                {bookProgressEntries.length > 0 && pdfSections.find(s => s.key === 'annexeArcEnCiel')?.enabled && (
+                  <p>Avancement livres : {bookProgressEntries.length} entree(s)</p>
+                )}
+                {researchTopics.filter(t => !t.isValidated).length > 0 && pdfSections.find(s => s.key === 'annexeRecherche')?.enabled && (
+                  <p>Sujets de recherche : {researchTopics.filter(t => !t.isValidated).length} en attente</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       {/* Research topics history dialog */}
       <Dialog open={rtHistoryOpen} onOpenChange={setRtHistoryOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">

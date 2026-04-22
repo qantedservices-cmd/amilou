@@ -204,7 +204,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
     { key: 'suiviIndividuel', label: 'Suivi individuel', enabled: true },
     { key: 'grille', label: 'Grille de suivi', enabled: true },
     { key: 'annexeCommentaires', label: 'Annexe 1 - Commentaires sur récitations', enabled: true },
-    { key: 'annexeRecherche', label: 'Annexe 2 - Sujets de recherche suite échanges', enabled: true },
+    { key: 'annexeRecherche', label: 'Annexe 2 - Sujets de recherche', enabled: true },
     { key: 'annexeArcEnCiel', label: 'Annexe 3 - Avancement Livres', enabled: true },
   ])
   const pdfSections = Object.fromEntries(pdfSectionOrder.map(s => [s.key, s.enabled])) as Record<string, boolean>
@@ -233,6 +233,16 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
   const [editResearchValidated, setEditResearchValidated] = useState(false)
   const [savingResearch, setSavingResearch] = useState(false)
   const [deletingResearchId, setDeletingResearchId] = useState<string | null>(null)
+
+  // Read PDF sections from URL params (from session page)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const sectionsParam = params.get('sections')
+    if (sectionsParam) {
+      const enabledKeys = new Set(sectionsParam.split(','))
+      setPdfSectionOrder(prev => prev.map(s => ({ ...s, enabled: enabledKeys.has(s.key) })))
+    }
+  }, [])
 
   useEffect(() => {
     fetchMastery()
@@ -1027,7 +1037,7 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
         suiviIndividuel: 'Suivi individuel de mémorisation',
         grille: 'Grille de suivi',
         annexeCommentaires: 'Annexe 1 - Commentaires sur récitations',
-        annexeRecherche: 'Annexe 2 - Sujets de recherche suite échanges',
+        annexeRecherche: 'Annexe 2 - Sujets de recherche',
         annexeArcEnCiel: 'Annexe 3 - Avancement Livres',
       }
       const sectionHasContent: Record<string, boolean> = {
@@ -1465,66 +1475,108 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
           }
         } else if (sec.key === 'annexeRecherche') {
           doc.addPage()
-          sectionPages['Annexe 2 - Sujets de recherche suite échanges'] = doc.getNumberOfPages()
-          drawSectionHeader('Annexe 2 - Sujets de recherche suite échanges')
+          sectionPages['Annexe 2 - Sujets de recherche'] = doc.getNumberOfPages()
+          drawSectionHeader('Annexe 2 - Sujets de recherche')
 
-          const sortedTopics = [...allResearchTopics]
-            .filter(t => {
-              if (t.sessionNumber === null) return true
-              return t.sessionNumber >= annexeRechercheFrom && t.sessionNumber <= annexeRechercheTo
-            })
-            .sort((a, b) => {
-              if (a.sessionNumber === null) return 1
-              if (b.sessionNumber === null) return -1
-              return b.sessionNumber - a.sessionNumber
-            })
+          // Intro text
+          doc.setFontSize(11)
+          doc.setFont(pdfFont, 'bold')
+          doc.text('Recherche à faire par', 10, 25)
+          doc.setFont(pdfFont, 'normal')
+          doc.setFontSize(10)
+          doc.text('Questions abordées par les élèves', 10, 30)
 
-          const researchRows = sortedTopics.map(t => [
-            t.sessionNumber ? `S${t.sessionNumber}` : '-',
-            t.assignedTo,
-            t.question,
-            t.answer || '',
-            t.isValidated ? 'Oui' : ''
-          ])
-
-          autoTable(doc, {
-            head: [['Séance', 'Élève', 'Question', 'Réponse', 'Validé']],
-            body: researchRows,
-            startY: 25,
-            styles: {
-              font: pdfFont,
-              fontSize: 11,
-              cellPadding: 2,
-              lineColor: [200, 200, 200],
-              lineWidth: 0.1
-            },
-            headStyles: {
-              fillColor: [71, 85, 105],
-              textColor: [255, 255, 255],
-              fontStyle: 'bold',
-              fontSize: 11
-            },
-            columnStyles: {
-              0: { cellWidth: 18, halign: 'center' },
-              1: { cellWidth: 28 },
-              2: { cellWidth: 72 },
-              3: { cellWidth: 144 },
-              4: { cellWidth: 15, halign: 'center' }
-            },
-            alternateRowStyles: {
-              fillColor: [248, 250, 252]
-            },
-            didParseCell: (hookData: any) => {
-              if (hookData.section === 'body' && hookData.column.index === 4) {
-                if (hookData.cell.text.join('') === 'Oui') {
-                  hookData.cell.styles.fillColor = [34, 197, 94]
-                  hookData.cell.styles.textColor = [255, 255, 255]
-                  hookData.cell.styles.fontStyle = 'bold'
-                }
-              }
-            },
-            margin: { left: 10, right: 10 }
+          // Filter research topics for the session range
+          const filteredResearch = allResearchTopics.filter(t => {
+            if (!t.sessionNumber) return true
+            return t.sessionNumber >= annexeRechercheFrom && t.sessionNumber <= annexeRechercheTo
           })
+
+          if (filteredResearch.length > 0) {
+            // Table with Assigné à, Questions, Réponses, Statut
+            const researchRows = filteredResearch.map(t => [
+              `${t.assignedTo}\n${t.sessionNumber ? 'S' + t.sessionNumber : ''}`,
+              t.question,
+              t.answer || '—',
+              t.isValidated ? 'Validé' : 'En attente',
+            ])
+
+            autoTable(doc, {
+              head: [['Assigné à', 'Questions', 'Réponses', 'Statut']],
+              body: researchRows,
+              startY: 35,
+              styles: {
+                font: pdfFont,
+                fontSize: 10,
+                cellPadding: 3,
+                lineColor: [200, 200, 200],
+                lineWidth: 0.1,
+                overflow: 'linebreak',
+              },
+              headStyles: {
+                fillColor: [71, 85, 105],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 10,
+              },
+              columnStyles: {
+                0: { cellWidth: 35 },
+                1: { cellWidth: 80 },
+                2: { cellWidth: 100 },
+                3: { cellWidth: 28, halign: 'center' },
+              },
+              alternateRowStyles: {
+                fillColor: [248, 250, 252],
+              },
+              didParseCell: (hookData: any) => {
+                if (hookData.section === 'body' && hookData.column.index === 3) {
+                  const text = hookData.cell.text.join('')
+                  if (text === 'Validé') {
+                    hookData.cell.styles.fillColor = [220, 252, 231]
+                    hookData.cell.styles.textColor = [21, 128, 61]
+                    hookData.cell.styles.fontStyle = 'bold'
+                  } else {
+                    hookData.cell.styles.fillColor = [254, 249, 195]
+                    hookData.cell.styles.textColor = [161, 98, 7]
+                  }
+                }
+              },
+              margin: { left: 10, right: 10 },
+            })
+
+            // Validated answers section
+            const validatedWithAnswers = filteredResearch.filter(t => t.isValidated && t.answer)
+            if (validatedWithAnswers.length > 0) {
+              const finalY = (doc as any).lastAutoTable?.finalY || 200
+              let answerY = finalY + 10
+              if (answerY > 270) { doc.addPage(); answerY = 20 }
+
+              doc.setFontSize(11)
+              doc.setFont(pdfFont, 'bold')
+              doc.text('Éléments de réponses par les élèves ; commentées et corrigées', 10, answerY)
+              answerY += 7
+              doc.setFont(pdfFont, 'normal')
+              doc.setFontSize(10)
+
+              for (const topic of validatedWithAnswers) {
+                if (answerY > 275) { doc.addPage(); answerY = 20 }
+                doc.setFont(pdfFont, 'bold')
+                doc.text(`${topic.assignedTo} — ${topic.question}`, 12, answerY)
+                answerY += 5
+                doc.setFont(pdfFont, 'normal')
+                const answerLines = doc.splitTextToSize(topic.answer || '', 240)
+                for (const line of answerLines) {
+                  if (answerY > 275) { doc.addPage(); answerY = 20 }
+                  doc.text(line, 14, answerY)
+                  answerY += 4.5
+                }
+                answerY += 3
+              }
+            }
+          } else {
+            doc.setFontSize(10)
+            doc.text('Aucun sujet de recherche pour cette période.', 10, 35)
+          }
         } else if (sec.key === 'annexeArcEnCiel') {
           // Group book progress by book
           const byBook = new Map<string, { title: string; entries: typeof allBookProgress }>()
