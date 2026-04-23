@@ -790,9 +790,9 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Content grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left column: Points abordés + Devoirs */}
-        <div className="space-y-6">
+      <div className="space-y-6">
+        {/* Points abordés + Devoirs */}
+        <div className="grid gap-6 md:grid-cols-2">
           {/* Points abordés */}
           <Card>
             <CardHeader className="pb-3">
@@ -932,8 +932,8 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
           )}
         </div>
 
-        {/* Right column: Suivi individuel + Classement */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Suivi individuel + Classement */}
+        <div className="space-y-6">
           {/* Suivi individuel */}
           <Card>
             <CardHeader className="pb-3">
