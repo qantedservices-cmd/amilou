@@ -1445,21 +1445,6 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                 <p className="text-sm text-muted-foreground text-center py-4">Aucun sujet de recherche</p>
               )}
 
-              {/* Section: Réponses commentées */}
-              {researchTopics.some(t => t.answer && t.isValidated) && (
-                <div className="space-y-1 pt-4 border-t">
-                  <h3 className="text-sm font-semibold">Éléments de réponses par les élèves ; commentées et corrigées</h3>
-                  <div className="space-y-2 mt-2">
-                    {researchTopics.filter(t => t.answer && t.isValidated).map(topic => (
-                      <div key={topic.id} className="text-sm pl-3 border-l-2 border-emerald-300">
-                        <p className="font-medium text-xs text-muted-foreground">{topic.assignedTo} — {topic.question}</p>
-                        <p className="italic">{topic.answer}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Add new topic (referent only) */}
               {isReferent && (
                 <div className="space-y-2 p-3 rounded-lg border border-dashed mt-4">
