@@ -203,6 +203,9 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
   const [rtEditAnswer, setRtEditAnswer] = useState('')
   const [rtHistoryOpen, setRtHistoryOpen] = useState(false)
   const [rtHistoryFilter, setRtHistoryFilter] = useState<'all' | 'pending' | 'validated'>('all')
+  const [rtFilterState, setRtFilterState] = useState('all')
+  const [rtFilterSession, setRtFilterSession] = useState('all')
+  const [rtGroupBy, setRtGroupBy] = useState('none')
 
   // Tafsir entries for this session
   const [sessionTafsirEntries, setSessionTafsirEntries] = useState<Array<{
@@ -1370,14 +1373,70 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
             </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Intro headers */}
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold">Recherche à faire par</h3>
-                <p className="text-xs text-muted-foreground italic">Questions abordées par les élèves</p>
+              {/* Intro + Filters */}
+              <div className="flex items-end justify-between flex-wrap gap-2">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold">Recherche à faire par</h3>
+                  <p className="text-xs text-muted-foreground italic">Questions abordées par les élèves</p>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Select value={rtFilterState} onValueChange={setRtFilterState}>
+                    <SelectTrigger className="h-7 text-xs w-28"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous</SelectItem>
+                      <SelectItem value="pending">En attente</SelectItem>
+                      <SelectItem value="validated">Validés</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={rtFilterSession} onValueChange={setRtFilterSession}>
+                    <SelectTrigger className="h-7 text-xs w-24"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Toutes S.</SelectItem>
+                      {[...new Set(researchTopics.map(t => t.sessionNumber).filter(Boolean))].sort((a, b) => (a || 0) - (b || 0)).map(sn => (
+                        <SelectItem key={sn} value={String(sn)}>S{sn}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={rtGroupBy} onValueChange={setRtGroupBy}>
+                    <SelectTrigger className="h-7 text-xs w-32"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Pas de groupe</SelectItem>
+                      <SelectItem value="session">Par séance</SelectItem>
+                      <SelectItem value="assignee">Par assigné</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Table */}
-              {researchTopics.length > 0 ? (
+              {(() => {
+                let filtered = researchTopics
+                  .filter(t => rtFilterState === 'all' ? true : rtFilterState === 'pending' ? !t.isValidated : t.isValidated)
+                  .filter(t => rtFilterSession === 'all' ? true : String(t.sessionNumber) === rtFilterSession)
+                  .sort((a, b) => (a.isValidated ? 1 : 0) - (b.isValidated ? 1 : 0) || (b.sessionNumber || 0) - (a.sessionNumber || 0))
+
+                // Group if needed
+                const groups: Array<{ label: string; topics: typeof filtered }> = []
+                if (rtGroupBy === 'none') {
+                  groups.push({ label: '', topics: filtered })
+                } else if (rtGroupBy === 'session') {
+                  const map = new Map<string, typeof filtered>()
+                  for (const t of filtered) {
+                    const key = t.sessionNumber ? `S${t.sessionNumber}` : 'Sans séance'
+                    if (!map.has(key)) map.set(key, [])
+                    map.get(key)!.push(t)
+                  }
+                  for (const [label, topics] of map) groups.push({ label, topics })
+                } else if (rtGroupBy === 'assignee') {
+                  const map = new Map<string, typeof filtered>()
+                  for (const t of filtered) {
+                    if (!map.has(t.assignedTo)) map.set(t.assignedTo, [])
+                    map.get(t.assignedTo)!.push(t)
+                  }
+                  for (const [label, topics] of map) groups.push({ label, topics })
+                }
+
+                return filtered.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border-collapse table-fixed">
                     <thead>
@@ -1390,8 +1449,12 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                       </tr>
                     </thead>
                     <tbody>
-                      {researchTopics
-                        .sort((a, b) => (a.isValidated ? 1 : 0) - (b.isValidated ? 1 : 0) || (b.sessionNumber || 0) - (a.sessionNumber || 0))
+                      {groups.map((group, gi) => (
+                        <React.Fragment key={gi}>
+                          {group.label && (
+                            <tr><td colSpan={isReferent ? 5 : 4} className="py-2 px-2 text-xs font-semibold text-muted-foreground bg-muted/50 border-b">{group.label} ({group.topics.length})</td></tr>
+                          )}
+                          {group.topics
                         .map(topic => (
                         <tr key={topic.id} className={`border-b hover:bg-muted/30 ${!topic.isValidated ? 'bg-amber-50/50 dark:bg-amber-950/10' : ''}`}>
                           <td className="py-2 px-3 text-xs">
@@ -1438,12 +1501,15 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                           )}
                         </tr>
                       ))}
+                        </React.Fragment>
+                      ))}
                     </tbody>
                   </table>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">Aucun sujet de recherche</p>
-              )}
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">Aucun sujet de recherche</p>
+                )
+              })()}
 
               {/* Add new topic (referent only) */}
               {isReferent && (
