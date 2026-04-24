@@ -198,6 +198,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
     id: string; sessionNumber: number | null; assignedTo: string; question: string; answer: string | null; isValidated: boolean
   }>>([])
   const [rtNewAssignedTo, setRtNewAssignedTo] = useState('')
+  const [rtSelectedMembers, setRtSelectedMembers] = useState<string[]>([])
   const [rtNewQuestion, setRtNewQuestion] = useState('')
   const [rtEditingId, setRtEditingId] = useState<string | null>(null)
   const [rtEditAnswer, setRtEditAnswer] = useState('')
@@ -399,14 +400,16 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
   }
 
   async function handleAddResearchTopic() {
-    if (!rtNewAssignedTo.trim() || !rtNewQuestion.trim()) return
+    const assignedTo = rtSelectedMembers.length > 0 ? rtSelectedMembers.join(', ') : rtNewAssignedTo.trim()
+    if (!assignedTo || !rtNewQuestion.trim()) return
     try {
       await fetch(`/api/groups/${groupId}/research-topics`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionNumber: sessionNum, assignedTo: rtNewAssignedTo.trim(), question: rtNewQuestion.trim() }),
+        body: JSON.stringify({ sessionNumber: sessionNum, assignedTo, question: rtNewQuestion.trim() }),
       })
       setRtNewAssignedTo('')
+      setRtSelectedMembers([])
       setRtNewQuestion('')
       fetchResearchTopics()
     } catch (e) { console.error(e) }
@@ -1517,21 +1520,28 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <Label className="text-xs">Assigné à</Label>
-                      <Select value={rtNewAssignedTo || 'none'} onValueChange={v => setRtNewAssignedTo(v === 'none' ? '' : v)}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Sélectionner</SelectItem>
-                          <SelectItem value="Tous">Tous</SelectItem>
-                          {members.map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex flex-wrap gap-1.5 p-2 border rounded-md min-h-[32px]">
+                        <label className={`flex items-center gap-1 px-2 py-0.5 rounded cursor-pointer text-xs border ${rtSelectedMembers.length === 0 && rtNewAssignedTo === 'Tous' ? 'bg-blue-50 border-blue-300' : 'hover:bg-muted/50'}`}>
+                          <input type="checkbox" className="rounded h-3 w-3" checked={rtNewAssignedTo === 'Tous'} onChange={e => { if (e.target.checked) { setRtNewAssignedTo('Tous'); setRtSelectedMembers([]) } else { setRtNewAssignedTo('') } }} />
+                          Tous
+                        </label>
+                        {members.map(m => (
+                          <label key={m.id} className={`flex items-center gap-1 px-2 py-0.5 rounded cursor-pointer text-xs border ${rtSelectedMembers.includes(m.name) ? 'bg-blue-50 border-blue-300' : 'hover:bg-muted/50'}`}>
+                            <input type="checkbox" className="rounded h-3 w-3" checked={rtSelectedMembers.includes(m.name)} onChange={e => {
+                              if (e.target.checked) { setRtSelectedMembers(prev => [...prev, m.name]); setRtNewAssignedTo('') }
+                              else { setRtSelectedMembers(prev => prev.filter(n => n !== m.name)) }
+                            }} />
+                            {m.name}
+                          </label>
+                        ))}
+                      </div>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Question / Sujet</Label>
                       <Input className="h-8 text-xs" value={rtNewQuestion} onChange={e => setRtNewQuestion(e.target.value)} placeholder="Sujet de recherche..." />
                     </div>
                   </div>
-                  <Button size="sm" className="h-7 text-xs" onClick={handleAddResearchTopic} disabled={!rtNewAssignedTo || !rtNewQuestion.trim()}>
+                  <Button size="sm" className="h-7 text-xs" onClick={handleAddResearchTopic} disabled={(!rtNewAssignedTo && rtSelectedMembers.length === 0) || !rtNewQuestion.trim()}>
                     Ajouter le sujet
                   </Button>
                 </div>
