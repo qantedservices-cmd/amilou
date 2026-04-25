@@ -795,10 +795,34 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {/* Content grid */}
+      {/* Table des matières sticky */}
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b -mx-4 px-4 py-2 overflow-x-auto">
+        <div className="flex gap-1 min-w-max">
+          {[
+            { id: 'sec-points', label: 'Points abordés' },
+            { id: 'sec-suivi', label: 'Suivi individuel' },
+            { id: 'sec-livres', label: 'Livres' },
+            { id: 'sec-tafsir', label: 'Tafsir' },
+            { id: 'sec-notes', label: 'Notes' },
+            { id: 'sec-recherche', label: 'Recherche' },
+            { id: 'sec-classement', label: 'Classement' },
+            { id: 'sec-pdf', label: 'Export PDF' },
+          ].map(s => (
+            <button
+              key={s.id}
+              onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="px-3 py-1 text-xs rounded-full border hover:bg-muted transition-colors whitespace-nowrap"
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
       <div className="space-y-6">
         {/* Points abordés + Devoirs */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div id="sec-points" className="grid gap-6 md:grid-cols-2 scroll-mt-16">
           {/* Points abordés */}
           <Card>
             <CardHeader className="pb-3">
@@ -939,7 +963,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Suivi individuel + Classement */}
-        <div className="space-y-6">
+        <div id="sec-suivi" className="space-y-6 scroll-mt-16">
           {/* Suivi individuel */}
           <Card>
             <CardHeader className="pb-3">
@@ -1129,7 +1153,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
 
           {/* Avancement Livres */}
           {groupBooks.length > 0 && (
-            <Card>
+            <Card id="sec-livres" className="scroll-mt-16">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <FileText className="h-5 w-5 text-blue-600" />
@@ -1241,7 +1265,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
           )}
 
           {/* Tafsir / Traduction */}
-          <Card>
+          <Card id="sec-tafsir" className="scroll-mt-16">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <BookOpen className="h-5 w-5 text-rose-600" />
@@ -1328,7 +1352,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
           </Card>
 
           {/* Commentaire de séance */}
-          <Card>
+          <Card id="sec-notes" className="scroll-mt-16">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <FileText className="h-5 w-5 text-slate-600" />
@@ -1358,7 +1382,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
           </Card>
 
           {/* Sujets de recherche */}
-          <Card>
+          <Card id="sec-recherche" className="scroll-mt-16">
             <CardHeader>
               <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -1550,7 +1574,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
           </Card>
 
           {/* Classement */}
-          <Card>
+          <Card id="sec-classement" className="scroll-mt-16">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-yellow-500" />
@@ -1595,7 +1619,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
       {/* Export PDF */}
-      <Card className="mt-6">
+      <Card id="sec-pdf" className="mt-6 scroll-mt-16">
         <CardHeader className="cursor-pointer" onClick={() => setPdfOptionsOpen(!pdfOptionsOpen)}>
           <CardTitle className="flex items-center justify-between text-base">
             <div className="flex items-center gap-2">
