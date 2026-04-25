@@ -244,9 +244,12 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
     setLoading(true)
     setError('')
     try {
-      const [masteryRes, reportRes] = await Promise.all([
+      // Fetch ALL data in parallel
+      const [masteryRes, reportRes, booksRes, researchRes] = await Promise.all([
         fetch(`/api/groups/${groupId}/mastery`),
-        fetch(`/api/groups/${groupId}/mastery/session-report?sessionNumber=${sessionNum}`)
+        fetch(`/api/groups/${groupId}/mastery/session-report?sessionNumber=${sessionNum}`),
+        fetch(`/api/groups/${groupId}/books`),
+        fetch(`/api/groups/${groupId}/research-topics`),
       ])
 
       if (!masteryRes.ok) {
@@ -265,9 +268,22 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       setTotalSessions(masteryData.totalSessions)
       setSessions(masteryData.sessions || [])
 
-      // Fetch group books and research topics in parallel
-      fetchGroupBooks()
-      fetchResearchTopics()
+      // Process books + chapters in parallel
+      if (booksRes.ok) {
+        const booksData = await booksRes.json()
+        const enriched = await Promise.all(booksData.map(async (gb: any) => {
+          const chapRes = await fetch(`/api/books/${gb.book.id}/chapters`)
+          const chapters = chapRes.ok ? await chapRes.json() : []
+          return { ...gb, book: { ...gb.book, chapters } }
+        }))
+        setGroupBooks(enriched)
+      }
+
+      // Process research topics
+      if (researchRes.ok) {
+        const researchData = await researchRes.json()
+        setResearchTopics(researchData.topics || [])
+      }
 
       if (reportRes.ok) {
         const reportData = await reportRes.json()
