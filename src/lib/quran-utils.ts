@@ -286,6 +286,7 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
     },
     orderBy: { date: 'asc' },
   })
+  // Keep only the LAST adjustment per date (multiple adjustments same day → last wins)
   const adjustmentsByDate = new Map<string, typeof adjustments[0]>()
   for (const adj of adjustments) {
     adjustmentsByDate.set(adj.date.toISOString().split('T')[0], adj)
@@ -309,21 +310,26 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
   const allDates = [...new Set([...readingDateSet, ...revisionDateSet, ...adjustmentDateSet])].sort()
 
   for (const dateStr of allDates) {
-    // Apply manual adjustment FIRST (overrides calculated position)
+    // Apply manual adjustment — overrides position AND skips advancement for that day
     const adj = adjustmentsByDate.get(dateStr)
+    let readingAdjusted = false
+    let revisionAdjusted = false
     if (adj) {
-      if (adj.readingHizb !== null) readingHizb = adj.readingHizb
+      if (adj.readingHizb !== null) {
+        readingHizb = adj.readingHizb
+        readingAdjusted = true
+      }
       if (adj.revisionHizb !== null) {
         revisionHizb = adj.revisionHizb
-        // If revision was suspended and manually adjusted, unsuspend
+        revisionAdjusted = true
         if (revisionSuspended !== null) {
           revisionSuspended = null
         }
       }
     }
 
-    const hasReading = readingDateSet.has(dateStr)
-    const hasRevision = revisionDateSet.has(dateStr)
+    const hasReading = readingDateSet.has(dateStr) && !readingAdjusted
+    const hasRevision = revisionDateSet.has(dateStr) && !revisionAdjusted
 
     // Process reading first (may suspend/resume revision)
     if (hasReading && readingHizbPerDay > 0) {
