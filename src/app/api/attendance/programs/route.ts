@@ -262,16 +262,18 @@ export async function POST(request: Request) {
 
     await Promise.all(operations)
 
-    // Recalculate positions after saving completions
-    const positions = await recalculatePositionsFromCycles(targetUserId)
-    await prisma.user.update({
-      where: { id: targetUserId },
-      data: {
-        readingCurrentHizb: positions.readingHizb,
-        revisionCurrentHizb: positions.revisionHizb,
-        revisionSuspendedHizb: positions.revisionSuspended,
-      }
-    })
+    // Only recalculate positions if READING or REVISION was modified
+    if (hasRevisionOrReading) {
+      const positions = await recalculatePositionsFromCycles(targetUserId)
+      await prisma.user.update({
+        where: { id: targetUserId },
+        data: {
+          readingCurrentHizb: positions.readingHizb,
+          revisionCurrentHizb: positions.revisionHizb,
+          revisionSuspendedHizb: positions.revisionSuspended,
+        }
+      })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

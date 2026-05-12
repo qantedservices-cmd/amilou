@@ -210,15 +210,16 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
   revisionHizb: number
   revisionSuspended: number | null
 }> {
-  const zone = await getMemorizedZone(userId)
-
-  // Get programs
-  const [revisionProgram, readingProgram] = await Promise.all([
+  // Fetch zone, programs, cycles all in parallel
+  const [zone, revisionProgram, readingProgram, lastLectureCycle, lastRevisionCycle] = await Promise.all([
+    getMemorizedZone(userId),
     prisma.program.findFirst({ where: { code: 'REVISION' } }),
     prisma.program.findFirst({ where: { code: 'READING' } }),
+    prisma.completionCycle.findFirst({ where: { userId, type: 'LECTURE' }, orderBy: { completedAt: 'desc' } }),
+    prisma.completionCycle.findFirst({ where: { userId, type: 'REVISION' }, orderBy: { completedAt: 'desc' } }),
   ])
 
-  // Get active objectives
+  // Get settings (needs program IDs)
   const programSettings = await prisma.userProgramSettings.findMany({
     where: {
       userId,
@@ -232,18 +233,6 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
   const readingHizbPerDay = readingSettings ? objectiveToHizbPerDay(readingSettings.quantity, readingSettings.unit, readingSettings.period) : 0
   const revisionHizbPerDay = revisionSettings ? objectiveToHizbPerDay(revisionSettings.quantity, revisionSettings.unit, revisionSettings.period) : 0
 
-  // Get last cycle dates
-  const lastLectureCycle = await prisma.completionCycle.findFirst({
-    where: { userId, type: 'LECTURE' },
-    orderBy: { completedAt: 'desc' }
-  })
-  const lastRevisionCycle = await prisma.completionCycle.findFirst({
-    where: { userId, type: 'REVISION' },
-    orderBy: { completedAt: 'desc' }
-  })
-
-  // Get completed days AFTER last cycles (gt, not gte)
-  // The cycle day is the last day of the old cycle, not the first of the new one
   const lectureCycleDate = lastLectureCycle
     ? new Date(new Date(lastLectureCycle.completedAt).toISOString().split('T')[0])
     : null
@@ -251,41 +240,46 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
     ? new Date(new Date(lastRevisionCycle.completedAt).toISOString().split('T')[0])
     : null
 
-  const readingDays = readingProgram ? await prisma.dailyProgramCompletion.findMany({
-    where: {
-      userId,
-      programId: readingProgram.id,
-      completed: true,
-      ...(lectureCycleDate ? { date: { gt: lectureCycleDate } } : {})
-    },
-    orderBy: { date: 'asc' },
-    select: { date: true }
-  }) : []
+  // Fetch completions + adjustments in parallel
+  const [readingDaysResult, revisionDaysResult, adjustmentsResult] = await Promise.all([
+    readingProgram ? prisma.dailyProgramCompletion.findMany({
+      where: {
+        userId,
+        programId: readingProgram.id,
+        completed: true,
+        ...(lectureCycleDate ? { date: { gt: lectureCycleDate } } : {})
+      },
+      orderBy: { date: 'asc' },
+      select: { date: true }
+    }) : Promise.resolve([]),
+    revisionProgram ? prisma.dailyProgramCompletion.findMany({
+      where: {
+        userId,
+        programId: revisionProgram.id,
+        completed: true,
+        ...(revisionCycleDate ? { date: { gt: revisionCycleDate } } : {})
+      },
+      orderBy: { date: 'asc' },
+      select: { date: true }
+    }) : Promise.resolve([]),
+    prisma.positionAdjustment.findMany({
+      where: {
+        userId,
+        date: {
+          gt: new Date(Math.min(
+            lectureCycleDate?.getTime() || 0,
+            revisionCycleDate?.getTime() || 0
+          ) || 0)
+        }
+      },
+      orderBy: { date: 'asc' },
+    }),
+  ])
 
-  const revisionDays = revisionProgram ? await prisma.dailyProgramCompletion.findMany({
-    where: {
-      userId,
-      programId: revisionProgram.id,
-      completed: true,
-      ...(revisionCycleDate ? { date: { gt: revisionCycleDate } } : {})
-    },
-    orderBy: { date: 'asc' },
-    select: { date: true }
-  }) : []
+  const readingDays = readingDaysResult
+  const revisionDays = revisionDaysResult
+  const adjustments = adjustmentsResult
 
-  // Fetch manual position adjustments to apply during simulation
-  const adjustments = await prisma.positionAdjustment.findMany({
-    where: {
-      userId,
-      date: {
-        gt: new Date(Math.min(
-          lectureCycleDate?.getTime() || 0,
-          revisionCycleDate?.getTime() || 0
-        ) || 0)
-      }
-    },
-    orderBy: { date: 'asc' },
-  })
   // Keep only the LAST adjustment per date (multiple adjustments same day → last wins)
   const adjustmentsByDate = new Map<string, typeof adjustments[0]>()
   for (const adj of adjustments) {
