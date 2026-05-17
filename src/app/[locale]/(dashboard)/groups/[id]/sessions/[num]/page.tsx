@@ -119,6 +119,13 @@ interface GroupBookEntry {
   }
 }
 
+interface AttendanceEntry {
+  userId: string
+  userName: string
+  present: boolean
+  excused: boolean
+}
+
 const STATUS_COLORS: Record<string, string> = {
   'V': 'bg-green-500 text-white',
   'X': 'bg-blue-500 text-white',
@@ -177,6 +184,11 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
 
   // Book progress
   const [currentSessionId, setCurrentSessionId] = useState('')
+
+  // Session attendance
+  const [sessionAttendance, setSessionAttendance] = useState<AttendanceEntry[]>([])
+  const [savingAttendanceFor, setSavingAttendanceFor] = useState<string | null>(null)
+
   const [bookProgressEntries, setBookProgressEntries] = useState<BookProgressEntry[]>([])
   const [groupBooks, setGroupBooks] = useState<GroupBookEntry[]>([])
   const [bpBookId, setBpBookId] = useState('')
@@ -353,6 +365,26 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!currentSessionId) return
+    let cancelled = false
+    fetch(`/api/sessions/${currentSessionId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled || !data?.attendance) return
+        setSessionAttendance(
+          data.attendance.map((a: { userId: string; present: boolean; excused: boolean; user: { name: string } }) => ({
+            userId: a.userId,
+            userName: a.user?.name ?? '',
+            present: a.present,
+            excused: a.excused,
+          }))
+        )
+      })
+      .catch(err => console.error('Error fetching attendance:', err))
+    return () => { cancelled = true }
+  }, [currentSessionId])
 
   function toggleTopic(index: number, childIndex?: number) {
     setReportTopics(prev => prev.map((t, i) => {
