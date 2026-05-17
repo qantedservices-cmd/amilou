@@ -720,6 +720,28 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       ? new Date(currentSession.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
       : ''
 
+  // Merge active members with their attendance record (or default to absent if missing)
+  const attendanceByUser = React.useMemo(() => {
+    const map = new Map<string, AttendanceEntry>()
+    sessionAttendance.forEach(a => map.set(a.userId, a))
+    return map
+  }, [sessionAttendance])
+
+  const presenceList = React.useMemo(() => {
+    return members.map(m => {
+      const existing = attendanceByUser.get(m.id)
+      return {
+        userId: m.id,
+        userName: m.name,
+        present: existing?.present ?? false,
+        excused: existing?.excused ?? false,
+      }
+    })
+  }, [members, attendanceByUser])
+
+  const presentCount = presenceList.filter(p => p.present).length
+  const absentUnexcused = presenceList.filter(p => !p.present && !p.excused)
+
   if (loading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
