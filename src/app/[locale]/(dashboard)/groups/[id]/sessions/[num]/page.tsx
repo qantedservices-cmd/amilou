@@ -742,6 +742,52 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
   const presentCount = presenceList.filter(p => p.present).length
   const absentUnexcused = presenceList.filter(p => !p.present && !p.excused)
 
+  async function cyclePresence(userId: string) {
+    if (!isReferent || !currentSessionId) return
+
+    const current = presenceList.find(p => p.userId === userId)
+    if (!current) return
+
+    // Cycle: Présent(P) → Absent(A) → Excusé(E) → Présent
+    let next: { present: boolean; excused: boolean }
+    if (current.present) {
+      next = { present: false, excused: false } // P → A
+    } else if (!current.excused) {
+      next = { present: false, excused: true } // A → E
+    } else {
+      next = { present: true, excused: false } // E → P
+    }
+
+    // Optimistic update: build the new attendance list with this user updated
+    const previousAttendance = sessionAttendance
+    const updatedList: AttendanceEntry[] = [
+      ...sessionAttendance.filter(a => a.userId !== userId),
+      { userId, userName: current.userName, present: next.present, excused: next.excused },
+    ]
+    setSessionAttendance(updatedList)
+    setSavingAttendanceFor(userId)
+
+    try {
+      const res = await fetch(`/api/sessions/${currentSessionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attendance: [{ userId, present: next.present, excused: next.excused }],
+        }),
+      })
+      if (!res.ok) throw new Error('PUT failed')
+    } catch (err) {
+      console.error('Error saving attendance:', err)
+      setSessionAttendance(previousAttendance) // rollback
+      alert('Erreur lors de la sauvegarde de la présence')
+    } finally {
+      // Keep the "saving" flag for 800ms so the user sees feedback
+      setTimeout(() => {
+        setSavingAttendanceFor(prev => (prev === userId ? null : prev))
+      }, 800)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
