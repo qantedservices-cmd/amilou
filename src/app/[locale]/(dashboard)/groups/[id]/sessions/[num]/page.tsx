@@ -1715,14 +1715,16 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                           {isReferent && (
                             <td className="py-2 px-3">
                               <div className="flex gap-1">
-                                {rtEditingId !== topic.id && !topic.isValidated && (
+                                {rtEditingId !== topic.id && (
                                   <>
                                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setRtEditingId(topic.id); setRtEditAnswer(topic.answer || '') }}>
                                       <Pencil className="h-3 w-3" />
                                     </Button>
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-600" onClick={() => handleValidateResearchTopic(topic.id)}>
-                                      <Check className="h-3 w-3" />
-                                    </Button>
+                                    {!topic.isValidated && (
+                                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-600" onClick={() => handleValidateResearchTopic(topic.id)}>
+                                        <Check className="h-3 w-3" />
+                                      </Button>
+                                    )}
                                   </>
                                 )}
                               </div>
@@ -1934,14 +1936,16 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                         <p className="text-xs text-amber-600 mt-1">En attente de réponse</p>
                       )}
                     </div>
-                    {isReferent && !topic.isValidated && (
+                    {isReferent && (
                       <div className="flex gap-1 shrink-0">
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setRtEditingId(topic.id); setRtEditAnswer(topic.answer || ''); setRtHistoryOpen(false) }}>
                           <Pencil className="h-3 w-3" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-600" onClick={() => handleValidateResearchTopic(topic.id)}>
-                          <Check className="h-3 w-3" />
-                        </Button>
+                        {!topic.isValidated && (
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-600" onClick={() => handleValidateResearchTopic(topic.id)}>
+                            <Check className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>
