@@ -1136,6 +1136,21 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                 ) : null}
               </CardContent>
             </Card>
+          ) : isReferent ? (
+            <Card className="border-dashed">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-muted-foreground">
+                  <FileText className="h-5 w-5" />
+                  Prochaine sourate
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Définir la prochaine sourate
+                </Button>
+              </CardContent>
+            </Card>
           ) : null}
 
           {/* Devoirs */}
