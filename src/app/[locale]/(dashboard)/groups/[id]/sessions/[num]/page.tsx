@@ -937,6 +937,90 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
 
       {/* Content */}
       <div className="space-y-6">
+        {/* Présences */}
+        <Card id="sec-presences" className="scroll-mt-16">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-5 w-5 text-emerald-600" />
+              Présences ({presentCount}/{presenceList.length})
+              {isReferent && (
+                <span className="text-xs font-normal text-muted-foreground ml-2">
+                  Clic = Présent → Absent → Excusé
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Progress bar */}
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-4">
+              <div
+                className="h-full bg-emerald-500 transition-all"
+                style={{
+                  width: presenceList.length > 0
+                    ? `${(presentCount / presenceList.length) * 100}%`
+                    : '0%',
+                }}
+              />
+            </div>
+
+            {/* Grid of student chips */}
+            <div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {presenceList.map(p => {
+                const isSaving = savingAttendanceFor === p.userId
+                let bgClass = 'bg-muted/30 border-muted'
+                let iconEl = <Circle className="h-4 w-4 text-muted-foreground" />
+                let label = 'Non marqué'
+                if (p.present) {
+                  bgClass = 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800'
+                  iconEl = <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  label = 'Présent'
+                } else if (p.excused) {
+                  bgClass = 'bg-orange-50 border-orange-200 dark:bg-orange-950/30 dark:border-orange-800'
+                  iconEl = <Circle className="h-4 w-4 text-orange-500" />
+                  label = 'Excusé'
+                } else {
+                  bgClass = 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800'
+                  iconEl = <X className="h-4 w-4 text-red-500" />
+                  label = 'Absent'
+                }
+                return (
+                  <button
+                    key={p.userId}
+                    type="button"
+                    disabled={!isReferent || isSaving}
+                    onClick={() => cyclePresence(p.userId)}
+                    title={isReferent ? `${label} — cliquer pour changer` : label}
+                    className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm transition-colors ${bgClass} ${
+                      isReferent ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'
+                    } ${isSaving ? 'opacity-50' : ''}`}
+                  >
+                    {iconEl}
+                    <span className="font-medium truncate">{p.userName}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Absents list */}
+            {absentUnexcused.length > 0 && (
+              <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">Absents non excusés :</span>
+                {absentUnexcused.map(p => (
+                  <Badge key={p.userId} variant="outline" className="text-muted-foreground">
+                    {p.userName}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {presenceList.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Aucun élève dans ce groupe.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Points abordés + Devoirs */}
         <div id="sec-points" className="grid gap-6 md:grid-cols-2 scroll-mt-16">
           {/* Points abordés */}
