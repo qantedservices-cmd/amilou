@@ -990,6 +990,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                     disabled={!isReferent || isSaving}
                     onClick={() => cyclePresence(p.userId)}
                     title={isReferent ? `${label} — cliquer pour changer` : label}
+                    aria-label={`${p.userName} : ${label}`}
                     className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm transition-colors ${bgClass} ${
                       isReferent ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'
                     } ${isSaving ? 'opacity-50' : ''}`}
