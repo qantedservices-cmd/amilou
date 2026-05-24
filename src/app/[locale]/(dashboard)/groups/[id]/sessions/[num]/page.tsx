@@ -915,6 +915,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b -mx-4 px-4 py-2 overflow-x-auto">
         <div className="flex gap-1 min-w-max">
           {[
+            { id: 'sec-presences', label: 'Présences' },
             { id: 'sec-points', label: 'Points abordés' },
             { id: 'sec-suivi', label: 'Suivi individuel' },
             { id: 'sec-livres', label: 'Livres' },
