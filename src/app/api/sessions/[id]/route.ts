@@ -183,15 +183,24 @@ export async function PUT(
       }
     }
 
-    // Update attendance records
+    // Upsert attendance records (create if missing - handles members added after session creation)
     if (attendance && Array.isArray(attendance)) {
       for (const att of attendance) {
-        await prisma.sessionAttendance.updateMany({
+        await prisma.sessionAttendance.upsert({
           where: {
+            sessionId_userId: {
+              sessionId: id,
+              userId: att.userId,
+            },
+          },
+          create: {
             sessionId: id,
             userId: att.userId,
+            present: att.present ?? false,
+            excused: att.excused ?? false,
+            note: att.note ?? null,
           },
-          data: {
+          update: {
             present: att.present ?? false,
             excused: att.excused ?? false,
             note: att.note,

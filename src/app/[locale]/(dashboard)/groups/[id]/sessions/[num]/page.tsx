@@ -119,6 +119,13 @@ interface GroupBookEntry {
   }
 }
 
+interface AttendanceEntry {
+  userId: string
+  userName: string
+  present: boolean
+  excused: boolean
+}
+
 const STATUS_COLORS: Record<string, string> = {
   'V': 'bg-green-500 text-white',
   'X': 'bg-blue-500 text-white',
@@ -177,6 +184,11 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
 
   // Book progress
   const [currentSessionId, setCurrentSessionId] = useState('')
+
+  // Session attendance
+  const [sessionAttendance, setSessionAttendance] = useState<AttendanceEntry[]>([])
+  const [savingAttendanceFor, setSavingAttendanceFor] = useState<string | null>(null)
+
   const [bookProgressEntries, setBookProgressEntries] = useState<BookProgressEntry[]>([])
   const [groupBooks, setGroupBooks] = useState<GroupBookEntry[]>([])
   const [bpBookId, setBpBookId] = useState('')
@@ -354,6 +366,26 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
     }
   }
 
+  useEffect(() => {
+    if (!currentSessionId) return
+    let cancelled = false
+    fetch(`/api/sessions/${currentSessionId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled || !data?.attendance) return
+        setSessionAttendance(
+          data.attendance.map((a: { userId: string; present: boolean; excused: boolean; user: { name: string } }) => ({
+            userId: a.userId,
+            userName: a.user?.name ?? '',
+            present: a.present,
+            excused: a.excused,
+          }))
+        )
+      })
+      .catch(err => console.error('Error fetching attendance:', err))
+    return () => { cancelled = true }
+  }, [currentSessionId])
+
   function toggleTopic(index: number, childIndex?: number) {
     setReportTopics(prev => prev.map((t, i) => {
       if (i !== index) return t
@@ -436,7 +468,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       await fetch(`/api/groups/${groupId}/research-topics`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topicId, answer, isValidated: validate }),
+        body: JSON.stringify({ id: topicId, answer, isValidated: validate }),
       })
       setRtEditingId(null)
       setRtEditAnswer('')
@@ -449,7 +481,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       await fetch(`/api/groups/${groupId}/research-topics`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topicId, isValidated: true }),
+        body: JSON.stringify({ id: topicId, isValidated: true }),
       })
       fetchResearchTopics()
     } catch (e) { console.error(e) }
@@ -688,6 +720,74 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       ? new Date(currentSession.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
       : ''
 
+  // Merge active members with their attendance record (or default to absent if missing)
+  const attendanceByUser = React.useMemo(() => {
+    const map = new Map<string, AttendanceEntry>()
+    sessionAttendance.forEach(a => map.set(a.userId, a))
+    return map
+  }, [sessionAttendance])
+
+  const presenceList = React.useMemo(() => {
+    return members.map(m => {
+      const existing = attendanceByUser.get(m.id)
+      return {
+        userId: m.id,
+        userName: m.name,
+        present: existing?.present ?? false,
+        excused: existing?.excused ?? false,
+      }
+    })
+  }, [members, attendanceByUser])
+
+  const presentCount = presenceList.filter(p => p.present).length
+  const absentUnexcused = presenceList.filter(p => !p.present && !p.excused)
+
+  async function cyclePresence(userId: string) {
+    if (!isReferent || !currentSessionId) return
+
+    const current = presenceList.find(p => p.userId === userId)
+    if (!current) return
+
+    // Cycle: Présent(P) → Absent(A) → Excusé(E) → Présent
+    let next: { present: boolean; excused: boolean }
+    if (current.present) {
+      next = { present: false, excused: false } // P → A
+    } else if (!current.excused) {
+      next = { present: false, excused: true } // A → E
+    } else {
+      next = { present: true, excused: false } // E → P
+    }
+
+    // Optimistic update: build the new attendance list with this user updated
+    const previousAttendance = sessionAttendance
+    const updatedList: AttendanceEntry[] = [
+      ...sessionAttendance.filter(a => a.userId !== userId),
+      { userId, userName: current.userName, present: next.present, excused: next.excused },
+    ]
+    setSessionAttendance(updatedList)
+    setSavingAttendanceFor(userId)
+
+    try {
+      const res = await fetch(`/api/sessions/${currentSessionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attendance: [{ userId, present: next.present, excused: next.excused }],
+        }),
+      })
+      if (!res.ok) throw new Error('PUT failed')
+    } catch (err) {
+      console.error('Error saving attendance:', err)
+      setSessionAttendance(previousAttendance) // rollback
+      alert('Erreur lors de la sauvegarde de la présence')
+    } finally {
+      // Keep the "saving" flag for 800ms so the user sees feedback
+      setTimeout(() => {
+        setSavingAttendanceFor(prev => (prev === userId ? null : prev))
+      }, 800)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
@@ -815,6 +915,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b -mx-4 px-4 py-2 overflow-x-auto">
         <div className="flex gap-1 min-w-max">
           {[
+            { id: 'sec-presences', label: 'Présences' },
             { id: 'sec-points', label: 'Points abordés' },
             { id: 'sec-suivi', label: 'Suivi individuel' },
             { id: 'sec-livres', label: 'Livres' },
@@ -837,6 +938,91 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
 
       {/* Content */}
       <div className="space-y-6">
+        {/* Présences */}
+        <Card id="sec-presences" className="scroll-mt-16">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-5 w-5 text-emerald-600" />
+              Présences ({presentCount}/{presenceList.length})
+              {isReferent && (
+                <span className="text-xs font-normal text-muted-foreground ml-2">
+                  Clic = Présent → Absent → Excusé
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Progress bar */}
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-4">
+              <div
+                className="h-full bg-emerald-500 transition-all"
+                style={{
+                  width: presenceList.length > 0
+                    ? `${(presentCount / presenceList.length) * 100}%`
+                    : '0%',
+                }}
+              />
+            </div>
+
+            {/* Grid of student chips */}
+            <div className="grid gap-2 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {presenceList.map(p => {
+                const isSaving = savingAttendanceFor === p.userId
+                let bgClass = 'bg-muted/30 border-muted'
+                let iconEl = <Circle className="h-4 w-4 text-muted-foreground" />
+                let label = 'Non marqué'
+                if (p.present) {
+                  bgClass = 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800'
+                  iconEl = <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  label = 'Présent'
+                } else if (p.excused) {
+                  bgClass = 'bg-orange-50 border-orange-200 dark:bg-orange-950/30 dark:border-orange-800'
+                  iconEl = <Circle className="h-4 w-4 text-orange-500" />
+                  label = 'Excusé'
+                } else {
+                  bgClass = 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800'
+                  iconEl = <X className="h-4 w-4 text-red-500" />
+                  label = 'Absent'
+                }
+                return (
+                  <button
+                    key={p.userId}
+                    type="button"
+                    disabled={!isReferent || isSaving}
+                    onClick={() => cyclePresence(p.userId)}
+                    title={isReferent ? `${label} — cliquer pour changer` : label}
+                    aria-label={`${p.userName} : ${label}`}
+                    className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm transition-colors ${bgClass} ${
+                      isReferent ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'
+                    } ${isSaving ? 'opacity-50' : ''}`}
+                  >
+                    {iconEl}
+                    <span className="font-medium truncate">{p.userName}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Absents list */}
+            {absentUnexcused.length > 0 && (
+              <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">Absents non excusés :</span>
+                {absentUnexcused.map(p => (
+                  <Badge key={p.userId} variant="outline" className="text-muted-foreground">
+                    {p.userName}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {presenceList.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Aucun élève dans ce groupe.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Points abordés + Devoirs */}
         <div id="sec-points" className="grid gap-6 md:grid-cols-2 scroll-mt-16">
           {/* Points abordés */}
@@ -948,6 +1134,21 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                     </span>
                   </div>
                 ) : null}
+              </CardContent>
+            </Card>
+          ) : isReferent ? (
+            <Card className="border-dashed">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-muted-foreground">
+                  <FileText className="h-5 w-5" />
+                  Prochaine sourate
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Définir la prochaine sourate
+                </Button>
               </CardContent>
             </Card>
           ) : null}
@@ -1529,14 +1730,16 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                           {isReferent && (
                             <td className="py-2 px-3">
                               <div className="flex gap-1">
-                                {rtEditingId !== topic.id && !topic.isValidated && (
+                                {rtEditingId !== topic.id && (
                                   <>
                                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setRtEditingId(topic.id); setRtEditAnswer(topic.answer || '') }}>
                                       <Pencil className="h-3 w-3" />
                                     </Button>
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-600" onClick={() => handleValidateResearchTopic(topic.id)}>
-                                      <Check className="h-3 w-3" />
-                                    </Button>
+                                    {!topic.isValidated && (
+                                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-600" onClick={() => handleValidateResearchTopic(topic.id)}>
+                                        <Check className="h-3 w-3" />
+                                      </Button>
+                                    )}
                                   </>
                                 )}
                               </div>
@@ -1748,14 +1951,16 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
                         <p className="text-xs text-amber-600 mt-1">En attente de réponse</p>
                       )}
                     </div>
-                    {isReferent && !topic.isValidated && (
+                    {isReferent && (
                       <div className="flex gap-1 shrink-0">
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setRtEditingId(topic.id); setRtEditAnswer(topic.answer || ''); setRtHistoryOpen(false) }}>
                           <Pencil className="h-3 w-3" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-600" onClick={() => handleValidateResearchTopic(topic.id)}>
-                          <Check className="h-3 w-3" />
-                        </Button>
+                        {!topic.isValidated && (
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-600" onClick={() => handleValidateResearchTopic(topic.id)}>
+                            <Check className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>

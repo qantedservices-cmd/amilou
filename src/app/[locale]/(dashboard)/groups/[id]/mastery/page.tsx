@@ -267,9 +267,12 @@ export default function MasteryPage({ params }: { params: Promise<{ id: string; 
       if (res.ok) {
         const json = await res.json()
         setData(json)
-        // Initialize activeSession to latest session if not already set
+        // Initialize activeSession to latest existing session (or next if none yet)
         if (!activeSession && json.nextSessionNumber) {
-          setActiveSession(json.nextSessionNumber.toString())
+          const defaultSession = json.totalSessions > 0
+            ? json.totalSessions.toString()
+            : json.nextSessionNumber.toString()
+          setActiveSession(defaultSession)
         }
       } else {
         const json = await res.json()
