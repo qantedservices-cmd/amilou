@@ -468,7 +468,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       await fetch(`/api/groups/${groupId}/research-topics`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topicId, answer, isValidated: validate }),
+        body: JSON.stringify({ id: topicId, answer, isValidated: validate }),
       })
       setRtEditingId(null)
       setRtEditAnswer('')
@@ -481,7 +481,7 @@ export default function SessionReportPage({ params }: { params: Promise<{ id: st
       await fetch(`/api/groups/${groupId}/research-topics`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topicId, isValidated: true }),
+        body: JSON.stringify({ id: topicId, isValidated: true }),
       })
       fetchResearchTopics()
     } catch (e) { console.error(e) }
