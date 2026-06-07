@@ -128,6 +128,10 @@ export async function GET(request: Request) {
     const defaultTafsirIds = userData?.defaultTafsirIds || []
     const dashboardLayout = userData?.dashboardLayout || []
 
+    // Pre-compute year boundaries so we can fetch yearCompletions in the same parallel batch below
+    const _yearStartEarly = new Date(paramYear, 0, 1)
+    const _yearEndEarly = new Date(paramYear + 1, 0, 1)
+
     // Parallel fetch of all independent data
     const [
       progressEntries,
@@ -143,7 +147,9 @@ export async function GET(request: Request) {
       completionCycles,
       tafsirProgram,
       firstAttendance,
-      firstCompletion
+      firstCompletion,
+      yearCompletions,
+      allWeeklyCompletions
     ] = await Promise.all([
       prisma.progress.findMany({
         where: { userId },
@@ -212,6 +218,22 @@ export async function GET(request: Request) {
         where: { userId },
         orderBy: { date: 'asc' },
         select: { date: true }
+      }),
+      prisma.dailyProgramCompletion.findMany({
+        where: {
+          userId,
+          date: { gte: _yearStartEarly, lt: _yearEndEarly },
+          completed: true
+        },
+        include: { program: true }
+      }),
+      prisma.weeklyObjectiveCompletion.findMany({
+        where: {
+          weeklyObjective: { userId, isActive: true },
+          completed: true
+        },
+        include: { weeklyObjective: true },
+        orderBy: { weekStartDate: 'desc' }
       })
     ])
 
@@ -570,16 +592,7 @@ export async function GET(request: Request) {
     const yearStart = new Date(paramYear, 0, 1)
     const yearEnd = new Date(paramYear + 1, 0, 1)
 
-    // Fetch completions for the entire year (covers month too)
-    const yearCompletions = await prisma.dailyProgramCompletion.findMany({
-      where: {
-        userId,
-        date: { gte: yearStart, lt: yearEnd },
-        completed: true
-      },
-      include: { program: true }
-    })
-
+    // yearCompletions already fetched in the parallel batch above (using _yearStartEarly/_yearEndEarly)
     const monthCompletions = yearCompletions.filter(c => c.date >= monthStart && c.date < monthEnd)
 
     const monthProgramStats = computeProgramStats(monthStart, monthEnd, monthCompletions)
@@ -662,16 +675,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // Weekly streak: consecutive weeks with all weekly objectives completed
-    const allWeeklyCompletions = await prisma.weeklyObjectiveCompletion.findMany({
-      where: {
-        weeklyObjective: { userId, isActive: true },
-        completed: true
-      },
-      include: { weeklyObjective: true },
-      orderBy: { weekStartDate: 'desc' }
-    })
-
+    // allWeeklyCompletions already fetched in the parallel batch above
     // Group by week (find the Sunday of each completion date)
     const weeklyCompletionsByWeek: Record<string, Set<string>> = {}
     for (const c of allWeeklyCompletions) {
