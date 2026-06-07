@@ -68,78 +68,73 @@ export async function GET(request: Request) {
     }
 
     const now = new Date()
-    const results: Array<{
-      userId: string
-      name: string
-      weeksSinceActivity: number
-      lastActivityDate: string | null
-      groupName: string
-    }> = []
 
-    for (const [memberId, info] of userGroups) {
-      // Find most recent activity across ALL relevant tables
-      const [lastCompletion, lastProgress, lastAttendance, lastMastery, lastRecitation, lastSession] = await Promise.all([
-        prisma.dailyProgramCompletion.findFirst({
-          where: { userId: memberId },
-          orderBy: { date: 'desc' },
-          select: { date: true }
-        }),
-        prisma.progress.findFirst({
-          where: { userId: memberId },
-          orderBy: { date: 'desc' },
-          select: { date: true }
-        }),
-        prisma.dailyAttendance.findFirst({
-          where: { userId: memberId },
-          orderBy: { date: 'desc' },
-          select: { date: true }
-        }),
-        prisma.surahMastery.findFirst({
-          where: { userId: memberId },
-          orderBy: { updatedAt: 'desc' },
-          select: { updatedAt: true }
-        }),
-        prisma.surahRecitation.findFirst({
-          where: { userId: memberId },
-          orderBy: { createdAt: 'desc' },
-          select: { createdAt: true }
-        }),
-        prisma.sessionAttendance.findFirst({
-          where: { userId: memberId, present: true },
-          include: { session: { select: { date: true } } },
-          orderBy: { session: { date: 'desc' } }
-        })
-      ])
+    // Parallelize across all members (avoid N+1 by running every member's batch concurrently)
+    const perMember = await Promise.all(
+      Array.from(userGroups).map(async ([memberId, info]) => {
+        const [lastCompletion, lastProgress, lastAttendance, lastMastery, lastRecitation, lastSession] = await Promise.all([
+          prisma.dailyProgramCompletion.findFirst({
+            where: { userId: memberId },
+            orderBy: { date: 'desc' },
+            select: { date: true }
+          }),
+          prisma.progress.findFirst({
+            where: { userId: memberId },
+            orderBy: { date: 'desc' },
+            select: { date: true }
+          }),
+          prisma.dailyAttendance.findFirst({
+            where: { userId: memberId },
+            orderBy: { date: 'desc' },
+            select: { date: true }
+          }),
+          prisma.surahMastery.findFirst({
+            where: { userId: memberId },
+            orderBy: { updatedAt: 'desc' },
+            select: { updatedAt: true }
+          }),
+          prisma.surahRecitation.findFirst({
+            where: { userId: memberId },
+            orderBy: { createdAt: 'desc' },
+            select: { createdAt: true }
+          }),
+          prisma.sessionAttendance.findFirst({
+            where: { userId: memberId, present: true },
+            include: { session: { select: { date: true } } },
+            orderBy: { session: { date: 'desc' } }
+          })
+        ])
 
-      const dates: Date[] = []
-      if (lastCompletion?.date) dates.push(new Date(lastCompletion.date))
-      if (lastProgress?.date) dates.push(new Date(lastProgress.date))
-      if (lastAttendance?.date) dates.push(new Date(lastAttendance.date))
-      if (lastMastery?.updatedAt) dates.push(new Date(lastMastery.updatedAt))
-      if (lastRecitation?.createdAt) dates.push(new Date(lastRecitation.createdAt))
-      if (lastSession?.session?.date) dates.push(new Date(lastSession.session.date))
+        const dates: Date[] = []
+        if (lastCompletion?.date) dates.push(new Date(lastCompletion.date))
+        if (lastProgress?.date) dates.push(new Date(lastProgress.date))
+        if (lastAttendance?.date) dates.push(new Date(lastAttendance.date))
+        if (lastMastery?.updatedAt) dates.push(new Date(lastMastery.updatedAt))
+        if (lastRecitation?.createdAt) dates.push(new Date(lastRecitation.createdAt))
+        if (lastSession?.session?.date) dates.push(new Date(lastSession.session.date))
 
-      const lastActivity = dates.length > 0
-        ? new Date(Math.max(...dates.map(d => d.getTime())))
-        : null
+        const lastActivity = dates.length > 0
+          ? new Date(Math.max(...dates.map(d => d.getTime())))
+          : null
 
-      const weeksSince = lastActivity
-        ? Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24 * 7))
-        : 999
+        const weeksSince = lastActivity
+          ? Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24 * 7))
+          : 999
 
-      if (weeksSince >= threshold) {
-        results.push({
-          userId: memberId,
-          name: info.name,
-          weeksSinceActivity: weeksSince,
-          lastActivityDate: lastActivity ? lastActivity.toISOString() : null,
-          groupName: info.groupName
-        })
-      }
-    }
+        return { memberId, info, weeksSince, lastActivity }
+      })
+    )
 
-    // Sort by weeksSinceActivity descending
-    results.sort((a, b) => b.weeksSinceActivity - a.weeksSinceActivity)
+    const results = perMember
+      .filter(m => m.weeksSince >= threshold)
+      .map(m => ({
+        userId: m.memberId,
+        name: m.info.name,
+        weeksSinceActivity: m.weeksSince,
+        lastActivityDate: m.lastActivity ? m.lastActivity.toISOString() : null,
+        groupName: m.info.groupName
+      }))
+      .sort((a, b) => b.weeksSinceActivity - a.weeksSinceActivity)
 
     return NextResponse.json(results)
   } catch (error) {
