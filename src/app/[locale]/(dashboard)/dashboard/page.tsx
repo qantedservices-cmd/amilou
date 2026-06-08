@@ -896,12 +896,18 @@ export default function DashboardPage() {
     setWeekOffset(diffWeeks)
   }
 
+  // Lazy-fire secondary fetches AFTER /api/stats resolves.
+  // Reason: firing 5 endpoints in parallel saturates the Supabase pooler and slows down /api/stats
+  // (the heaviest and most-critical fetch). Staggering keeps connections available for stats first.
+  const secondaryFetchedRef = useRef(false)
   useEffect(() => {
+    if (!stats || secondaryFetchedRef.current) return
+    secondaryFetchedRef.current = true
     fetchSurahStats()
     fetchGroupRanking()
     fetchUserBooks()
     fetchInactiveAlerts()
-  }, [])
+  }, [stats])
 
   // Check onboarding status — show welcome banner for new users
   const [showOnboardingBanner, setShowOnboardingBanner] = useState(false)
