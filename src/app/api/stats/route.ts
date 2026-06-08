@@ -29,6 +29,30 @@ function getDayStart(date: Date): Date {
   return d
 }
 
+// In-memory cache for /api/stats responses. Per-user, short TTL.
+// Bypassed when the client sends `?_nocache=1` (used after user-driven writes that need fresh data).
+const STATS_CACHE_TTL_MS = 60_000
+const statsCache = new Map<string, { data: unknown; expiresAt: number }>()
+
+function statsCacheGet(key: string): unknown | null {
+  const e = statsCache.get(key)
+  if (!e) return null
+  if (Date.now() > e.expiresAt) {
+    statsCache.delete(key)
+    return null
+  }
+  return e.data
+}
+
+function statsCacheSet(key: string, data: unknown) {
+  statsCache.set(key, { data, expiresAt: Date.now() + STATS_CACHE_TTL_MS })
+  // Cap memory: keep at most 200 entries (~3 MB)
+  if (statsCache.size > 200) {
+    const oldestKey = statsCache.keys().next().value
+    if (oldestKey) statsCache.delete(oldestKey)
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const session = await auth()
@@ -57,6 +81,14 @@ export async function GET(request: Request) {
     const paramYear = searchParams.get('year') ? parseInt(searchParams.get('year')!) : now.getFullYear()
     const paramMonth = searchParams.get('month') ? parseInt(searchParams.get('month')!) : now.getMonth() + 1
     const weekOffset = searchParams.get('weekOffset') ? parseInt(searchParams.get('weekOffset')!) : 0
+    const bypassCache = searchParams.get('_nocache') === '1'
+
+    // Cache lookup (after auth + impersonation resolved, key includes effective userId)
+    const cacheKey = `${userId}:${period}:${paramYear}:${paramMonth}:${weekOffset}`
+    if (!bypassCache) {
+      const cached = statsCacheGet(cacheKey)
+      if (cached) return NextResponse.json(cached)
+    }
 
     // Helper: Calculate week number based on Sundays (matching Excel)
     function getWeekNumber(date: Date): { week: number; year: number } {
@@ -1093,7 +1125,7 @@ export async function GET(request: Request) {
       ? Math.round(((currentCompletions - previousCompletions) / previousCompletions) * 100)
       : 0
 
-    return NextResponse.json({
+    const responsePayload = {
       // Period info
       period,
       selectedYear: paramYear,
@@ -1188,7 +1220,10 @@ export async function GET(request: Request) {
       defaultTafsirIds,
       // Dashboard layout
       dashboardLayout,
-    })
+    }
+
+    statsCacheSet(cacheKey, responsePayload)
+    return NextResponse.json(responsePayload)
   } catch (error) {
     console.error('Error fetching stats:', error)
     return NextResponse.json(

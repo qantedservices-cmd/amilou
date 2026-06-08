@@ -390,6 +390,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  // Flag indicating user-driven changes (program ticks) that need an explicit Sync to refresh stats
+  const [hasPendingSync, setHasPendingSync] = useState(false)
   const [period, setPeriod] = useState<PeriodType>('year')
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1)
@@ -698,7 +700,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function fetchStats(showLoader = true, targetUserId?: string) {
+  async function fetchStats(showLoader = true, targetUserId?: string, opts?: { bypassCache?: boolean }) {
     // Save scroll position before fetching (for non-initial loads)
     const scrollY = window.scrollY
     const shouldRestoreScroll = !isInitialLoad
@@ -719,6 +721,9 @@ export default function DashboardPage() {
       params.set('weekOffset', weekOffset.toString())
       if (targetUserId) {
         params.set('userId', targetUserId)
+      }
+      if (opts?.bypassCache) {
+        params.set('_nocache', '1')
       }
       const res = await fetch(`/api/stats?${params.toString()}`)
       if (res.ok) {
@@ -1126,9 +1131,11 @@ export default function DashboardPage() {
       if (res.ok) {
         const programName = stats?.weekProgramStats?.find(p => p.code === code)?.name || code
         toast.success(newCompleted ? `${programName} (${DAY_NAMES[dayIndex]}) ✓` : `${programName} (${DAY_NAMES[dayIndex]}) retiré`)
-        // Refresh stats to update progress tracker positions for REVISION/READING
+        // Defer stats refresh — REVISION/READING ticks change progress tracker positions,
+        // but instead of refetching here (slow, breaks fast tick→tick UX), we flag pending sync
+        // and let the user click "Synchroniser" once they're done.
         if (code === 'REVISION' || code === 'READING') {
-          fetchStats()
+          setHasPendingSync(true)
         }
       } else {
         // Revert
@@ -1277,7 +1284,8 @@ export default function DashboardPage() {
         setNeedsMemorizationInput(false)
         setMemorizationSurah(null)
         setMemorizationVerse(null)
-        fetchStats()
+        fetchStats(true, undefined, { bypassCache: true })
+        setHasPendingSync(false)
       }
     } catch (error) {
       console.error('Error saving cycle:', error)
@@ -1369,8 +1377,8 @@ export default function DashboardPage() {
       if (res.ok) {
         cancelEditCycle()
         fetchCycleHistory(cycleHistoryType)
-        fetchStats()
-        fetchStats()
+        fetchStats(true, undefined, { bypassCache: true })
+        setHasPendingSync(false)
         toast.success('Cycle modifié')
       } else {
         toast.error('Erreur lors de la modification')
@@ -1391,7 +1399,8 @@ export default function DashboardPage() {
       })
       if (res.ok) {
         fetchCycleHistory(cycleHistoryType)
-        fetchStats()
+        fetchStats(true, undefined, { bypassCache: true })
+        setHasPendingSync(false)
         toast.success('Cycle supprimé')
       } else {
         toast.error('Erreur lors de la suppression')
@@ -1409,7 +1418,8 @@ export default function DashboardPage() {
       // Recalculate positions from cycles (day-by-day with combined phase)
       const res = await fetch('/api/progress-tracker?recalculate=true')
       if (res.ok) {
-        await fetchStats()
+        await fetchStats(true, undefined, { bypassCache: true })
+        setHasPendingSync(false)
         toast.success('Positions recalculées')
       } else {
         const data = await res.json()
@@ -1445,7 +1455,8 @@ export default function DashboardPage() {
       })
       if (res.ok) {
         setProgressTrackerDialogOpen(false)
-        fetchStats()
+        fetchStats(true, undefined, { bypassCache: true })
+        setHasPendingSync(false)
         toast.success('Positions mises à jour')
       } else {
         const data = await res.json()
@@ -3256,6 +3267,24 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
           <p className="text-muted-foreground">{t('dashboard.overview')}</p>
         </div>
+        <Button
+          variant={hasPendingSync ? 'default' : 'outline'}
+          size="sm"
+          onClick={async () => {
+            await fetchStats(true, undefined, { bypassCache: true })
+            setHasPendingSync(false)
+            toast.success('Stats synchronisées')
+          }}
+          disabled={isRefreshing}
+          className={hasPendingSync ? 'bg-amber-500 hover:bg-amber-600 text-white' : ''}
+        >
+          {isRefreshing ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-2" />
+          )}
+          {hasPendingSync ? 'Synchroniser (modifs en attente)' : 'Synchroniser'}
+        </Button>
       </div>
 
       {/* Onboarding banner for new users */}
