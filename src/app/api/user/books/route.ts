@@ -85,19 +85,50 @@ export async function GET(request: Request) {
       }
     }
 
-    // Get progress counts for all books
+    // Aggregate progress counts in 2 queries instead of 2 per book (N+1 fix)
+    const allBookIds = result.map((b) => b.id)
+
+    // 1. All chapters for all books, grouped by bookId
+    const allChapters = allBookIds.length > 0
+      ? await prisma.bookChapter.findMany({
+          where: { bookId: { in: allBookIds } },
+          select: { id: true, bookId: true },
+        })
+      : []
+
+    const chapterIdsByBook = new Map<string, string[]>()
+    for (const ch of allChapters) {
+      const list = chapterIdsByBook.get(ch.bookId)
+      if (list) list.push(ch.id)
+      else chapterIdsByBook.set(ch.bookId, [ch.id])
+    }
+
+    // 2. All completed items for the user, joined with chapter
+    const allChapterIds = allChapters.map((c) => c.id)
+    const completedProgress = allChapterIds.length > 0
+      ? await prisma.userItemProgress.findMany({
+          where: {
+            userId,
+            completed: true,
+            item: { chapterId: { in: allChapterIds } },
+          },
+          select: { item: { select: { chapterId: true } } },
+        })
+      : []
+
+    const completedCountByChapter = new Map<string, number>()
+    for (const p of completedProgress) {
+      const chId = p.item?.chapterId
+      if (!chId) continue
+      completedCountByChapter.set(chId, (completedCountByChapter.get(chId) || 0) + 1)
+    }
+
     for (const book of result) {
-      const chapterIds = await prisma.bookChapter.findMany({
-        where: { bookId: book.id },
-        select: { id: true },
-      })
-      const completedCount = await prisma.userItemProgress.count({
-        where: {
-          userId,
-          completed: true,
-          item: { chapterId: { in: chapterIds.map((c) => c.id) } },
-        },
-      })
+      const chapters = chapterIdsByBook.get(book.id) || []
+      let completedCount = 0
+      for (const chId of chapters) {
+        completedCount += completedCountByChapter.get(chId) || 0
+      }
       book.completedItems = completedCount
       book.percentage = book.totalItems > 0
         ? Math.round((completedCount / book.totalItems) * 100)

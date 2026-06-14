@@ -332,7 +332,7 @@ const DEFAULT_SECTION_ORDER = [
   'objectives', 'memorization-row', 'stats', 'daily-programs',
   'period-programs', 'rev-lecture-row', 'tafsir-books-row',
   'surah-progress', 'group-ranking', 'program-attendance',
-  'evolution-chart', 'progress-entries-row', 'inactive-alerts',
+  'evolution-chart', 'progress-entries-row',
 ]
 
 const SECTION_LABELS: Record<string, string> = {
@@ -348,7 +348,6 @@ const SECTION_LABELS: Record<string, string> = {
   'program-attendance': 'Assiduité Programmes',
   'evolution-chart': 'Évolution 12 semaines',
   'progress-entries-row': 'Progression & Entrées',
-  'inactive-alerts': 'Élèves inactifs',
 }
 
 function SortableSection({ id, children, reorderMode }: {
@@ -522,15 +521,6 @@ export default function DashboardPage() {
     percentage: number
   }>>([])
 
-  // Inactivity alerts
-  const [inactiveAlerts, setInactiveAlerts] = useState<Array<{
-    userId: string
-    name: string
-    weeksSinceActivity: number
-    lastActivityDate: string | null
-    groupName: string
-  }>>([])
-
   // Global user selector (replaces limited selectedUserId for Programmes Journaliers)
   const [globalUserId, setGlobalUserId] = useState<string>('')
   const [globalUserName, setGlobalUserName] = useState<string>('')
@@ -673,18 +663,6 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Error fetching user books:', error)
-    }
-  }
-
-  async function fetchInactiveAlerts() {
-    try {
-      const res = await fetch('/api/alerts/inactive-students?threshold=2')
-      if (res.ok) {
-        const data = await res.json()
-        setInactiveAlerts(Array.isArray(data) ? data : [])
-      }
-    } catch (error) {
-      console.error('Error fetching inactive alerts:', error)
     }
   }
 
@@ -902,7 +880,7 @@ export default function DashboardPage() {
   }
 
   // Lazy-fire secondary fetches AFTER /api/stats resolves.
-  // Reason: firing 5 endpoints in parallel saturates the Supabase pooler and slows down /api/stats
+  // Reason: firing endpoints in parallel saturates the Supabase pooler and slows down /api/stats
   // (the heaviest and most-critical fetch). Staggering keeps connections available for stats first.
   const secondaryFetchedRef = useRef(false)
   useEffect(() => {
@@ -911,7 +889,6 @@ export default function DashboardPage() {
     fetchSurahStats()
     fetchGroupRanking()
     fetchUserBooks()
-    fetchInactiveAlerts()
   }, [stats])
 
   // Check onboarding status — show welcome banner for new users
@@ -3209,42 +3186,6 @@ export default function DashboardPage() {
       </div>
     ),
 
-    'inactive-alerts': () => {
-      if (!isViewingSelf || !inactiveAlerts.length) return null
-      return (
-        <Card className="border border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base text-orange-800 dark:text-orange-200">
-              <AlertCircle className="h-5 w-5" />
-              Élèves inactifs ({inactiveAlerts.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {inactiveAlerts.slice(0, 5).map((alert) => (
-                <div
-                  key={alert.userId}
-                  className="flex items-center justify-between text-sm p-2 rounded bg-white/50 dark:bg-black/20"
-                >
-                  <div>
-                    <span className="font-medium">{alert.name}</span>
-                    <span className="text-xs text-muted-foreground ml-2">({alert.groupName})</span>
-                  </div>
-                  <Badge variant="outline" className="text-orange-700 dark:text-orange-300 border-orange-300">
-                    {alert.weeksSinceActivity >= 999 ? 'Aucune activité' : `${alert.weeksSinceActivity} sem.`}
-                  </Badge>
-                </div>
-              ))}
-              {inactiveAlerts.length > 5 && (
-                <p className="text-xs text-muted-foreground text-center">
-                  Et {inactiveAlerts.length - 5} autres...
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )
-    },
   }
 
   const visibleSections = sectionOrder
