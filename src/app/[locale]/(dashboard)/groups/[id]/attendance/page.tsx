@@ -5,7 +5,13 @@ import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Users, ArrowUpDown, Calendar } from 'lucide-react'
+import { ArrowLeft, Users, ArrowUpDown, Calendar, ChevronDown, CheckCircle2, Circle, X } from 'lucide-react'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import { Badge } from '@/components/ui/badge'
 
 interface PerSession {
   sessionId: string
@@ -56,6 +62,7 @@ export default function GroupAttendancePage({
   const [error, setError] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('rate')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [matrixOpen, setMatrixOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -242,6 +249,92 @@ export default function GroupAttendancePage({
           )}
         </CardContent>
       </Card>
+
+      {/* Detailed matrix */}
+      {data.totalSessions > 0 && sortedMembers.length > 0 && (
+        <Collapsible open={matrixOpen} onOpenChange={setMatrixOpen}>
+          <Card>
+            <CollapsibleTrigger className="w-full">
+              <CardHeader className="pb-3 cursor-pointer hover:bg-muted/30 transition-colors">
+                <CardTitle className="text-base flex items-center justify-between">
+                  <span>Détail par séance</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${matrixOpen ? 'rotate-180' : ''}`} />
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto max-h-[70vh]">
+                  <table className="border-collapse">
+                    <thead className="sticky top-0 z-20 bg-background">
+                      <tr>
+                        <th className="sticky left-0 z-30 bg-background border-b border-r px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase w-48">
+                          Élève
+                        </th>
+                        {data.sessions.map(s => {
+                          const d = new Date(s.date)
+                          const label = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+                          return (
+                            <th
+                              key={s.id}
+                              className="border-b px-2 py-2 text-center text-xs font-semibold text-muted-foreground min-w-[58px]"
+                              title={d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                            >
+                              <div>S{s.number}</div>
+                              <div className="font-normal text-[10px]">{label}</div>
+                            </th>
+                          )
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedMembers.map((m, mi) => (
+                        <tr key={m.userId} className={mi % 2 === 0 ? '' : 'bg-muted/10'}>
+                          <td className="sticky left-0 z-10 bg-background border-r px-3 py-2 text-sm font-medium whitespace-nowrap">
+                            {m.name}
+                          </td>
+                          {m.perSession.map((cell, ci) => {
+                            const session = data.sessions[ci]
+                            const d = new Date(session.date)
+                            const dateLabel = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+                            let icon = <span className="text-muted-foreground/40">–</span>
+                            let stateLabel = 'Aucun enregistrement'
+                            let bg = ''
+                            if (cell.hasRecord) {
+                              if (cell.present) {
+                                icon = <CheckCircle2 className="h-4 w-4 text-emerald-600 mx-auto" />
+                                stateLabel = 'Présent'
+                                bg = 'bg-emerald-50 dark:bg-emerald-950/30'
+                              } else if (cell.excused) {
+                                icon = <Circle className="h-4 w-4 text-orange-500 mx-auto" />
+                                stateLabel = 'Excusé'
+                                bg = 'bg-orange-50 dark:bg-orange-950/30'
+                              } else {
+                                icon = <X className="h-4 w-4 text-red-500 mx-auto" />
+                                stateLabel = 'Absent'
+                                bg = 'bg-red-50 dark:bg-red-950/30'
+                              }
+                            }
+                            return (
+                              <td
+                                key={cell.sessionId}
+                                className={`border-l px-2 py-2 text-center ${bg}`}
+                                title={`${stateLabel} — ${dateLabel}`}
+                              >
+                                {icon}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
     </div>
   )
 }
