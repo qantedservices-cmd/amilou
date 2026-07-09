@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { sanitizeRichText } from '@/lib/sanitize-rich-text'
 
 export async function GET() {
   try {
@@ -75,7 +76,7 @@ export async function GET() {
           verseStart: entry.verseStart,
           verseEnd: entry.verseEnd,
           tafsirBookIds: (entry as any).tafsirBookIds || [],
-          comment: entry.comment || null,
+          comment: sanitizeRichText(entry.comment),
         })
       }
     }
@@ -172,7 +173,7 @@ export async function POST(request: Request) {
         surahNumber,
         verseStart,
         verseEnd,
-        comment: comment || null,
+        comment: sanitizeRichText(comment),
         tafsirBookIds: tafsirBookIds || [],
         createdBy: userId
       },
