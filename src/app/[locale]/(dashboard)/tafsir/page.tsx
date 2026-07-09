@@ -38,6 +38,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ArrowLeft, BookOpen, Plus, CheckCircle, Pencil, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -707,11 +708,10 @@ export default function TafsirPage() {
                                   ))}
                                 </div>
                               )}
-                              <Input
+                              <RichTextEditor
                                 value={editComment}
-                                onChange={(e) => setEditComment(e.target.value)}
+                                onChange={setEditComment}
                                 placeholder="Commentaire..."
-                                className="h-8 text-xs"
                               />
                             </div>
                           ) : (
@@ -734,9 +734,10 @@ export default function TafsirPage() {
                                 </div>
                               )}
                               {entry.comment && (
-                                <p className="text-xs text-muted-foreground mt-1 italic">
-                                  {entry.comment}
-                                </p>
+                                <div
+                                  className="text-xs text-muted-foreground mt-1 italic prose prose-sm max-w-none dark:prose-invert [&>p]:m-0"
+                                  dangerouslySetInnerHTML={{ __html: entry.comment }}
+                                />
                               )}
                             </div>
                           )}
@@ -881,9 +882,9 @@ export default function TafsirPage() {
 
             <div className="space-y-2">
               <Label>Commentaire (optionnel)</Label>
-              <Input
+              <RichTextEditor
                 value={dialogComment}
-                onChange={(e) => setDialogComment(e.target.value)}
+                onChange={setDialogComment}
                 placeholder="Notes ou remarques sur cette lecture"
               />
             </div>
