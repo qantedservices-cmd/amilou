@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
 import { checkDataVisibility } from '@/lib/permissions'
+import { sanitizeRichText } from '@/lib/sanitize-rich-text'
 
 export async function GET(request: Request) {
   try {
@@ -96,6 +97,8 @@ export async function POST(request: Request) {
       )
     }
 
+    const sanitizedComment = sanitizeRichText(comment)
+
     // Resolve the target user: self by default, another user if allowed
     let targetUserId = session.user.id
     if (userId && userId !== session.user.id) {
@@ -136,7 +139,7 @@ export async function POST(request: Request) {
         verseStart,
         verseEnd,
         repetitions,
-        comment,
+        comment: sanitizedComment,
         tafsirBookIds: tafsirBookIds || [],
         createdBy: session.user.id,
       },
@@ -211,7 +214,7 @@ export async function POST(request: Request) {
               verseStart,
               verseEnd,
               status,
-              comment: comment || `v.${verseStart}-${verseEnd}`,
+              comment: sanitizedComment || `v.${verseStart}-${verseEnd}`,
               createdBy: session.user.id,
             }
           })

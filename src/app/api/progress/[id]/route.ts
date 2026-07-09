@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { checkDataVisibility } from '@/lib/permissions'
+import { sanitizeRichText } from '@/lib/sanitize-rich-text'
 
 /**
  * Retourne une réponse 403 si le viewer n'a pas le droit d'agir sur l'entrée
@@ -76,7 +77,9 @@ export async function PUT(
         verseStart,
         verseEnd,
         repetitions,
-        comment,
+        // comment absent du body = champ non modifié ; sinon on assainit
+        // (null/'' efface volontairement le commentaire existant)
+        ...(comment !== undefined && { comment: sanitizeRichText(comment) }),
         ...(tafsirBookIds !== undefined && { tafsirBookIds }),
       },
       include: {
