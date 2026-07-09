@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/collapsible'
 import { TrendingUp, Plus, Pencil, Trash2, BookOpen, ArrowRight, User, Lock, Library, ChevronDown, ChevronRight, Check } from 'lucide-react'
 import { SegmentedProgressBar, SegmentData } from '@/components/segmented-progress-bar'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 
 interface Program {
   id: string
@@ -468,6 +469,12 @@ export default function ProgressPage() {
       const url = editingId ? `/api/progress/${editingId}` : '/api/progress'
       const method = editingId ? 'PUT' : 'POST'
 
+      // Création : cibler l'utilisateur sélectionné (soi-même par défaut).
+      // Édition : le serveur déduit le propriétaire de l'entrée existante.
+      if (!editingId && selectedUserId) {
+        payload.userId = selectedUserId
+      }
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -763,9 +770,9 @@ export default function ProgressPage() {
 
               <div className="space-y-2">
                 <Label>{t('progress.comment')} (optionnel)</Label>
-                <Input
+                <RichTextEditor
                   value={comment}
-                  onChange={(e) => setComment(e.target.value)}
+                  onChange={setComment}
                   placeholder="Notes ou remarques"
                 />
               </div>
