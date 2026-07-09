@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
+import { checkDataVisibility } from '@/lib/permissions'
 
 export async function GET(request: Request) {
   try {
@@ -19,27 +20,32 @@ export async function GET(request: Request) {
     // Support impersonation
     const { userId: effectiveUserId, isImpersonating } = await getEffectiveUserId()
 
-    // Get current user to check if admin
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true }
-    })
-
-    const isAdmin = currentUser?.role === 'ADMIN'
-
     // Build where clause
     const where: Record<string, unknown> = {}
 
     if (isImpersonating) {
       // When impersonating, show the impersonated user's data
       where.userId = effectiveUserId
-    } else if (isAdmin) {
-      // Admin can see all or filter by user
-      if (userId && userId !== 'all') {
-        where.userId = userId
+    } else if (userId && userId !== 'all' && userId !== session.user.id) {
+      // Targeting another user: require view permission
+      const visibility = await checkDataVisibility(session.user.id, userId, 'progress')
+      if (!visibility.canView) {
+        return NextResponse.json(
+          { error: "Vous n'êtes pas autorisé à consulter l'avancement de cet utilisateur" },
+          { status: 403 }
+        )
+      }
+      where.userId = userId
+    } else if (userId === 'all') {
+      // 'all' is only meaningful for an admin; others fall back to their own data
+      const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true },
+      })
+      if (currentUser?.role !== 'ADMIN') {
+        where.userId = session.user.id
       }
     } else {
-      // Regular users only see their own data
       where.userId = session.user.id
     }
 
