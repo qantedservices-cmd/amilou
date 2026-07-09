@@ -95,6 +95,13 @@ export async function checkDataVisibility(
 /**
  * Get users visible to a viewer (for selectors)
  * Returns users in the same group with privacy status
+ *
+ * IMPORTANT: `canEdit`/`canView`/`isPrivate` sont calculés **par cible** (pas
+ * un booléen global au viewer), et doivent rester cohérents avec
+ * `checkDataVisibility(viewerId, targetId, dataType)` pour tout couple
+ * (viewer, target) — c'est l'API qui fait foi, l'UI ne doit jamais sur-promettre.
+ * Ex: un viewer REFERENT du groupe A et simple MEMBER du groupe B ne doit pas
+ * pouvoir éditer/voir un utilisateur qui n'appartient qu'au groupe B.
  */
 export async function getVisibleUsers(
   viewerId: string,
@@ -110,18 +117,10 @@ export async function getVisibleUsers(
     return []
   }
 
-  // Admin sees everyone
+  // Admin sees everyone, full access (matches checkDataVisibility's ADMIN branch)
   if (viewer.role === 'ADMIN') {
     const allUsers = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        privateAttendance: true,
-        privateProgress: true,
-        privateStats: true,
-        privateEvaluations: true
-      },
+      select: { id: true, name: true, email: true },
       orderBy: { name: 'asc' }
     })
 
@@ -131,11 +130,12 @@ export async function getVisibleUsers(
       email: user.email,
       isPrivate: false, // Admin can see all
       canEdit: true,
+      canView: true,
       isSelf: user.id === viewerId
     }))
   }
 
-  // Get viewer's groups
+  // Get viewer's groups (groupId -> role, for THIS viewer)
   const viewerMemberships = await prisma.groupMember.findMany({
     where: { userId: viewerId },
     select: { groupId: true, role: true }
@@ -149,17 +149,21 @@ export async function getVisibleUsers(
       email: viewer.email,
       isPrivate: false,
       canEdit: true,
+      canView: true,
       isSelf: true
     }]
   }
 
   const viewerGroupIds = viewerMemberships.map(m => m.groupId)
-  const isReferentInAnyGroup = viewerMemberships.some(m => m.role === 'REFERENT' || m.role === 'ADMIN')
+  const viewerRoleByGroup = new Map(viewerMemberships.map(m => [m.groupId, m.role]))
 
-  // Get all members of viewer's groups
+  // Get all members of viewer's groups, in one query (avoids an N+1 by user).
+  // Every row here is, by construction, a group shared with the viewer.
   const groupMembers = await prisma.groupMember.findMany({
     where: { groupId: { in: viewerGroupIds } },
-    include: {
+    select: {
+      groupId: true,
+      userId: true,
       user: {
         select: {
           id: true,
@@ -174,18 +178,20 @@ export async function getVisibleUsers(
     }
   })
 
-  // Get unique users
-  const uniqueUsers = new Map<string, typeof groupMembers[0]['user'] & { memberRole?: string }>()
+  type TargetUser = (typeof groupMembers)[number]['user']
+
+  // For each target user, collect the set of groups shared with the viewer
+  // (needed to check, per target, whether the viewer is REFERENT/ADMIN in at
+  // least one of THOSE groups specifically — not in any group of the viewer).
+  const usersById = new Map<string, TargetUser>()
+  const sharedGroupIdsByUser = new Map<string, Set<string>>()
+
   for (const member of groupMembers) {
-    if (!uniqueUsers.has(member.user.id)) {
-      uniqueUsers.set(member.user.id, { ...member.user, memberRole: member.role })
-    } else {
-      // Keep highest role
-      const existing = uniqueUsers.get(member.user.id)!
-      if (member.role === 'ADMIN' || (member.role === 'REFERENT' && existing.memberRole !== 'ADMIN')) {
-        uniqueUsers.set(member.user.id, { ...member.user, memberRole: member.role })
-      }
+    usersById.set(member.userId, member.user)
+    if (!sharedGroupIdsByUser.has(member.userId)) {
+      sharedGroupIdsByUser.set(member.userId, new Set())
     }
+    sharedGroupIdsByUser.get(member.userId)!.add(member.groupId)
   }
 
   // Privacy field mapping
@@ -199,27 +205,41 @@ export async function getVisibleUsers(
   const privacyField = privacyFieldMap[dataType]
 
   // Build result
-  const result = Array.from(uniqueUsers.values()).map(user => {
+  const result = Array.from(usersById.values()).map(user => {
     const isSelf = user.id === viewerId
-    const isPrivate = user[privacyField] as boolean
 
-    // Determine if viewer can edit
-    let canEdit = isSelf
-    if (isReferentInAnyGroup && !isSelf) {
-      canEdit = true // Referent can edit group members
+    if (isSelf) {
+      return {
+        id: user.id,
+        name: user.name || user.email,
+        email: user.email,
+        isPrivate: false,
+        canEdit: true,
+        canView: true,
+        isSelf: true
+      }
     }
 
-    // Determine if viewer can view
-    let canView = isSelf || isReferentInAnyGroup || !isPrivate
+    const isPrivate = user[privacyField] as boolean
+    const sharedGroupIds = sharedGroupIdsByUser.get(user.id) ?? new Set<string>()
+
+    // Referent (or admin) in at least one group shared with THIS target.
+    const isReferentForTarget = Array.from(sharedGroupIds).some(groupId => {
+      const role = viewerRoleByGroup.get(groupId)
+      return role === 'REFERENT' || role === 'ADMIN'
+    })
+
+    const canEdit = isReferentForTarget
+    const canView = isReferentForTarget || !isPrivate
 
     return {
       id: user.id,
       name: user.name || user.email,
       email: user.email,
-      isPrivate: isPrivate && !isSelf && !isReferentInAnyGroup,
+      isPrivate: isPrivate && !isReferentForTarget,
       canEdit,
       canView,
-      isSelf
+      isSelf: false
     }
   })
 
