@@ -1,6 +1,27 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { checkDataVisibility } from '@/lib/permissions'
+
+/**
+ * Retourne une réponse 403 si le viewer n'a pas le droit d'agir sur l'entrée
+ * d'`ownerId`, sinon `null`. Le propriétaire agit toujours sur ses entrées.
+ */
+async function assertCanEditProgress(
+  viewerId: string,
+  ownerId: string,
+  action: 'modifier' | 'supprimer'
+): Promise<NextResponse | null> {
+  if (ownerId === viewerId) return null
+
+  const { canEdit } = await checkDataVisibility(viewerId, ownerId, 'progress')
+  if (canEdit) return null
+
+  return NextResponse.json(
+    { error: `Vous n'êtes pas autorisé à ${action} l'avancement de cet utilisateur` },
+    { status: 403 }
+  )
+}
 
 export async function PUT(
   request: Request,
@@ -15,13 +36,16 @@ export async function PUT(
     const { id } = await params
     const { date, surahNumber, verseStart, verseEnd, repetitions, comment, tafsirBookIds } = await request.json()
 
-    const existing = await prisma.progress.findFirst({
-      where: { id, userId: session.user.id },
+    const existing = await prisma.progress.findUnique({
+      where: { id },
     })
 
     if (!existing) {
       return NextResponse.json({ error: 'Entrée non trouvée' }, { status: 404 })
     }
+
+    const denied = await assertCanEditProgress(session.user.id, existing.userId, 'modifier')
+    if (denied) return denied
 
     // Verify surah and verse range if changed
     if (surahNumber) {
@@ -83,13 +107,16 @@ export async function DELETE(
 
     const { id } = await params
 
-    const existing = await prisma.progress.findFirst({
-      where: { id, userId: session.user.id },
+    const existing = await prisma.progress.findUnique({
+      where: { id },
     })
 
     if (!existing) {
       return NextResponse.json({ error: 'Entrée non trouvée' }, { status: 404 })
     }
+
+    const denied = await assertCanEditProgress(session.user.id, existing.userId, 'supprimer')
+    if (denied) return denied
 
     await prisma.progress.delete({ where: { id } })
 
