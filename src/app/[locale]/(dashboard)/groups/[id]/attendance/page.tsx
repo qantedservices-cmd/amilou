@@ -64,6 +64,7 @@ export default function GroupAttendancePage({
   const [sortKey, setSortKey] = useState<SortKey>('rate')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [matrixOpen, setMatrixOpen] = useState(false)
+  const [savingCell, setSavingCell] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -126,6 +127,70 @@ export default function GroupAttendancePage({
     if (rate >= 80) return 'text-emerald-700 dark:text-emerald-400'
     if (rate >= 60) return 'text-amber-700 dark:text-amber-400'
     return 'text-red-700 dark:text-red-400'
+  }
+
+  async function cyclePresence(userId: string, sessionId: string) {
+    if (!data || !data.isReferent) return
+
+    const memberIdx = data.members.findIndex(m => m.userId === userId)
+    if (memberIdx < 0) return
+    const cellIdx = data.members[memberIdx].perSession.findIndex(p => p.sessionId === sessionId)
+    if (cellIdx < 0) return
+    const current = data.members[memberIdx].perSession[cellIdx]
+
+    // Cycle: (vide) → Présent → Absent → Excusé → Présent
+    let next: { present: boolean; excused: boolean }
+    if (!current.hasRecord) {
+      next = { present: true, excused: false }
+    } else if (current.present) {
+      next = { present: false, excused: false }
+    } else if (!current.excused) {
+      next = { present: false, excused: true }
+    } else {
+      next = { present: true, excused: false }
+    }
+
+    // Mise à jour optimiste + recalcul des compteurs/taux du membre.
+    // Cliquer crée toujours un enregistrement : la cellule devient comptée.
+    const previous = data
+    const newPerSession = [...data.members[memberIdx].perSession]
+    newPerSession[cellIdx] = { sessionId, present: next.present, excused: next.excused, hasRecord: true }
+
+    const presentCount = newPerSession.filter(p => p.present).length
+    const excusedCount = newPerSession.filter(p => !p.present && p.excused).length
+    const absentCount = newPerSession.filter(p => p.hasRecord && !p.present && !p.excused).length
+    const applicableCount = presentCount + excusedCount + absentCount
+    const rate = applicableCount > 0 ? Math.round((presentCount / applicableCount) * 100) : 0
+
+    const newMembers = [...data.members]
+    newMembers[memberIdx] = {
+      ...data.members[memberIdx],
+      perSession: newPerSession,
+      presentCount,
+      excusedCount,
+      absentCount,
+      applicableCount,
+      rate,
+    }
+    setData({ ...data, members: newMembers })
+    setSavingCell(`${userId}:${sessionId}`)
+
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attendance: [{ userId, present: next.present, excused: next.excused }] }),
+      })
+      if (!res.ok) throw new Error('PUT failed')
+    } catch (err) {
+      console.error('Error saving attendance:', err)
+      setData(previous) // rollback
+      alert('Erreur lors de la sauvegarde')
+    } finally {
+      setTimeout(() => {
+        setSavingCell(prev => (prev === `${userId}:${sessionId}` ? null : prev))
+      }, 600)
+    }
   }
 
   if (loading) {
@@ -258,7 +323,14 @@ export default function GroupAttendancePage({
             <CollapsibleTrigger className="w-full">
               <CardHeader className="pb-3 cursor-pointer hover:bg-muted/30 transition-colors">
                 <CardTitle className="text-base flex items-center justify-between">
-                  <span>Détail par séance</span>
+                  <span className="flex items-center gap-2">
+                    Détail par séance
+                    {data.isReferent && (
+                      <span className="text-xs font-normal text-muted-foreground">
+                        Clic = Présent → Absent → Excusé
+                      </span>
+                    )}
+                  </span>
                   <ChevronDown className={`h-4 w-4 transition-transform ${matrixOpen ? 'rotate-180' : ''}`} />
                 </CardTitle>
               </CardHeader>
@@ -316,11 +388,14 @@ export default function GroupAttendancePage({
                                 bg = 'bg-red-50 dark:bg-red-950/30'
                               }
                             }
+                            const cellKey = `${m.userId}:${cell.sessionId}`
+                            const isSaving = savingCell === cellKey
                             return (
                               <td
                                 key={cell.sessionId}
-                                className={`border-l px-2 py-2 text-center ${bg}`}
-                                title={`${stateLabel} — ${dateLabel}`}
+                                className={`border-l px-2 py-2 text-center ${bg} ${data.isReferent ? 'cursor-pointer hover:opacity-70' : ''} ${isSaving ? 'opacity-50' : ''}`}
+                                title={data.isReferent ? `${stateLabel} — ${dateLabel} — cliquer pour changer` : `${stateLabel} — ${dateLabel}`}
+                                onClick={data.isReferent ? () => cyclePresence(m.userId, cell.sessionId) : undefined}
                               >
                                 {icon}
                               </td>
