@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
 import { getWeekNumber } from '@/lib/week-utils'
+import { sanitizeRichText } from '@/lib/sanitize-rich-text'
 
 // Helper: get the Sunday (start of week) for a given date
 function getWeekStart(date: Date): Date {
@@ -619,7 +620,7 @@ export async function POST(
         verseStart,
         verseEnd,
         status: 'V',
-        comment,
+        comment: sanitizeRichText(comment),
         createdBy: effectiveUserId
       }
     })
@@ -730,7 +731,7 @@ export async function PATCH(
 
     // Update comment text if provided
     if (comment !== undefined) {
-      updateData.comment = comment
+      updateData.comment = sanitizeRichText(comment)
     }
 
     // Update session if sessionNumber provided

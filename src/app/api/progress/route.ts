@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getEffectiveUserId } from '@/lib/impersonation'
+import { checkDataVisibility } from '@/lib/permissions'
+import { sanitizeRichText } from '@/lib/sanitize-rich-text'
 
 export async function GET(request: Request) {
   try {
@@ -19,27 +21,32 @@ export async function GET(request: Request) {
     // Support impersonation
     const { userId: effectiveUserId, isImpersonating } = await getEffectiveUserId()
 
-    // Get current user to check if admin
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true }
-    })
-
-    const isAdmin = currentUser?.role === 'ADMIN'
-
     // Build where clause
     const where: Record<string, unknown> = {}
 
     if (isImpersonating) {
       // When impersonating, show the impersonated user's data
       where.userId = effectiveUserId
-    } else if (isAdmin) {
-      // Admin can see all or filter by user
-      if (userId && userId !== 'all') {
-        where.userId = userId
+    } else if (userId && userId !== 'all' && userId !== session.user.id) {
+      // Targeting another user: require view permission
+      const visibility = await checkDataVisibility(session.user.id, userId, 'progress')
+      if (!visibility.canView) {
+        return NextResponse.json(
+          { error: "Vous n'êtes pas autorisé à consulter l'avancement de cet utilisateur" },
+          { status: 403 }
+        )
+      }
+      where.userId = userId
+    } else if (userId === 'all') {
+      // 'all' is only meaningful for an admin; others fall back to their own data
+      const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true },
+      })
+      if (currentUser?.role !== 'ADMIN') {
+        where.userId = session.user.id
       }
     } else {
-      // Regular users only see their own data
       where.userId = session.user.id
     }
 
@@ -90,14 +97,20 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if admin and userId provided
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true }
-    })
+    const sanitizedComment = sanitizeRichText(comment)
 
-    const isAdmin = currentUser?.role === 'ADMIN'
-    const targetUserId = (isAdmin && userId) ? userId : session.user.id
+    // Resolve the target user: self by default, another user if allowed
+    let targetUserId = session.user.id
+    if (userId && userId !== session.user.id) {
+      const visibility = await checkDataVisibility(session.user.id, userId, 'progress')
+      if (!visibility.canEdit) {
+        return NextResponse.json(
+          { error: "Vous n'êtes pas autorisé à modifier l'avancement de cet utilisateur" },
+          { status: 403 }
+        )
+      }
+      targetUserId = userId
+    }
 
     // Verify surah exists and verse range is valid
     const surah = await prisma.surah.findUnique({
@@ -126,7 +139,7 @@ export async function POST(request: Request) {
         verseStart,
         verseEnd,
         repetitions,
-        comment,
+        comment: sanitizedComment,
         tafsirBookIds: tafsirBookIds || [],
         createdBy: session.user.id,
       },
@@ -201,7 +214,7 @@ export async function POST(request: Request) {
               verseStart,
               verseEnd,
               status,
-              comment: comment || `v.${verseStart}-${verseEnd}`,
+              comment: sanitizedComment || `v.${verseStart}-${verseEnd}`,
               createdBy: session.user.id,
             }
           })

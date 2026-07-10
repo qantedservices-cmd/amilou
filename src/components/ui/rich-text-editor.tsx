@@ -59,6 +59,9 @@ export function RichTextEditor({
     ],
     content: value || '',
     editable: !disabled,
+    // Requis par tiptap v3 sous Next.js : sans cela, useEditor lève
+    // "SSR has been detected" au montage et fait planter la page.
+    immediatelyRender: false,
     editorProps: {
       attributes: {
         class: 'tiptap-editor',
