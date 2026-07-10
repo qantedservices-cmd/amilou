@@ -92,21 +92,32 @@ export async function GET(
       attendanceBySession.set(s.id, byUser)
     }
 
-    // Build per-member summary + per-session breakdown
+    // Build per-member summary + per-session breakdown.
+    // A roll-call ("appel") is done at each session, so a member present in the
+    // group produces a record (present / excused / absent) for that session. A
+    // session with NO record for a member means they were not part of that
+    // session's roll-call (not yet enrolled, or outside their period) — it does
+    // NOT count as an absence. The rate is therefore computed only over the
+    // sessions where the member has a record.
     const totalSessions = sessions.length
     const membersOut = members.map((m) => {
+      let presentCount = 0
+      let excusedCount = 0
+      let absentCount = 0
+
       const perSession = sessions.map((s) => {
         const rec = attendanceBySession.get(s.id)?.get(m.userId)
-        if (!rec) {
-          return { sessionId: s.id, present: false, excused: false, hasRecord: false }
+        if (rec) {
+          if (rec.present) presentCount++
+          else if (rec.excused) excusedCount++
+          else absentCount++
+          return { sessionId: s.id, present: rec.present, excused: rec.excused, hasRecord: true }
         }
-        return { sessionId: s.id, present: rec.present, excused: rec.excused, hasRecord: true }
+        return { sessionId: s.id, present: false, excused: false, hasRecord: false }
       })
 
-      const presentCount = perSession.filter((p) => p.present).length
-      const excusedCount = perSession.filter((p) => !p.present && p.excused).length
-      const absentCount = totalSessions - presentCount - excusedCount
-      const rate = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0
+      const applicableCount = presentCount + excusedCount + absentCount
+      const rate = applicableCount > 0 ? Math.round((presentCount / applicableCount) * 100) : 0
 
       return {
         userId: m.userId,
@@ -115,6 +126,7 @@ export async function GET(
         absentCount,
         excusedCount,
         rate,
+        applicableCount,
         perSession,
       }
     })

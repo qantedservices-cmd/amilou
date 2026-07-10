@@ -27,6 +27,7 @@ interface MemberSummary {
   absentCount: number
   excusedCount: number
   rate: number
+  applicableCount: number
   perSession: PerSession[]
 }
 
@@ -225,7 +226,7 @@ export default function GroupAttendancePage({
                   {sortedMembers.map((m, i) => (
                     <tr key={m.userId} className={`border-b last:border-0 hover:bg-muted/20 ${i % 2 === 0 ? '' : 'bg-muted/10'}`}>
                       <td className="px-4 py-2.5 text-sm font-medium">{m.name}</td>
-                      <td className="px-4 py-2.5 text-center text-sm">{m.presentCount} / {data.totalSessions}</td>
+                      <td className="px-4 py-2.5 text-center text-sm">{m.presentCount} / {m.applicableCount}</td>
                       <td className="px-4 py-2.5 text-center text-sm">{m.absentCount}</td>
                       <td className="px-4 py-2.5 text-center text-sm">{m.excusedCount}</td>
                       <td className="px-4 py-2.5">
