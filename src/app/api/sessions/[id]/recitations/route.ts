@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { sanitizeRichText } from '@/lib/sanitize-rich-text'
 
 // GET /api/sessions/[id]/recitations - List recitations for a session
 export async function GET(
@@ -106,7 +107,7 @@ export async function POST(
           verseStart,
           verseEnd: Math.min(verseEnd, surah.totalVerses),
           status,
-          comment,
+          comment: sanitizeRichText(comment),
           createdBy: session.user.id,
         },
         include: {

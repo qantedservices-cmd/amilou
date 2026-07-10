@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { sanitizeRichText } from '@/lib/sanitize-rich-text'
 
 // PUT /api/sessions/[id]/recitations/[recitationId] - Update a recitation
 export async function PUT(
@@ -73,7 +74,8 @@ export async function PUT(
         verseStart,
         verseEnd: Math.min(verseEnd, surah.totalVerses),
         status,
-        comment,
+        // `undefined` = champ absent du body : Prisma laisse le commentaire intact.
+        ...(comment !== undefined && { comment: sanitizeRichText(comment) }),
       },
       include: {
         user: { select: { id: true, name: true } },
