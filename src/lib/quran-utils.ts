@@ -143,12 +143,12 @@ export async function getMemorizedZone(userId: string): Promise<MemorizedZone | 
   if (direction === 'FORWARD') {
     const startHizb = Math.floor(startHizbRaw)
     const endHizb = Math.ceil(endVerse.hizb)
-    // totalHizbs = nombre de hizbs à réviser (hizb entamé inclus, sans compter le +1)
-    // Ex: hizb 1 à 19 = 19 hizbs à parcourir (positions 0 à 19)
+    // totalHizbs = nombre de hizbs mémorisés, décompte inclusif.
+    // Ex: du hizb 1 à la fin du hizb 20 (10 Juz complets) = 20 hizbs à réviser.
     return {
       startHizb,
       endHizb,
-      totalHizbs: endHizb - startHizb
+      totalHizbs: endHizb - startHizb + 1
     }
   } else {
     // BACKWARD: start is at higher hizb, end is at lower
@@ -157,7 +157,7 @@ export async function getMemorizedZone(userId: string): Promise<MemorizedZone | 
     return {
       startHizb: endHizb,
       endHizb: startHizb,
-      totalHizbs: startHizb - endHizb
+      totalHizbs: startHizb - endHizb + 1
     }
   }
 }
@@ -204,8 +204,13 @@ export function objectiveToHizbPerDay(quantity: number, unit: string, period: st
 }
 
 // Recalculate reading and revision positions from the last cycle dates
-// Simulates day-by-day advancement with combined phase logic
-export async function recalculatePositionsFromCycles(userId: string): Promise<{
+// Simulates day-by-day advancement with combined phase logic.
+// opts.persist === false → calcul seul, sans créer les cycles manquants en base
+// (utile pour un aperçu lecture seule). Par défaut, les cycles sont créés.
+export async function recalculatePositionsFromCycles(
+  userId: string,
+  opts: { persist?: boolean } = {}
+): Promise<{
   readingHizb: number
   revisionHizb: number
   revisionSuspended: number | null
@@ -366,8 +371,8 @@ export async function recalculatePositionsFromCycles(userId: string): Promise<{
     }
   }
 
-  // Create any missing cycles in DB
-  for (const cycle of newCycles) {
+  // Create any missing cycles in DB (skipped for a read-only preview)
+  if (opts.persist !== false) for (const cycle of newCycles) {
     const cycleDate = new Date(cycle.date + 'T12:00:00.000Z')
     // Check if cycle already exists for this date/type
     const existing = await prisma.completionCycle.findFirst({

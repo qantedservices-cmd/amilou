@@ -413,16 +413,16 @@ Tracker temps réel de la position dans les cycles de Révision et Lecture.
 
 Le nombre de hizbs à réviser (`totalHizbs`) = **nombre de hizbs mémorisés, hizb entamé inclus**.
 
-**Calcul** : `totalHizbs = endHizb - startHizb`
+**Calcul** : `totalHizbs = endHizb - startHizb + 1` (décompte **inclusif** : chaque hizb mémorisé compte)
 - `startHizb` = hizb du premier verset mémorisé (arrondi vers le bas)
 - `endHizb` = hizb du dernier verset mémorisé (arrondi vers le haut, hizb entamé = compté)
 
-**Exemple** : Mémorisation de S1:v1 (hizb 1) à S9:v33 (hizb 19)
+**Exemple** : Mémorisation du hizb 1 à la fin du hizb 20 (10 Juz complets)
 - `startHizb = floor(1) = 1`
-- `endHizb = ceil(19) = 19`
-- `totalHizbs = 19 - 1 = 19 hizbs` à réviser
+- `endHizb = ceil(20) = 20`
+- `totalHizbs = 20 - 1 + 1 = 20 hizbs` à réviser (et non 19 : 10 Juz = 20 hizbs)
 
-Un cycle de révision complet = parcourir les 19 hizbs. La position va de 0 à 19, puis repart à 0 (nouveau cycle).
+Un cycle de révision complet = parcourir les 20 hizbs. La position va de 0 à 20, puis repart à 0 (nouveau cycle).
 
 ### Calcul de la position de révision (`recalculatePositionsFromCycles`)
 
