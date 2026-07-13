@@ -308,17 +308,23 @@ export async function recalculatePositionsFromCycles(
   const adjustmentDateSet = new Set(adjustmentsByDate.keys())
   const allDates = [...new Set([...readingDateSet, ...revisionDateSet, ...adjustmentDateSet])].sort()
 
+  // Un ajustement n'est appliqué à un programme que s'il est postérieur au dernier
+  // cycle de CE programme. Sinon un ajustement antérieur à un cycle auto-créé (au
+  // wrap) serait ré-appliqué à chaque recalcul → position corrompue (non-idempotence).
+  const lectureCycleStr = lectureCycleDate ? lectureCycleDate.toISOString().split('T')[0] : null
+  const revisionCycleStr = revisionCycleDate ? revisionCycleDate.toISOString().split('T')[0] : null
+
   for (const dateStr of allDates) {
     // Apply manual adjustment — overrides position AND skips advancement for that day
     const adj = adjustmentsByDate.get(dateStr)
     let readingAdjusted = false
     let revisionAdjusted = false
     if (adj) {
-      if (adj.readingHizb !== null) {
+      if (adj.readingHizb !== null && (!lectureCycleStr || dateStr > lectureCycleStr)) {
         readingHizb = adj.readingHizb
         readingAdjusted = true
       }
-      if (adj.revisionHizb !== null) {
+      if (adj.revisionHizb !== null && (!revisionCycleStr || dateStr > revisionCycleStr)) {
         revisionHizb = adj.revisionHizb
         revisionAdjusted = true
         if (revisionSuspended !== null) {
@@ -369,6 +375,15 @@ export async function recalculatePositionsFromCycles(
         newCycles.push({ type: 'REVISION', date: dateStr, hizbCount: zone.totalHizbs, notes: 'Auto-cycle' })
       }
     }
+  }
+
+  // Réconciliation finale : la suspension n'a de sens que si la lecture est
+  // actuellement dans la zone mémorisée. Si la lecture en est sortie (ex: via un
+  // ajustement manuel qui ne déclenche pas la reprise jour-par-jour), on reprend
+  // la révision. Garantit un état cohérent et idempotent.
+  if (revisionSuspended !== null && !isInMemorizedZone(readingHizb)) {
+    revisionHizb = revisionSuspended
+    revisionSuspended = null
   }
 
   // Create any missing cycles in DB (skipped for a read-only preview)
