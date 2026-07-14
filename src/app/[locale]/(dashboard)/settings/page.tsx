@@ -296,6 +296,14 @@ export default function SettingsPage() {
     }
   }, [programs, programSettings])
 
+  // Scroll to section if hash is present
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#zone-memorisation') {
+      const el = document.getElementById('zone-memorisation')
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [])
+
   async function saveAllSettings() {
     setSavingSettings(true)
     setSettingsMessage(null)
@@ -902,7 +910,7 @@ export default function SettingsPage() {
       <Separator />
 
       {/* Memorization Start Settings Card */}
-      <Card>
+      <Card id="zone-memorisation" className="scroll-mt-24">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
