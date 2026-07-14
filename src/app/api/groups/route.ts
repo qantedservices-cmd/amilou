@@ -112,13 +112,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const { name, description, sessionFrequency } = await request.json()
+    const { name, description, sessionFrequency, isStudent } = await request.json()
 
     if (!name) {
       return NextResponse.json({ error: 'Nom du groupe requis' }, { status: 400 })
     }
 
-    // Create group and add creator as referent
+    // Create group and add creator as referent (participant élève par défaut)
     const group = await prisma.group.create({
       data: {
         name,
@@ -128,6 +128,7 @@ export async function POST(request: Request) {
           create: {
             userId: session.user.id,
             role: 'REFERENT',
+            isStudent: isStudent !== false,
           },
         },
       },
