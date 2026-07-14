@@ -23,6 +23,7 @@ export async function GET() {
         image: true,
         hasSeenOnboarding: true,
         memorizationStartDate: true,
+        memorizationStartSurah: true,
       }
     })
 
@@ -30,7 +31,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 })
     }
 
-    return NextResponse.json({ ...user, isImpersonating })
+    const groupCount = await prisma.groupMember.count({ where: { userId: userId! } })
+
+    return NextResponse.json({
+      ...user,
+      isImpersonating,
+      hasGroup: groupCount > 0,
+      hasMemorizationZone: user.memorizationStartSurah !== null,
+    })
   } catch (error) {
     console.error('Error fetching current user:', error)
     return NextResponse.json(
