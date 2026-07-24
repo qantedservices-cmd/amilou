@@ -339,7 +339,10 @@ export async function recalculatePositionsFromCycles(
     // Process reading first (may suspend/resume revision)
     if (hasReading && readingHizbPerDay > 0) {
       const wasInZone = isInMemorizedZone(readingHizb)
-      const speed = wasInZone ? 2 : 1
+      // La vitesse dépend du hizb sur le point d'être lu (readingHizb + 1), pas de la
+      // position déjà atteinte : après un wrap (readingHizb = 0), la lecture reprend au
+      // hizb 1 (dans la zone mémorisée) et doit passer à 2× dès le premier jour.
+      const speed = isInMemorizedZone(readingHizb + 1) ? 2 : 1
       readingHizb += speed * readingHizbPerDay
 
       // Handle wrap (reading exceeds 60 = full Quran)
