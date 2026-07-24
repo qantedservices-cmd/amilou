@@ -296,13 +296,14 @@ export default function SettingsPage() {
     }
   }, [programs, programSettings])
 
-  // Scroll to section if hash is present
+  // Scroll to section if hash is present — attendre la fin du chargement, car la
+  // carte #zone-memorisation n'est rendue qu'une fois `loading` passé à false.
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.hash === '#zone-memorisation') {
+    if (!loading && typeof window !== 'undefined' && window.location.hash === '#zone-memorisation') {
       const el = document.getElementById('zone-memorisation')
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
-  }, [])
+  }, [loading])
 
   async function saveAllSettings() {
     setSavingSettings(true)
