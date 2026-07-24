@@ -296,6 +296,15 @@ export default function SettingsPage() {
     }
   }, [programs, programSettings])
 
+  // Scroll to section if hash is present — attendre la fin du chargement, car la
+  // carte #zone-memorisation n'est rendue qu'une fois `loading` passé à false.
+  useEffect(() => {
+    if (!loading && typeof window !== 'undefined' && window.location.hash === '#zone-memorisation') {
+      const el = document.getElementById('zone-memorisation')
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [loading])
+
   async function saveAllSettings() {
     setSavingSettings(true)
     setSettingsMessage(null)
@@ -902,7 +911,7 @@ export default function SettingsPage() {
       <Separator />
 
       {/* Memorization Start Settings Card */}
-      <Card>
+      <Card id="zone-memorisation" className="scroll-mt-24">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
